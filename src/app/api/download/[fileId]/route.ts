@@ -80,7 +80,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/download/[fileI
     });
   }
 
-  const url = storage().downloadUrl(file.storageKey, {
+  const url = await storage().downloadUrl(file.storageKey, {
     filename: file.filename,
     userId: user.id,
     ttlSec: 10 * 60,

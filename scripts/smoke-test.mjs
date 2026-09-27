@@ -14,6 +14,11 @@ import { strToU8, zipSync } from "fflate";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const ORIGIN = new URL(BASE).origin;
+// Staging yang dikunci (SITE_LOCK_PASSWORD): SMOKE_BASIC_AUTH="user:password"
+const BASIC = process.env.SMOKE_BASIC_AUTH ? `Basic ${Buffer.from(process.env.SMOKE_BASIC_AUTH).toString("base64")}` : null;
+const authHeaders = () => (BASIC ? { authorization: BASIC } : {});
+// Link download bertanda tangan: driver local (/api/storage/file?token=) atau Vercel Blob (store privat, presigned)
+const isSignedDownload = (loc) => loc.startsWith("/api/storage/file?token=") || /^https:\/\/[a-z0-9]+\.private\.blob\.vercel-storage\.com\/.+vercel-blob-signature=/.test(loc);
 let passed = 0;
 
 function ok(cond, label) {
@@ -52,11 +57,17 @@ class Session {
     }
   }
   async req(path, init = {}) {
+    const url = path.startsWith("http") ? path : BASE + path;
+    if (new URL(url).origin !== ORIGIN) {
+      // Host luar (mis. URL presigned Vercel Blob): JANGAN kirim cookie session / header internal
+      return fetch(url, { redirect: "manual", ...init });
+    }
     const headers = new Headers(init.headers);
+    if (BASIC) headers.set("authorization", BASIC);
     if (this.cookies.size) headers.set("cookie", this.cookieHeader());
     if (init.method && init.method !== "GET" && !headers.has("origin")) headers.set("origin", ORIGIN);
     headers.set("x-forwarded-for", this.ip);
-    const res = await fetch(path.startsWith("http") ? path : BASE + path, { redirect: "manual", ...init, headers });
+    const res = await fetch(url, { redirect: "manual", ...init, headers });
     this.store(res);
     return res;
   }
@@ -149,7 +160,7 @@ const guest = new Session();
   ok(admin.res.status === 307 || admin.res.status === 303 || admin.res.status === 302, "Halaman admin mengarahkan tamu ke login");
   const traversal = await guest.req("/media/..%2F..%2F.env.local");
   ok(traversal.status === 404, "Path traversal di /media ditolak");
-  const csrf = await fetch(`${BASE}/api/download/00000000-0000-0000-0000-000000000000`, { method: "POST", headers: { origin: "https://situs-jahat.example" }, redirect: "manual" });
+  const csrf = await fetch(`${BASE}/api/download/00000000-0000-0000-0000-000000000000`, { method: "POST", headers: { origin: "https://situs-jahat.example", ...authHeaders() }, redirect: "manual" });
   ok(csrf.status === 403, "POST dari origin asing ditolak (CSRF)");
 }
 
@@ -173,14 +184,20 @@ const user = new Session();
   ok(Boolean(fileId), "Tombol download muncul untuk user yang login");
   const dl = await user.req(`/api/download/${fileId}`, { method: "POST" });
   const location = dl.headers.get("location") ?? "";
-  ok(dl.status === 303 && location.startsWith("/api/storage/file?token="), "POST download → 303 ke signed URL");
+  ok(dl.status === 303 && isSignedDownload(location), "POST download → 303 ke signed URL");
   const file = await user.req(location);
   const buf = Buffer.from(await file.arrayBuffer());
   const hash = createHash("sha256").update(buf).digest("hex");
   ok(file.status === 200 && /attachment/.test(file.headers.get("content-disposition") ?? ""), "Signed URL mengirim file sebagai attachment");
   ok(hash === shownHash, "SHA-256 file yang diunduh cocok dengan yang ditampilkan");
-  const stolen = await guest.req(location);
-  ok(stolen.status === 403, "Signed URL tidak bisa dipakai akun lain / tanpa login");
+  if (location.startsWith("/")) {
+    const stolen = await guest.req(location);
+    ok(stolen.status === 403, "Signed URL tidak bisa dipakai akun lain / tanpa login");
+  } else {
+    // Vercel Blob: file privat tanpa tanda tangan harus ditolak; link bertanda tangan hanya berlaku 5 menit
+    const unsigned = await fetch(location.split("?")[0]);
+    ok(unsigned.status === 403 || unsigned.status === 401, "File privat tanpa tanda tangan ditolak (Vercel Blob)");
+  }
 
   const lib = await user.html("/library");
   ok(lib.text.includes("Catat Duit") && lib.text.includes("Update v1.3.0"), "Library berisi produk + tanda update tersedia");
@@ -541,7 +558,7 @@ async function register(s, username, password, extra = {}) {
   const again2 = await user.html(`/pesanan/${code}`);
   ok(again2.text.includes("Pembayaran berhasil") && !again2.text.includes("Simulasikan pembayaran berhasil"), "Halaman pesanan menampilkan sukses (tombol simulasi hilang)");
   const dl = await user.req(`/api/download/${proFileId}`, { method: "POST" });
-  ok(dl.status === 303 && (dl.headers.get("location") ?? "").startsWith("/api/storage/file?token="), "Setelah bayar, file berbayar bisa di-download");
+  ok(dl.status === 303 && isSignedDownload(dl.headers.get("location") ?? ""), "Setelah bayar, file berbayar bisa di-download");
   ok((await user.html("/library")).text.includes("KasirKu Pro"), "Produk yang dibeli masuk Library");
   ok((await user.html("/akun/pesanan")).text.includes(code), "Riwayat 'Pesanan saya' berisi pesanan lunas");
   const ownedCo = await user.req("/beli/kasirku-pro");

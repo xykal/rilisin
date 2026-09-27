@@ -5,10 +5,13 @@ import { getRoomBySlug } from "@/lib/chat/server";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
+// Vercel Hobby (Fluid compute): durasi fungsi maks 300 dtk → stream ditutup sebelum itu (SSE_MAX_SECONDS) lalu browser
+// menyambung ulang otomatis (retry 3 dtk) dan mengambil pesan yang terlewat.
+export const maxDuration = 300;
 
 const KEEPALIVE_MS = 20_000;
 /** Koneksi ditutup berkala → browser otomatis menyambung ulang & session dicek ulang. */
-const MAX_LIFETIME_MS = 20 * 60_000;
+const MAX_LIFETIME_MS = Math.max(30, Number(process.env.SSE_MAX_SECONDS ?? 20 * 60)) * 1000;
 
 /**
  * Server-Sent Events untuk chat realtime: pesan baru/berubah, reaksi, "sedang mengetik",

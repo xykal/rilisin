@@ -1,0 +1,9 @@
+# Jangan ikut ter-upload saat `vercel deploy` dari mesin lokal
+.env*
+!.env.example
+.local
+.next
+node_modules
+.git
+coverage
+*.log

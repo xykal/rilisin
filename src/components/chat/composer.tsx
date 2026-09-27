@@ -109,14 +109,33 @@ export function Composer(p: Props) {
 
   function pickFile(file: File) {
     if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return p.onError("Hanya gambar PNG, JPG, atau WebP.");
-    if (file.size > CHAT_LIMITS.imageMaxBytes) return p.onError("Gambar maksimal 8 MB.");
+    if (file.size > 25 * 1024 * 1024) return p.onError("Gambar maksimal 25 MB.");
     const localUrl = URL.createObjectURL(file);
     const probe = new Image();
     probe.onload = () => {
       setImage({ uploadId: null, url: localUrl, w: probe.naturalWidth, h: probe.naturalHeight, progress: 0 });
+      // Foto HP modern 5–15 MB: kecilkan dulu di browser (maks 2048 px, JPEG) → upload cepat & lolos batas body server
+      const big = file.size > 3 * 1024 * 1024 || Math.max(probe.naturalWidth, probe.naturalHeight) > 2048;
+      if (!big) return sendImage(file);
+      const scale = Math.min(1, 2048 / Math.max(probe.naturalWidth, probe.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(probe.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(probe.naturalHeight * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return sendImage(file);
+      ctx.fillStyle = "#ffffff"; // PNG transparan → latar putih (JPEG tidak punya alpha)
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(probe, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((b) => sendImage(b && b.size < file.size ? b : file), "image/jpeg", 0.86);
+    };
+    const sendImage = (body: Blob) => {
+      if (body.size > CHAT_LIMITS.imageMaxBytes) {
+        setImage(null);
+        return p.onError("Gambar terlalu besar.");
+      }
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/chat/uploads");
-      xhr.setRequestHeader("Content-Type", file.type);
+      xhr.setRequestHeader("Content-Type", body.type || file.type);
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) setImage((cur) => (cur && cur.url === localUrl ? { ...cur, progress: e.loaded / e.total } : cur));
       };
@@ -136,7 +155,7 @@ export function Composer(p: Props) {
         setImage(null);
         p.onError("Upload gambar gagal — cek koneksi.");
       };
-      xhr.send(file);
+      xhr.send(body);
     };
     probe.onerror = () => p.onError("Gambar tidak bisa dibaca.");
     probe.src = localUrl;

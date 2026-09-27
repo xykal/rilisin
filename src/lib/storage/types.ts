@@ -1,7 +1,6 @@
 /**
- * Kontrak penyimpanan file. Sekarang ada driver "local" (folder di server).
- * Saat deploy, tinggal tambah driver "r2" (Cloudflare R2, S3-compatible) dengan
- * kontrak yang sama — kode fitur lain tidak perlu diubah.
+ * Kontrak penyimpanan file. Driver: "local" (folder di server, development) dan
+ * "vercel-blob" (produksi gratis: store publik + store privat). Kode fitur lain tidak peduli driver-nya.
  *
  * Konvensi key:
  *   tmp/...      → upload yang belum difinalisasi
@@ -9,8 +8,8 @@
  *   private/...  → file aplikasi — hanya lewat signed URL berumur pendek
  */
 export interface StorageDriver {
-  /** URL tujuan upload langsung dari browser (method PUT). */
-  uploadUrl(key: string, token: string): string;
+  /** URL tujuan upload langsung dari browser (method PUT). Ukuran maksimal dikunci di URL/token. */
+  uploadUrl(key: string, token: string, maxBytes: number): Promise<string>;
   stat(key: string): Promise<{ size: number } | null>;
   read(key: string): Promise<Buffer>;
   readRange(key: string, start: number, length: number): Promise<Buffer>;
@@ -19,8 +18,8 @@ export interface StorageDriver {
   move(from: string, to: string): Promise<void>;
   remove(key: string): Promise<void>;
   publicUrl(key: string): string;
-  /** Signed URL download (berlaku singkat, terikat ke user). */
-  downloadUrl(key: string, opts: { filename: string; userId: string; ttlSec: number }): string;
+  /** Signed URL download (berlaku singkat). Driver local: terikat ke user; vercel-blob: link bearer 5 menit. */
+  downloadUrl(key: string, opts: { filename: string; userId: string; ttlSec: number }): Promise<string>;
 }
 
 export class StorageError extends Error {

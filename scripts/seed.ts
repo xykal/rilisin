@@ -35,7 +35,15 @@ function rand() {
   return rngState / 4294967296;
 }
 
+const USE_BLOB = process.env.STORAGE_DRIVER === "vercel-blob";
+
+/** Tulis file demo ke storage aktif: folder lokal (default) atau Vercel Blob (staging/produksi). */
 async function put(key: string, data: Buffer) {
+  if (USE_BLOB) {
+    const { blobPut } = await import("../src/lib/storage/blob-core");
+    await blobPut(key, data, key.endsWith(".webp") ? "image/webp" : undefined);
+    return;
+  }
   const full = path.join(STORAGE_ROOT, key);
   await fs.mkdir(path.dirname(full), { recursive: true });
   await fs.writeFile(full, data);
@@ -626,11 +634,20 @@ async function main() {
   await client.unsafe("DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
   await migrate(db, { migrationsFolder: "drizzle" });
 
-  console.log("» Reset storage lokal…");
-  await fs.rm(STORAGE_ROOT, { recursive: true, force: true });
-  await fs.mkdir(STORAGE_ROOT, { recursive: true });
+  if (USE_BLOB) {
+    console.log("» Kosongkan store Vercel Blob…");
+    const { blobWipe } = await import("../src/lib/storage/blob-core");
+    console.log(`  ${await blobWipe()} file lama dihapus`);
+  } else {
+    console.log("» Reset storage lokal…");
+    await fs.rm(STORAGE_ROOT, { recursive: true, force: true });
+    await fs.mkdir(STORAGE_ROOT, { recursive: true });
+  }
 
-  const passwordHash = await hashPassword("rilisin123");
+  // Staging/produksi: password akun demo dari env (rilisin123 tercantum di README repo publik)
+  const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD || "rilisin123";
+  if (DEMO_PASSWORD.length < 10) throw new Error("SEED_DEMO_PASSWORD minimal 10 karakter");
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
 
   // Akun inti
   const [admin] = await db
@@ -763,7 +780,7 @@ async function main() {
         else if (f.kind === "zip") buf = makeZip({ "README.md": `# ${p.title} v${r.version}\n\n${p.summary}\n\n(File demo Rilisin)\n` }, Math.round(f.mb * 1024 * 1024));
         else buf = makePdf(p.title, [p.summary.slice(0, 90), "", "Ini file demo dari prototype Rilisin.", "Versi lengkap akan diunggah oleh penulis.", "", `Versi ${r.version}`]);
         buffersByName.set(f.name, buf);
-        const key = `private/releases/${rel!.id}/${shortId()}-${f.name}`;
+        const key = `private/releases/${rel!.id}/${shortId()}/${f.name}`;
         await put(key, buf);
         const [file] = await db
           .insert(schema.releaseFiles)
@@ -838,7 +855,7 @@ async function main() {
   console.log(
     `✓ Seed selesai dalam ${((Date.now() - t0) / 1000).toFixed(1)} dtk — ${PRODUCTS.length} produk, ${fileCount} file, ${logs.length} log unduhan, ${chat.rooms} ruang chat, ${chat.messages} pesan, ${pay.orders} pesanan.`,
   );
-  console.log("  Akun demo (password: rilisin123): admin@rilisin.test · seller@rilisin.test · user@rilisin.test · moderator: dimas24@contoh.test");
+  console.log(`  Akun demo (password: ${process.env.SEED_DEMO_PASSWORD ? "dari SEED_DEMO_PASSWORD" : "rilisin123"}): admin@rilisin.test · seller@rilisin.test · user@rilisin.test · moderator: dimas24@contoh.test`);
 }
 
 main().catch((err) => {

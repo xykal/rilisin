@@ -1,14 +1,18 @@
 import "server-only";
+import { blobDriver } from "./blob";
 import { localDriver } from "./local";
 import type { StorageDriver } from "./types";
 
+export const storageDriverName = () => (process.env.STORAGE_DRIVER ?? "local") as "local" | "vercel-blob";
+
 export function storage(): StorageDriver {
-  const driver = process.env.STORAGE_DRIVER ?? "local";
+  const driver = storageDriverName();
   switch (driver) {
     case "local":
       return localDriver;
+    case "vercel-blob":
+      return blobDriver;
     default:
-      // Driver "r2" ditambahkan saat deploy (butuh akun Cloudflare + API key).
       throw new Error(`Storage driver "${driver}" belum tersedia`);
   }
 }

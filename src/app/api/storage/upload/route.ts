@@ -1,3 +1,4 @@
+import { storageDriverName } from "@/lib/storage";
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { isSameOrigin } from "@/lib/http";
@@ -10,6 +11,7 @@ import { readUploadToken } from "@/lib/uploads";
  * Body di-stream langsung ke disk dengan batas ukuran sesuai token.
  */
 export async function PUT(req: NextRequest) {
+  if (storageDriverName() !== "local") return new Response("Tidak ditemukan", { status: 404 }); // khusus driver local
   if ((process.env.STORAGE_DRIVER ?? "local") !== "local") return new Response("Not found", { status: 404 });
   if (!isSameOrigin(req)) return Response.json({ error: "Origin tidak diizinkan" }, { status: 403 });
 

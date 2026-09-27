@@ -104,7 +104,7 @@ export async function initUpload(
   const key = `tmp/${user.id}/${randomUUID()}`;
   const payload: UploadToken = { u: user.id, p: purpose as UploadPurpose, t: targetId, k: key, f: filename, s: size, pl: platform };
   const token = signToken("up", payload, 60 * 60);
-  return { token, uploadUrl: storage().uploadUrl(key, token), maxBytes: size };
+  return { token, uploadUrl: await storage().uploadUrl(key, token, size), maxBytes: size };
 }
 
 export function readUploadToken(token: string | null | undefined) {
@@ -201,7 +201,8 @@ export async function completeUpload(user: CurrentUser, token: string) {
     if (dupInRelease) throw new UploadError("File yang sama sudah ada di rilis ini.", 409);
 
     const filename = sanitizeFilename(t.f);
-    const finalKey = `private/releases/${t.t}/${randomUUID().slice(0, 8)}-${filename}`;
+    // …/<acak>/<nama-asli> → di Vercel Blob, file yang di-download otomatis bernama sesuai aslinya
+    const finalKey = `private/releases/${t.t}/${randomUUID().slice(0, 8)}/${filename}`;
     await store.move(t.k, finalKey);
     const [file] = await db
       .insert(releaseFiles)

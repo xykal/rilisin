@@ -19,6 +19,7 @@
     "test:ui": "node scripts/qa/interactive-check.mjs"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.0",
     "drizzle-orm": "^0.45.3",
     "lucide-react": "^1.48.0",
     "next": "16.3.6",

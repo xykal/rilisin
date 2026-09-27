@@ -63,7 +63,7 @@ export async function openLocalStream(key: string) {
 }
 
 export const localDriver: StorageDriver = {
-  uploadUrl(_key, token) {
+  async uploadUrl(_key, token) {
     return `/api/storage/upload?token=${encodeURIComponent(token)}`;
   },
 
@@ -114,7 +114,7 @@ export const localDriver: StorageDriver = {
     return `/media/${key.replace(/^public\//, "")}`;
   },
 
-  downloadUrl(key, { filename, userId, ttlSec }) {
+  async downloadUrl(key, { filename, userId, ttlSec }) {
     const token = signToken("dl", { k: key, f: filename, u: userId }, ttlSec);
     return `/api/storage/file?token=${encodeURIComponent(token)}`;
   },

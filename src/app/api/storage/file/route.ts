@@ -1,3 +1,4 @@
+import { storageDriverName } from "@/lib/storage";
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { openLocalStream } from "@/lib/storage/local";
@@ -22,6 +23,7 @@ function errorPage(message: string, status: number) {
  * Token berlaku 10 menit & terikat ke user yang meminta (link tidak bisa dibagikan).
  */
 export async function GET(req: NextRequest) {
+  if (storageDriverName() !== "local") return new Response("Tidak ditemukan", { status: 404 }); // khusus driver local
   if ((process.env.STORAGE_DRIVER ?? "local") !== "local") return new Response("Not found", { status: 404 });
   const payload = verifyToken<{ k: string; f: string; u: string }>("dl", req.nextUrl.searchParams.get("token"));
   if (!payload) return errorPage("Link download sudah kedaluwarsa. Silakan klik tombol Download lagi.", 403);

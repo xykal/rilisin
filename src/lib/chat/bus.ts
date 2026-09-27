@@ -34,7 +34,8 @@ class ChatBus {
 
   ensureListening() {
     if (!this.ready) {
-      const listener = postgres(process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL!, {
+      // LISTEN butuh koneksi langsung (bukan pooler transaksi). Neon via Vercel: DATABASE_URL_UNPOOLED
+      const listener = postgres(process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL!, {
         max: 1,
         prepare: false,
         onnotice: () => {},

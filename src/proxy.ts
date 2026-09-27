@@ -1,30 +1,77 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Proxy (dulu "middleware"): pasang Content-Security-Policy dengan nonce acak per request.
- * Hanya script ber-nonce (dari Next.js sendiri) yang boleh jalan → XSS jauh lebih sulit
- * dieksploitasi walaupun ada celah injeksi HTML.
+ * Proxy (dulu "middleware"), jalan untuk SEMUA request kecuali aset statis:
+ *
+ * 1. Kunci situs (opsional, untuk staging): kalau SITE_LOCK_PASSWORD diisi, setiap request wajib HTTP Basic Auth —
+ *    termasuk /api/* dan request prefetch (supaya kunci tidak bisa dilewati dengan header next-router-prefetch).
+ *    Pengecualian: webhook payment gateway (dipanggil server gateway) & /.well-known/*.
+ * 2. Content-Security-Policy dengan nonce acak per request untuk halaman (bukan API/prefetch).
+ *    Hanya script ber-nonce (dari Next.js sendiri) yang boleh jalan → XSS jauh lebih sulit dieksploitasi.
  *
  * FRAME_ANCESTORS: siapa yang boleh menampilkan situs ini di dalam iframe.
- *   production  → 'none' (default, anti clickjacking)
- *   preview demo → * (preview sandbox menampilkan app di dalam iframe)
+ *   production → 'none' (default, anti clickjacking) · preview demo → *
  */
+const LOCK_EXEMPT = /^\/(api\/payments\/[a-z]+\/webhook|\.well-known\/|robots\.txt$)/;
+
+function sameSecret(a: string, b: string) {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
+
+function siteLockOk(request: NextRequest) {
+  const password = process.env.SITE_LOCK_PASSWORD;
+  if (!password || LOCK_EXEMPT.test(request.nextUrl.pathname)) return true;
+  const header = request.headers.get("authorization") ?? "";
+  if (!header.startsWith("Basic ")) return false;
+  const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
+  const sep = decoded.indexOf(":");
+  const user = decoded.slice(0, sep);
+  const pass = decoded.slice(sep + 1);
+  return sep > 0 && sameSecret(user, process.env.SITE_LOCK_USER || "rilisin") && sameSecret(pass, password);
+}
+
 export function proxy(request: NextRequest) {
+  if (!siteLockOk(request)) {
+    return new NextResponse("Situs uji coba Rilisin — butuh username & password dari tim.", {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": 'Basic realm="Rilisin (uji coba)", charset="UTF-8"',
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Robots-Tag": "noindex, nofollow",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  const locked = Boolean(process.env.SITE_LOCK_PASSWORD);
+  const path = request.nextUrl.pathname;
+  const isPrefetch = request.headers.has("next-router-prefetch") || request.headers.get("purpose") === "prefetch";
+  if (path.startsWith("/api/") || path.startsWith("/media/") || isPrefetch) {
+    const res = NextResponse.next();
+    if (locked) res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return res;
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const dev = process.env.NODE_ENV === "development";
   const frameAncestors = process.env.FRAME_ANCESTORS?.trim() || "'none'";
+  const blob = process.env.STORAGE_DRIVER === "vercel-blob";
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
     // atribut style={...} dari React butuh 'unsafe-inline' (CSS tidak bisa menjalankan script)
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data:",
+    // Vercel Blob: gambar dari store publik, upload presigned ke vercel.com/api/blob, download = redirect ke store privat
+    `img-src 'self' blob: data:${blob ? " https://*.public.blob.vercel-storage.com" : ""}`,
     "font-src 'self'",
-    "connect-src 'self'",
+    `connect-src 'self'${blob ? " https://vercel.com" : ""}`,
     "media-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action 'self'${blob ? " https://*.private.blob.vercel-storage.com" : ""}`,
     `frame-ancestors ${frameAncestors}`,
     "frame-src 'none'",
     "worker-src 'self' blob:",
@@ -36,6 +83,7 @@ export function proxy(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", csp);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);
+  if (locked) response.headers.set("X-Robots-Tag", "noindex, nofollow");
   if (request.headers.get("x-forwarded-proto") === "https" || request.nextUrl.protocol === "https:") {
     response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
   }
@@ -43,13 +91,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    {
-      source: "/((?!api|_next/static|_next/image|media|favicon.ico|icon.svg|robots.txt|\\.well-known).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
-  ],
+  // Semua request kecuali aset statis build & ikon. Logika CSP/nonce hanya untuk halaman (dicek di dalam fungsi).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg).*)"],
 };
