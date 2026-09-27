@@ -24,7 +24,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
           />
         )}
-        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm backdrop-blur">
+        <span className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm backdrop-blur">
           {categoryLabel(product.category)}
         </span>
       </div>
@@ -60,9 +60,9 @@ export function ProductCard({ product }: { product: ProductCardData }) {
   );
 }
 
-export function ProductGrid({ items }: { items: ProductCardData[] }) {
+export function ProductGrid({ items, cols = 4 }: { items: ProductCardData[]; cols?: 3 | 4 }) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className={`grid gap-5 sm:grid-cols-2 lg:grid-cols-3 ${cols === 4 ? "xl:grid-cols-4" : ""}`}>
       {items.map((p) => (
         <ProductCard key={p.id} product={p} />
       ))}

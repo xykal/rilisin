@@ -171,7 +171,7 @@ export default async function ExplorePage({ searchParams }: PageProps<"/jelajahi
           </div>
 
           {items.length ? (
-            <ProductGrid items={items} />
+            <ProductGrid items={items} cols={3} />
           ) : (
             <EmptyState icon={<SearchX className="h-10 w-10" />} title="Belum ada karya yang cocok">
               Coba kata kunci lain atau hapus beberapa filter.
