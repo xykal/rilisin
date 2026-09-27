@@ -1,4 +1,4 @@
-# Rilisin — prototype (Fase 1 + Komunitas & Keamanan)
+# Rilisin — prototype (Fase 1 + Fase 2 Pembayaran + Komunitas & Keamanan)
 
 > "Rumah karya developer Indonesia". Tempat share gratis & jual aplikasi, game, source code, template, aset desain, dan e-book — plus komunitas chat grup.
 > **Rilisin** masih nama kerja: domain & merek belum dicek. Ganti nama cukup di `src/lib/config.ts`.
@@ -9,7 +9,9 @@ Blueprint lengkap ada di `../blueprint-store-komunitas.md`. Yang sudah jadi:
 - **Komunitas (ditarik maju dari Fase 3)** — chat grup realtime ala WhatsApp.
 - **Keamanan (sebagian Fase 4 ditarik maju)** — 2FA, CSP, anti brute force, log keamanan, moderasi chat.
 
-Fitur uang (checkout, saldo, payout) masih di **Fase 2**. Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
+- **Fase 2 (uang)** — checkout QRIS / Virtual Account (Pakasir API v2 + mode simulasi), pesanan, buku besar saldo seller, masa tahan 7 hari, pencairan dana, refund, panel keuangan admin.
+
+Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 
 ---
 
@@ -21,7 +23,10 @@ Fitur uang (checkout, saldo, payout) masih di **Fase 2**. Detail keamanan ada di
 | Katalog | Beranda (pilihan editor, trending 7 hari, baru rilis, cuplikan obrolan komunitas), Jelajahi dengan filter kategori/platform/harga, pencarian full-text |
 | Produk | Cover, ikon, screenshot, deskripsi Markdown aman, riwayat versi, lisensi, label verifikasi developer Android |
 | Download | Wajib login. Tombol (POST) → cek hak akses → catat → **signed URL** 10 menit yang terikat ke akun |
-| Library | Karya yang pernah diunduh + tanda **"Update tersedia"** |
+| Library | Karya yang pernah diunduh / dibeli + tanda **"Update tersedia"** |
+| **Checkout (Fase 2)** | Harga tetap atau **bayar seikhlasnya** (boleh Rp0 kalau seller mengizinkan). Metode: **QRIS** (biaya termurah) & Virtual Account BRI/BNI/Permata/CIMB/Maybank. Biaya gateway ditampilkan transparan & dibayar pembeli. Halaman pesanan: QRIS / nomor VA, hitung mundur, status berubah otomatis (webhook + polling), bukti bayar, email struk (Resend, opsional) |
+| **Saldo seller** | Komisi 10% (promo 0% seller awal) dipotong otomatis · pendapatan **ditahan 7 hari** lalu bisa dicairkan (min. Rp50.000) ke rekening bank / e-wallet · rekening **dienkripsi** & diverifikasi admin · pencairan wajib konfirmasi password (+2FA kalau aktif) |
+| **Keuangan admin** | `/admin/keuangan` (khusus admin): omzet, komisi, saldo tertahan/tersedia, **antrian pencairan** (nomor rekening lengkap, tandai terkirim / tolak), verifikasi rekening, daftar pesanan + detail (log event pembayaran, buku besar), **refund** (akses dicabut, pendapatan seller ditarik) |
 | Seller Center | Toko, profil `/@username`, editor karya, upload gambar & file rilis, checklist siap tayang, kirim review, rilis versi baru |
 | **Komunitas (chat grup)** | 8 ruang (Pengumuman, Nongkrong, Tanya Jawab Coding, Pamer Karya, Android & Flutter, Desain, Cerita Seller, Game Dev). Pesan **realtime**, "sedang mengetik…", jumlah online, badge belum dibaca + penanda "N pesan belum dibaca", pemisah tanggal, balasan (quote), gambar, format `*tebal*` `_miring_` `~coret~` `` `kode` `` + blok kode, link & @mention, emoji besar |
 | **Tahan pesan (ala WhatsApp iPhone)** | Tahan ±0,4 dtk (atau klik kanan / tombol ▾ di desktop / Enter di keyboard) → latar **blur**, pesan terangkat, **bar reaksi emoji** di atas, **menu** di bawah: Balas · Salin · Edit · Sematkan* · Laporkan · Bisukan* · Hapus → *sheet* **Hapus untuk saya / Hapus untuk semua orang**. Geser pesan ke kanan = balas cepat. (*khusus moderator) |
@@ -36,12 +41,14 @@ Password semua akun: **`rilisin123`**
 
 | Email | Peran |
 |---|---|
-| `user@rilisin.test` | Rina, pengguna biasa. Library terisi (1 update tersedia), ada **pesan belum dibaca** di #nongkrong & #pamer-karya |
-| `seller@rilisin.test` | Seller "Nusantara Labs" (karya tayang, 1 direview, 1 draft, rilis v2.1.0 menunggu review) |
-| `admin@rilisin.test` | Admin. Antrian review + **2 laporan chat** (1 sudah tersembunyi otomatis) |
+| `user@rilisin.test` | Rina, pengguna biasa. Library terisi (1 update tersedia, 1 produk **dibeli**), ada **pesan belum dibaca** di #nongkrong & #pamer-karya. Coba beli **KasirKu Pro** / **Laravel Kasir POS** → bayar lewat tombol simulasi |
+| `seller@rilisin.test` | Seller "Nusantara Labs": karya tayang/direview/draft + **KasirKu Pro (berbayar)** dengan 5 penjualan, saldo tersedia Rp82.300 & tertahan Rp88.200, rekening BCA terverifikasi → bisa langsung coba **cairkan dana** |
+| `admin@rilisin.test` | Admin. Antrian review, **2 laporan chat**, **Keuangan**: 1 pencairan menunggu (Dapur Kode Rp250.000) + 1 rekening e-wallet perlu verifikasi |
 | `dimas24@contoh.test` | **Moderator komunitas** (bisa sematkan, hapus pesan siapa pun, bisukan anggota) |
 
 Semua produk, akun, obrolan, dan angka unduhan adalah **data demo**. File unduhan hanya placeholder kecil.
+
+**Coba beli:** masuk sebagai Rina → buka *KasirKu Pro* → **Beli** → pilih QRIS → di halaman pesanan tekan **Simulasikan pembayaran berhasil** → produk masuk Library. Lalu masuk sebagai seller (penjualan & saldo) dan admin (Keuangan).
 
 **Coba 2FA:** masuk → menu akun → *Keamanan akun* → *Aktifkan 2FA* → scan QR dengan Google Authenticator/Authy → simpan kode cadangan → keluar & masuk lagi.
 
@@ -65,12 +72,39 @@ npm run build && npm run start  # buka http://localhost:3000
 | `npm run db:migrate` | Jalankan migrasi (tanpa menghapus data) |
 | `npm run db:generate` | Buat file migrasi baru setelah mengubah `src/lib/db/schema.ts` |
 | `npm run typecheck` / `npm run lint` | Cek TypeScript / ESLint |
-| `npm run test:smoke` | Tes end-to-end **97 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, dll). Server harus jalan. Menambah data uji → jalankan `db:seed` lagi |
+| `npm run test:smoke` | Tes end-to-end **143 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, checkout, pembayaran, saldo, pencairan, refund). Server harus jalan. Menambah data uji → jalankan `db:seed` lagi |
+| `npm run test:pakasir` | Contract test adapter **Pakasir API v2** + webhook (16 pengecekan) memakai server Pakasir palsu — tidak menyentuh akun asli |
 | `npm run test:responsive -- <engine> <quick\|full>` | Audit tampilan: 36 halaman × 8 (quick) atau 25 (full) ukuran layar. Engine: `chromium`, `webkit`, `firefox`, `all`. Tambah `shots` untuk screenshot |
 | `npm run test:ui -- <engine>` | Cek komponen interaktif: laci menu, mega menu, dropdown akun, chat, overlay tahan pesan, sheet hapus |
 
 > **Di sandbox chat ini:** database, file upload (`.local/`), `node_modules`, dan `.next` **tidak ikut tersimpan**. Kalau sandbox restart:
 > `npm install && npm run setup && npm run build && npm run start`
+
+## Pembayaran (Fase 2) — cara kerjanya
+
+```
+Pembeli → /beli/[slug] ──createOrder()──► orders (pending) ──► Pakasir v2: create-transaction (idempoten per order_id)
+                                                   │
+Halaman /pesanan/[kode]: QRIS / VA + hitung mundur │  polling /api/orders/[kode]/status (maks 1×/5 dtk ke gateway)
+                                                   ▼
+Pakasir ──POST webhook (X-Secret)──► /api/payments/pakasir/webhook ──► konfirmasi ulang ke API transaction-status
+                                                   │
+                                                   ▼
+                      applyPaymentCompleted()  [1 transaksi DB, baris pesanan dikunci FOR UPDATE]
+                        ├─ orders.status = paid
+                        ├─ entitlements (source=purchase)  → produk masuk Library, bisa di-download
+                        ├─ ledger_entries: sale +pendapatan seller, available_at = +7 hari
+                        └─ email struk (setelah respons, lewat after())
+```
+
+Aturan uang yang dijaga kode **dan** database:
+- Rupiah selalu **BIGINT**; komisi dibulatkan ke bawah (selisih pembulatan milik seller). CHECK constraint: `komisi + hak seller = harga`.
+- **Saldo = SUM(ledger)**, tidak ada kolom saldo yang bisa melenceng. `ledger_entries` **append-only**: trigger database menolak UPDATE/DELETE. Koreksi = baris baru (refund, pengembalian pencairan).
+- Idempoten: unique index 1 pesanan pending per pembeli+produk, 1 `sale`/`refund` per pesanan, 1 debit/pengembalian per pencairan, 1 pencairan terbuka per seller. Webhook dikirim ulang = `duplicate`, saldo tidak dobel.
+- Webhook tidak dipercaya mentah: secret dicek constant-time, status + nominal + order_id dikonfirmasi ke API status, nominal harus sama dengan pesanan, transaksi sandbox tidak bisa melunasi pesanan live (`PAKASIR_ALLOW_SANDBOX=0`).
+- Harga dihitung ulang di server (nominal dari browser diabaikan untuk harga tetap). Tidak bisa membeli produk sendiri / yang sudah dimiliki.
+- Pencairan: minimal Rp50.000, hanya dari saldo yang sudah cair, konfirmasi password (+2FA), rekening terverifikasi admin, baris seller dikunci supaya dua pengajuan bersamaan tidak lolos cek saldo. Semua aksi uang tercatat di log keamanan.
+- Mode simulasi (`PAYMENT_PROVIDER=mock`) memakai jalur kode yang sama persis dengan webhook asli.
 
 ## Responsif & kompatibilitas browser (dicek 27 Sep 2026)
 
@@ -199,7 +233,11 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
 
 ## Belum ada / batasan prototype
 
-- **Pembayaran:** belum ada. Tombol beli nonaktif sampai **Fase 2** (Xendit).
+- **Pembayaran:**
+  - demo memakai **mode simulasi** (`PAYMENT_PROVIDER=mock`) — tidak ada uang sungguhan;
+  - adapter **Pakasir API v2** sudah jadi & lolos contract test, tapi butuh **proyek Pakasir khusus Rilisin** (slug, API key, webhook secret) + URL publik untuk webhook;
+  - pencairan ke seller masih **transfer manual** oleh admin (Pakasir tidak punya API disbursement); refund ke pembeli juga manual;
+  - pajak (PMK 37/2025, PPh 22 marketplace) belum dihitung — baru relevan kalau ditunjuk DJP.
 - **Akun:**
   - belum ada login Google, verifikasi email, dan reset password (butuh layanan email/Google Cloud, dikerjakan saat deploy);
   - admin belum *wajib* 2FA di demo (`REQUIRE_STAFF_2FA=0`); di production set `1`.
@@ -226,4 +264,4 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
    - `FRAME_ANCESTORS` kosongkan;
    - ganti kontak di `public/.well-known/security.txt`.
 5. **Upstash Redis:** rate limit & presence lintas server.
-6. **Xendit (pembayaran):** akun sandbox untuk Fase 2, sambil urus NIB/PSE dan KYB.
+6. **Pakasir (pembayaran):** buat proyek baru "rilisin" (otomatis mode sandbox) → isi Webhook URL `https://DOMAIN/api/payments/pakasir/webhook` → isi env `PAYMENT_PROVIDER=pakasir`, `PAKASIR_SLUG`, `PAKASIR_API_KEY`, `PAKASIR_WEBHOOK_SECRET`. Go live: KYC akun + KYC proyek di Pakasir, lalu `PAKASIR_ALLOW_SANDBOX=0`.

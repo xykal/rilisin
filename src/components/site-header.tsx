@@ -1,4 +1,4 @@
-import { ChevronDown, KeyRound, Library, LogOut, Search, ShieldCheck, Store, UserRound } from "lucide-react";
+import { ChevronDown, KeyRound, Library, LogOut, ReceiptText, Search, ShieldCheck, Store, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { logoutAction } from "@/app/actions/auth";
@@ -83,6 +83,9 @@ export async function SiteHeader() {
                   <div className="py-1">
                     <Link href="/library" className={menuItem}>
                       <Library className="h-4 w-4" /> Library saya
+                    </Link>
+                    <Link href="/akun/pesanan" className={menuItem}>
+                      <ReceiptText className="h-4 w-4" /> Pesanan saya
                     </Link>
                     <Link href="/seller" className={menuItem}>
                       <Store className="h-4 w-4" /> {user.seller ? "Seller Center" : "Mulai jualan / berbagi"}

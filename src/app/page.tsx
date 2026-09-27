@@ -189,7 +189,7 @@ export default async function HomePage() {
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[
                 { icon: Percent, title: "Komisi 10%", text: "Hanya untuk produk berbayar. 0% selama 3 bulan pertama untuk seller awal." },
-                { icon: Wallet, title: "Cair ke rekening", text: "Saldo penjualan bisa ditarik ke bank / e-wallet (aktif di Fase 2)." },
+                { icon: Wallet, title: "Cair ke rekening", text: "Saldo penjualan bisa ditarik ke bank / e-wallet setelah masa tahan 7 hari." },
                 { icon: ShieldCheck, title: "File aman", text: "Setiap file dicek tipe & hash-nya, lalu direview tim sebelum tayang." },
                 { icon: ChartNoAxesColumn, title: "Statistik unduhan", text: "Pantau karya mana yang paling diminati." },
               ].map((f) => (

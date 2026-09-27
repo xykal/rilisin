@@ -1,15 +1,16 @@
 "use client";
 
-import { Flag, Inbox, ShieldCheck } from "lucide-react";
+import { Flag, Inbox, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "./ui";
 
-export function AdminTabs({ reviews, reports }: { reviews: number; reports: number }) {
+export function AdminTabs({ reviews, reports, finance }: { reviews: number; reports: number; finance: number | null }) {
   const pathname = usePathname();
   const tabs = [
     { href: "/admin/review", label: "Review karya", icon: Inbox, count: reviews },
     { href: "/admin/laporan", label: "Laporan chat", icon: Flag, count: reports },
+    ...(finance !== null ? [{ href: "/admin/keuangan", label: "Keuangan", icon: Wallet, count: finance }] : []),
     { href: "/admin/keamanan", label: "Keamanan", icon: ShieldCheck, count: 0 },
   ];
   return (

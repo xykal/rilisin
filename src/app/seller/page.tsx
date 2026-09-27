@@ -20,7 +20,9 @@ import { Alert, ButtonLink, Card, EmptyState } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { sellerProfiles } from "@/lib/db/schema";
-import { formatCompact, timeAgo } from "@/lib/format";
+import { formatCompact, formatDate, formatRupiah, timeAgo } from "@/lib/format";
+import { effectiveCommissionBps } from "@/lib/payments/orders";
+import { sellerBalance } from "@/lib/payments/payouts";
 import { getSellerDownloads7d, getSellerProducts } from "@/lib/queries";
 import { eq } from "drizzle-orm";
 
@@ -44,7 +46,7 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
               { icon: Upload, title: "Upload gampang", text: "Isi info, upload ikon & screenshot, lalu file rilisnya. Mendukung APK, EXE, DMG, ZIP, PDF, dan lainnya." },
               { icon: ShieldCheck, title: "Direview sebelum tayang", text: "Setiap karya baru dicek tim moderator (biasanya < 1 hari). Seller terpercaya bisa tayang otomatis." },
               { icon: Percent, title: "Komisi 10% untuk produk berbayar", text: "Produk gratis tanpa potongan. Seller awal: 0% komisi selama 3 bulan pertama." },
-              { icon: Wallet, title: "Pembayaran lokal", text: "QRIS, e-wallet, dan virtual account. Saldo bisa dicairkan ke rekening (aktif di Fase 2)." },
+              { icon: Wallet, title: "Pembayaran lokal", text: "QRIS & virtual account. Saldo ditahan 7 hari lalu bisa dicairkan ke rekening / e-wallet (min. Rp50.000)." },
             ].map((f) => (
               <li key={f.title} className="flex gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
@@ -67,11 +69,13 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
     );
   }
 
-  const [items, downloads7d, [profile]] = await Promise.all([
+  const [items, downloads7d, [profile], balance] = await Promise.all([
     getSellerProducts(user.id),
     getSellerDownloads7d(user.id),
     db.select().from(sellerProfiles).where(eq(sellerProfiles.userId, user.id)).limit(1),
+    sellerBalance(user.id),
   ]);
+  const commissionNow = effectiveCommissionBps(profile!.commissionBps, profile!.zeroCommissionUntil);
   const published = items.filter((p) => p.status === "published");
   const inReview = items.filter((p) => p.status === "review").length + items.flatMap((p) => p.releases).filter((r) => r.status === "review").length;
   const totalDownloads = items.reduce((s, p) => s + p.downloadCount, 0);
@@ -165,11 +169,25 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
             <StoreForm mode="edit" defaults={{ storeName: profile!.storeName, tagline: profile!.tagline, websiteUrl: profile!.websiteUrl }} />
           </Card>
           <Card className="p-6">
-            <h2 className="flex items-center gap-2 font-bold text-ink"><Wallet className="h-5 w-5 text-brand-600" /> Penjualan &amp; payout</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Checkout, saldo, dan pencairan dana aktif di <b>Fase 2</b>. Komisi kamu: <b>{(profile!.commissionBps / 100).toLocaleString("id-ID")}%</b>{" "}
-              per penjualan (0% untuk 3 bulan pertama sebagai seller awal).
+            <h2 className="flex items-center gap-2 font-bold text-ink"><Wallet className="h-5 w-5 text-brand-600" /> Saldo &amp; penjualan</h2>
+            <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl bg-emerald-50 p-3">
+                <dt className="text-xs text-emerald-800">Tersedia</dt>
+                <dd className="text-lg font-extrabold text-ink">{formatRupiah(balance.available)}</dd>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <dt className="text-xs text-slate-500">Tertahan</dt>
+                <dd className="text-lg font-extrabold text-ink">{formatRupiah(balance.held)}</dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-sm text-slate-600">
+              Komisi kamu: <b>{commissionNow === 0 ? "0% (promo seller awal)" : `${(commissionNow / 100).toLocaleString("id-ID")}%`}</b>
+              {profile!.zeroCommissionUntil && commissionNow === 0 ? ` sampai ${formatDate(profile!.zeroCommissionUntil)}` : ""}. Biaya gateway dibayar pembeli.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <ButtonLink href="/seller/saldo" className="!py-2">Cairkan dana</ButtonLink>
+              <ButtonLink href="/seller/penjualan" variant="secondary" className="!py-2">Riwayat penjualan</ButtonLink>
+            </div>
           </Card>
         </aside>
       </div>

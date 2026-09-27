@@ -120,6 +120,7 @@ export default async function ManageProductPage({ params, searchParams }: PagePr
                 sourceUrl: product.sourceUrl,
                 pricingModel: product.pricingModel,
                 priceIdr: product.priceIdr,
+                minPriceIdr: product.minPriceIdr,
               }}
             />
           </Card>

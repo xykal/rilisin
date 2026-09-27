@@ -12,6 +12,17 @@ const shots = process.argv.includes("shots");
 const engines = arg === "all" ? ["chromium", "webkit", "firefox"] : [arg];
 
 const ids = await productIds();
+const orderCodes = await (async () => {
+  const { default: postgres } = await import("postgres");
+  const sql = postgres(process.env.DATABASE_URL || "postgres://rilisin:rilisin@localhost:5432/rilisin", { max: 1 });
+  try {
+    const [mine] = await sql`select o.code from orders o join users u on u.id = o.buyer_id where u.email = 'user@rilisin.test' order by o.created_at limit 1`;
+    const [any] = await sql`select code from orders where status = 'refunded' limit 1`;
+    return { mine: mine?.code, refunded: any?.code };
+  } finally {
+    await sql.end();
+  }
+})();
 const PAGES = [
   ["anon", "home", "/"],
   ["anon", "jelajahi", "/jelajahi"],
@@ -39,16 +50,24 @@ const PAGES = [
   ["user", "chat-nongkrong", "/komunitas/nongkrong"],
   ["user", "chat-pamer", "/komunitas/pamer-karya"],
   ["user", "chat-pengumuman", "/komunitas/pengumuman"],
+  ["user", "checkout", "/beli/kasirku-pro"],
+  ["user", "checkout-pwyw", "/beli/tebak-kata-daerah"],
+  ["user", "pesanan-saya", "/akun/pesanan"],
+  ["user", "pesanan-detail", `/pesanan/${orderCodes.mine}`],
   ["seller", "seller-home", "/seller"],
   ["seller", "seller-produk", "/seller/produk"],
   ["seller", "seller-baru", "/seller/produk/baru"],
   ["seller", "seller-edit", `/seller/produk/${ids["kasirku-offline"]}`],
   ["seller", "seller-edit-draft", `/seller/produk/${ids["absensi-sekolah-lite"]}`],
+  ["seller", "seller-penjualan", "/seller/penjualan"],
+  ["seller", "seller-saldo", "/seller/saldo"],
   ["admin", "admin-review", "/admin/review"],
   ["admin", "admin-review-detail", `/admin/review/${ids["resep-nusantara-offline"]}`],
   ["admin", "admin-review-spam", `/admin/review/${ids["kumpulan-apk-premium-gratis"]}`],
   ["admin", "admin-laporan", "/admin/laporan"],
   ["admin", "admin-keamanan", "/admin/keamanan"],
+  ["admin", "admin-keuangan", "/admin/keuangan"],
+  ["admin", "admin-pesanan", `/admin/keuangan/pesanan/${orderCodes.refunded}`],
 ];
 const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
 

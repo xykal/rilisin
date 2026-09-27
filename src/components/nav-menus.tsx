@@ -1,27 +1,6 @@
 "use client";
 
-import {
-  ArrowRight,
-  BookOpenCheck,
-  ChevronDown,
-  Flame,
-  Gift,
-  KeyRound,
-  Library,
-  LogIn,
-  Menu,
-  MessagesSquare,
-  Rocket,
-  ScrollText,
-  Search,
-  ShieldCheck,
-  Smartphone,
-  Sparkles,
-  Store,
-  Tag,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, BookOpenCheck, ChevronDown, Flame, Gift, KeyRound, Library, LogIn, Menu, MessagesSquare, ReceiptText, Rocket, ScrollText, Search, ShieldCheck, Smartphone, Sparkles, Store, Tag, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -480,6 +459,9 @@ export function MobileNav({
                       <Heading>Akun @{user.username}</Heading>
                       <Link href="/library" className={item}>
                         <Library className="h-5 w-5 text-slate-500" /> Library saya
+                      </Link>
+                      <Link href="/akun/pesanan" className={item}>
+                        <ReceiptText className="h-5 w-5 text-slate-500" /> Pesanan saya
                       </Link>
                       <Link href="/seller" className={item}>
                         <Store className="h-5 w-5 text-slate-500" /> {user.isSeller ? "Seller Center" : "Mulai jualan / berbagi"}

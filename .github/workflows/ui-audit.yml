@@ -1,0 +1,55 @@
+# Audit tampilan pakai browser sungguhan (Chromium): 38+ halaman × 8 ukuran layar + komponen interaktif.
+# Manual saja (tombol "Run workflow") supaya tidak membakar menit runner di setiap push.
+name: UI audit (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "quick (8 ukuran) / full (25 ukuran)"
+        required: true
+        default: quick
+        type: choice
+        options: [quick, full]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: rilisin
+          POSTGRES_PASSWORD: rilisin
+          POSTGRES_DB: rilisin
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rilisin -d rilisin"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgres://rilisin:rilisin@localhost:5432/rilisin
+      STORAGE_DRIVER: local
+      PAYMENT_PROVIDER: mock
+      REQUIRE_STAFF_2FA: "0"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: echo "APP_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")" >> "$GITHUB_ENV"
+      - run: npx playwright install --with-deps chromium
+      - run: npx tsx scripts/seed.ts && npm run build
+      - name: Jalankan server
+        run: |
+          npm run start > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/ && exit 0; sleep 1; done
+          exit 1
+      - run: node scripts/qa/responsive-audit.mjs chromium ${{ inputs.mode }}
+      - run: node scripts/qa/interactive-check.mjs chromium

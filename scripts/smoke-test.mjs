@@ -496,4 +496,144 @@ async function register(s, username, password, extra = {}) {
   ok(log.text.includes("Akun dikunci sementara") && log.text.includes("2FA diaktifkan"), "Log keamanan admin mencatat kejadian");
 }
 
+// ─── 7. Fase 2: checkout, pembayaran (simulasi), saldo, pencairan, refund ───
+{
+  const PRO = "/p/kasirku-pro";
+  const admin2 = new Session();
+  await admin2.login("admin@rilisin.test");
+  const staffView = await admin2.html(PRO);
+  const proFileId = staffView.text.match(/action="\/api\/download\/([0-9a-f-]{36})"/)?.[1];
+  ok(Boolean(proFileId), "Produk berbayar KasirKu Pro punya file rilis");
+
+  const page = await user.html(PRO);
+  ok(page.text.includes('href="/beli/kasirku-pro"') && !page.text.includes(`/api/download/${proFileId}`), "Belum beli → tombol Beli, bukan tombol download");
+  const denied = await user.req(`/api/download/${proFileId}`, { method: "POST" });
+  ok(denied.status === 303 && (denied.headers.get("location") ?? "").endsWith(PRO), "File berbayar tidak bisa di-download sebelum dibeli");
+
+  const g = await guest.req("/beli/kasirku-pro");
+  ok([303, 307].includes(g.status) && (g.headers.get("location") ?? "").includes("/masuk"), "Checkout wajib login");
+  const freeCo = await user.req("/beli/catat-duit");
+  ok([303, 307].includes(freeCo.status) && (freeCo.headers.get("location") ?? "").includes("/p/catat-duit"), "Produk gratis tidak lewat checkout");
+  const selfBuy = await seller.req("/beli/kasirku-pro");
+  ok([303, 307].includes(selfBuy.status), "Seller tidak bisa membeli produknya sendiri");
+
+  const co = await user.html("/beli/kasirku-pro");
+  ok(co.res.status === 200 && co.text.includes("Metode pembayaran") && co.text.includes("BRI Virtual Account"), "Halaman checkout menampilkan metode QRIS & VA");
+  // amount palsu diabaikan untuk harga tetap
+  const created = await user.submitForm("/beli/kasirku-pro", co.text, 'name="productId"', { method: "qris", amount: "1000" });
+  const code = (created.headers.get("location") ?? "").match(/\/pesanan\/(RLS-\d{6}-[2-9A-HJ-NP-Z]{10})/)?.[1];
+  ok(created.status === 303 && Boolean(code), "Checkout membuat pesanan → diarahkan ke halaman pesanan");
+  const op = await user.html(`/pesanan/${code}`);
+  ok(op.text.includes("Selesaikan pembayaran") && op.text.includes("data:image/svg+xml;base64,") && op.text.includes("Simulasikan pembayaran berhasil"), "Halaman pesanan menampilkan QRIS + tombol simulasi");
+  ok(op.text.includes("Rp49.653"), "Total = harga Rp49.000 + biaya QRIS Rp653 (nominal palsu dari browser diabaikan)");
+  const co2 = await user.html("/beli/kasirku-pro");
+  const again = await user.submitForm("/beli/kasirku-pro", co2.text, 'name="productId"', { method: "qris" });
+  ok((again.headers.get("location") ?? "").includes(code), "Klik bayar dua kali → pesanan yang sama (idempoten)");
+  ok((await seller.req(`/pesanan/${code}`)).status === 404 && (await seller.api(`/api/orders/${code}/status`)).status === 404, "Pesanan & statusnya tidak bisa diintip akun lain");
+  ok((await user.api(`/api/orders/${code}/status`)).data.status === "pending", "API status: menunggu pembayaran");
+
+  const wh = await guest.req("/api/payments/pakasir/webhook", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ order_id: code, amount: 49000, status: "completed", txn_id: "x" }) });
+  ok(wh.status === 404 && (await user.api(`/api/orders/${code}/status`)).data.status === "pending", "Webhook palsu ditolak (gateway belum dikonfigurasi) & pesanan tetap pending");
+
+  const paid = await user.submitForm(`/pesanan/${code}`, op.text, "Simulasikan pembayaran berhasil");
+  ok(paid.status === 303, "Simulasi pembayaran diproses");
+  ok((await user.api(`/api/orders/${code}/status`)).data.status === "paid", "Status pesanan jadi LUNAS");
+  const again2 = await user.html(`/pesanan/${code}`);
+  ok(again2.text.includes("Pembayaran berhasil") && !again2.text.includes("Simulasikan pembayaran berhasil"), "Halaman pesanan menampilkan sukses (tombol simulasi hilang)");
+  const dl = await user.req(`/api/download/${proFileId}`, { method: "POST" });
+  ok(dl.status === 303 && (dl.headers.get("location") ?? "").startsWith("/api/storage/file?token="), "Setelah bayar, file berbayar bisa di-download");
+  ok((await user.html("/library")).text.includes("KasirKu Pro"), "Produk yang dibeli masuk Library");
+  ok((await user.html("/akun/pesanan")).text.includes(code), "Riwayat 'Pesanan saya' berisi pesanan lunas");
+  const ownedCo = await user.req("/beli/kasirku-pro");
+  ok([303, 307].includes(ownedCo.status), "Sudah punya → checkout dialihkan ke halaman produk");
+
+  // Seller: penjualan & saldo (seed: tersedia Rp82.300, tertahan Rp88.200 → +Rp44.100 dari penjualan barusan)
+  const sales = await seller.html("/seller/penjualan");
+  ok(sales.text.includes(code) && sales.text.includes("@rina") && sales.text.includes("Rp44.100"), "Seller melihat penjualan baru (komisi 10% dipotong → Rp44.100)");
+  const bal = await seller.html("/seller/saldo");
+  ok(bal.text.includes("Rp82.300") && bal.text.includes("Rp132.300"), "Saldo seller: tersedia Rp82.300, tertahan Rp132.300");
+
+  const req = (fields) => seller.html("/seller/saldo").then((pg) => seller.submitForm("/seller/saldo", pg.text, "Ajukan pencairan", fields)).then(async (r) => clean(await r.text()));
+  ok((await req({ amount: "60000", password: "salah-banget" })).includes("Password salah"), "Pencairan: password salah ditolak");
+  ok((await req({ amount: "20000", password: "rilisin123" })).includes("Minimal pencairan Rp50.000"), "Pencairan: di bawah minimal ditolak");
+  ok((await req({ amount: "100000", password: "rilisin123" })).includes("Saldo tersedia hanya Rp82.300"), "Pencairan: melebihi saldo tersedia ditolak");
+  ok((await req({ amount: "60000", password: "rilisin123" })).includes("Pencairan diajukan"), "Pencairan Rp60.000 diajukan");
+  const bal2 = await seller.html("/seller/saldo");
+  ok(bal2.text.includes("Rp22.300") && bal2.text.includes("Masih ada pencairan yang sedang diproses"), "Saldo tersedia berkurang & pengajuan kedua diblokir");
+
+  // Admin keuangan
+  const mod2 = new Session();
+  await mod2.login("dimas24@contoh.test");
+  ok((await mod2.html("/admin/keuangan")).res.status === 404, "Moderator tidak bisa membuka Keuangan (khusus admin)");
+  const fin = await admin2.html("/admin/keuangan");
+  ok(fin.text.includes("Pencairan menunggu") && fin.text.includes("Rp60.000") && fin.text.includes("1234567890") && fin.text.includes("Rp250.000"), "Admin melihat antrian pencairan + nomor rekening lengkap (didekripsi)");
+  const nusantaraCard = fin.text.split("<form").find((c) => c.includes("Tolak pencairan") && fin.text.indexOf(c) > fin.text.indexOf("Rp60.000"));
+  ok(Boolean(nusantaraCard), "Form proses pencairan tersedia");
+  // tolak pencairan Rp60.000 (form pertama setelah kartu Rp60.000 muncul — antrian urut waktu pengajuan: Dapur Kode dulu, lalu Nusantara)
+  const payoutIds = [...fin.text.matchAll(/name="payoutId" value="([0-9a-f-]{36})"/g)].map((m) => m[1]);
+  const nusantaraPayout = payoutIds[payoutIds.length - 1];
+  const rejectForm = fin.text.split("<form").map((c) => c.split("</form>")[0]).find((c) => c.includes(nusantaraPayout) && c.includes("Tolak pencairan"));
+  const fd = new FormData();
+  for (const tag of rejectForm.match(/<input[^>]*>/g) ?? []) {
+    if (!/type="hidden"/.test(tag)) continue;
+    fd.append(decode(tag.match(/name="([^"]*)"/)[1]), decode(tag.match(/value="([^"]*)"/)?.[1] ?? ""));
+  }
+  fd.append("reason", "Uji smoke: nama rekening tidak cocok");
+  const rej = await admin2.req("/admin/keuangan", { method: "POST", body: fd });
+  ok(rej.status === 200 && clean(await rej.text()).includes("dana kembali ke saldo seller"), "Admin menolak pencairan");
+  ok((await seller.html("/seller/saldo")).text.includes("Rp82.300"), "Pencairan ditolak → saldo tersedia kembali Rp82.300");
+
+  ok((await req({ amount: "50000", password: "rilisin123" })).includes("Pencairan diajukan"), "Seller mengajukan pencairan lagi (Rp50.000)");
+  const fin2 = await admin2.html("/admin/keuangan");
+  const ids2 = [...fin2.text.matchAll(/name="payoutId" value="([0-9a-f-]{36})"/g)].map((m) => m[1]);
+  const newest = ids2[ids2.length - 1];
+  const paidForm = fin2.text.split("<form").map((c) => c.split("</form>")[0]).find((c) => c.includes(newest) && c.includes("Tandai terkirim"));
+  const fd2 = new FormData();
+  for (const tag of paidForm.match(/<input[^>]*>/g) ?? []) {
+    if (!/type="hidden"/.test(tag)) continue;
+    fd2.append(decode(tag.match(/name="([^"]*)"/)[1]), decode(tag.match(/value="([^"]*)"/)?.[1] ?? ""));
+  }
+  fd2.append("transferRef", "SMOKE-TRF-0001");
+  const mark = await admin2.req("/admin/keuangan", { method: "POST", body: fd2 });
+  ok(mark.status === 200 && clean(await mark.text()).includes("ditandai terkirim"), "Admin menandai pencairan terkirim");
+  const hist = await seller.html("/seller/saldo");
+  ok(hist.text.includes("SMOKE-TRF-0001") && hist.text.includes("Terkirim") && hist.text.includes("Rp32.300"), "Seller melihat pencairan terkirim + referensi, saldo tersedia Rp32.300");
+
+  // Ganti rekening → wajib verifikasi ulang sebelum bisa cair
+  const acct = await seller.html("/seller/saldo");
+  const changed = await seller.submitForm("/seller/saldo", acct.text, 'name="accountHolder"', { method: "bank", providerName: "BRI", accountNumber: "9876543210", accountHolder: "Ahmad Fauzi", password: "rilisin123" });
+  const changedText = clean(await changed.text());
+  ok(changedText.includes("Rekening disimpan") && changedText.includes("Menunggu verifikasi") && changedText.includes("Rekening sedang diverifikasi admin"), "Ganti rekening → status menunggu verifikasi & pencairan terkunci");
+  const fin3 = await admin2.html("/admin/keuangan");
+  // ada 2 rekening menunggu (Rintis Desain dari seed + Nusantara Labs) → ambil form di baris @nusantaralabs
+  const rekening = fin3.text.slice(fin3.text.indexOf('id="rekening"'));
+  const rowForm = rekening.slice(rekening.indexOf("@nusantaralabs")).split("<form")[1].split("</form>")[0];
+  const fd3 = new FormData();
+  for (const tag of rowForm.match(/<input[^>]*>/g) ?? []) {
+    if (!/type="hidden"/.test(tag)) continue;
+    fd3.append(decode(tag.match(/name="([^"]*)"/)[1]), decode(tag.match(/value="([^"]*)"/)?.[1] ?? ""));
+  }
+  const verify = await admin2.req("/admin/keuangan", { method: "POST", body: fd3 });
+  ok(verify.status === 303 && (await seller.html("/seller/saldo")).text.includes("Terverifikasi"), "Admin memverifikasi rekening baru");
+
+  // Refund: akses dicabut + pendapatan seller ditarik
+  const detail = await admin2.html(`/admin/keuangan/pesanan/${code}`);
+  ok(detail.text.includes("simulate → paid") && detail.text.includes("Buku besar seller"), "Detail pesanan admin: log event & buku besar");
+  const refund = await admin2.submitForm(`/admin/keuangan/pesanan/${code}`, detail.text, 'name="reason"', { reason: "Uji smoke: file tidak sesuai deskripsi" });
+  ok(refund.status === 200 && clean(await refund.text()).includes("Pesanan di-refund"), "Admin me-refund pesanan");
+  const dl2 = await user.req(`/api/download/${proFileId}`, { method: "POST" });
+  ok(dl2.status === 303 && (dl2.headers.get("location") ?? "").endsWith(PRO), "Setelah refund, akses download dicabut");
+  ok((await user.html(`/pesanan/${code}`)).text.includes("sudah di-refund"), "Pembeli melihat status refund");
+  ok((await seller.html("/seller/saldo")).text.includes("Rp88.200"), "Pendapatan penjualan yang di-refund ditarik dari saldo tertahan");
+
+  // Bayar seikhlasnya (min Rp0): nominal kecil ditolak, Rp0 = ambil gratis
+  const pw = await user.html("/beli/tebak-kata-daerah");
+  ok(pw.text.includes("Mau bayar berapa?"), "Checkout bayar seikhlasnya menampilkan input nominal");
+  const tooSmall = await user.submitForm("/beli/tebak-kata-daerah", pw.text, 'name="productId"', { method: "qris", amount: "500" });
+  ok(clean(await tooSmall.text()).includes("Minimal Rp1.000"), "Bayar seikhlasnya: Rp500 ditolak (minimal Rp1.000 kalau tidak gratis)");
+  const pw2 = await user.html("/beli/tebak-kata-daerah");
+  const claim = await user.submitForm("/beli/tebak-kata-daerah", pw2.text, 'name="productId"', { method: "qris", amount: "0" });
+  ok(claim.status === 303 && (claim.headers.get("location") ?? "").includes("/p/tebak-kata-daerah?diambil=1") && (await user.html("/library")).text.includes("Tebak Kata Daerah"), "Bayar seikhlasnya Rp0 → langsung masuk Library");
+}
+
 console.log(`\nSemua ${passed} pengecekan lulus.`);

@@ -24,6 +24,15 @@ export const SECURITY_EVENT_LABELS = {
   admin_delete_message: { label: "Moderator menghapus pesan", tone: "amber" },
   admin_restore_message: { label: "Moderator memulihkan pesan", tone: "green" },
   admin_dismiss_report: { label: "Moderator menolak laporan", tone: "slate" },
+  payout_account_changed: { label: "Rekening pencairan diubah", tone: "amber" },
+  payout_account_verified: { label: "Admin memverifikasi rekening pencairan", tone: "green" },
+  payout_requested: { label: "Mengajukan pencairan dana", tone: "blue" },
+  payout_step_up_failed: { label: "Konfirmasi password/2FA pencairan gagal", tone: "red" },
+  payout_paid: { label: "Admin menandai pencairan terkirim", tone: "green" },
+  payout_rejected: { label: "Admin menolak pencairan", tone: "amber" },
+  payout_canceled: { label: "Pencairan dibatalkan seller", tone: "slate" },
+  order_refunded: { label: "Admin me-refund pesanan", tone: "red" },
+  payment_webhook_rejected: { label: "Webhook pembayaran ditolak", tone: "red" },
 } as const;
 
 export type SecurityEventType = keyof typeof SECURITY_EVENT_LABELS;

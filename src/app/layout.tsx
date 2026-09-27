@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { HideOnRoutes } from "@/components/route-visibility";
 import { SiteHeader } from "@/components/site-header";
+import { isSimulationMode } from "@/lib/payments/provider";
 import { SITE } from "@/lib/config";
 import "./globals.css";
 
@@ -35,7 +36,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="id" className={jakarta.variable}>
       <body className="min-h-screen font-sans antialiased">
         <div className="bg-ink px-4 py-2 text-center text-xs font-medium text-white/85">
-          Prototype — semua produk, akun &amp; obrolan adalah data demo. Pembayaran belum aktif.
+          {isSimulationMode()
+            ? "Prototype — produk, akun & obrolan adalah data demo. Pembayaran mode simulasi (tanpa uang sungguhan)."
+            : "Versi uji — pembayaran lewat gateway Pakasir. Jangan membeli kalau tidak diminta tim."}
         </div>
         <SiteHeader />
         <main>{children}</main>

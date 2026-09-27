@@ -22,6 +22,13 @@ Status: **prototype, belum diaudit pihak ketiga**. Wajib ada review keamanan/pen
 | DoS ringan | Batas ukuran body JSON (16–32 KB) & gambar (8 MB); batas koneksi SSE (6 per akun, 2000 per proses); koneksi realtime ditutup berkala; rate limit baca | `lib/api.ts`, `lib/chat/bus.ts` |
 | Pemalsuan IP untuk lolos rate limit | IP diambil dari entri `X-Forwarded-For` milik proxy tepercaya (`TRUSTED_PROXY_HOPS`), bukan entri pertama yang bisa diisi klien | `lib/http.ts` |
 | Phishing | Pusat Keamanan & peringatan "tim Rilisin tidak pernah minta password/OTP"; peringatan link luar di chat | `app/keamanan`, `components/chat/sheets.tsx` |
+| **Webhook pembayaran palsu** | Header `X-Secret` dibandingkan constant-time; body maks 8 KB; status, nominal & order_id **dikonfirmasi ulang ke API transaction-status** Pakasir; nominal harus sama dengan pesanan; txn_id harus cocok; webhook ditolak (404) kalau gateway belum dikonfigurasi; semua penolakan dicatat di log keamanan | `app/api/payments/pakasir/webhook/route.ts`, `lib/payments/orders.ts` |
+| **Saldo dobel / race condition uang** | Pelunasan dalam 1 transaksi DB dengan `SELECT … FOR UPDATE`; unique index (1 sale/refund per pesanan, 1 debit/pengembalian per pencairan, 1 pencairan terbuka per seller, 1 pesanan pending per pembeli+produk); pengajuan pencairan mengunci baris seller sebelum cek saldo | `lib/payments/orders.ts`, `lib/payments/payouts.ts`, `drizzle/0002_payments.sql` |
+| **Manipulasi catatan uang** | `ledger_entries` **append-only**: trigger database menolak UPDATE/DELETE; saldo selalu dihitung dari SUM ledger; CHECK constraint `komisi + hak seller = harga`, nominal > 0 | `drizzle/0002_payments.sql` |
+| **Manipulasi harga dari browser** | Harga tetap dihitung ulang di server (nominal kiriman browser diabaikan); bayar seikhlasnya dibatasi minimal/maksimal; metode dibatasi rentang nominal gateway; kode pesanan acak 50 bit (tidak bisa ditebak) + halaman/status pesanan hanya untuk pembeli & staf | `lib/payments/orders.ts`, `lib/payments/queries.ts` |
+| **Transaksi sandbox dipakai di live** | Pesanan live tidak bisa dilunasi event sandbox; `PAKASIR_ALLOW_SANDBOX=0` menolak membuat transaksi di proyek yang masih sandbox | `lib/payments/orders.ts` |
+| **Pembobolan akun seller → kuras saldo** | Pencairan & ganti rekening wajib **password (+kode 2FA kalau aktif)**, rate limit percobaan; ganti rekening = verifikasi ulang admin sebelum bisa cair; nomor rekening **dienkripsi AES-256-GCM** (tampil 4 digit terakhir, lengkap hanya untuk admin di antrian pencairan) | `lib/payments/payouts.ts` |
+| **Penyalahgunaan panel keuangan** | `/admin/keuangan` & semua aksi uang khusus role `admin` (moderator 404); refund/pencairan/verifikasi tercatat di log keamanan dengan pelakunya | `app/admin/keuangan`, `app/actions/payments.ts` |
 
 ## 2. Audit trail
 
@@ -41,6 +48,10 @@ Status: **prototype, belum diaudit pihak ketiga**. Wajib ada review keamanan/pen
 | `TRUSTED_PROXY_HOPS` | jumlah proxy di depan app (Vercel/Cloudflare: `1`) |
 | `COOKIE_SECURE` | jangan di-set `false` |
 | `DATABASE_URL_DIRECT` | koneksi langsung Supabase (untuk LISTEN/NOTIFY chat) |
+| `PAYMENT_PROVIDER` | `pakasir` (jangan `mock` di situs yang menerima uang sungguhan) |
+| `PAKASIR_SLUG` / `PAKASIR_API_KEY` / `PAKASIR_WEBHOOK_SECRET` | dari proyek Pakasir **khusus Rilisin**. Simpan di env hosting, jangan di repo |
+| `PAKASIR_ALLOW_SANDBOX` | `0` setelah go live |
+| `APP_URL` | URL publik (untuk link di email struk) |
 
 Lainnya: ganti kontak di `public/.well-known/security.txt`, aktifkan backup database harian, simpan secret di environment hosting (bukan di repo), aktifkan 2FA untuk akun GitHub/Vercel/Supabase/Cloudflare/Xendit milik tim.
 
@@ -54,7 +65,10 @@ Lainnya: ganti kontak di `public/.well-known/security.txt`, aktifkan backup data
 - Job terjadwal: hapus salinan pesan terhapus > 30 hari, gambar chat tak terpakai, event keamanan > 1 tahun.
 - Notifikasi email saat login dari perangkat baru / 2FA dimatikan.
 - Passkey (WebAuthn) sebagai alternatif 2FA.
-- Pentest / audit independen sebelum Fase 2 (uang sungguhan).
+- **Pentest / audit independen sebelum menerima uang sungguhan** (Fase 2 sudah jalan dalam mode simulasi & sandbox).
+- Rekonsiliasi harian otomatis: cocokkan pesanan lunas dengan laporan transaksi Pakasir (deteksi selisih).
+- Allowlist IP webhook kalau Pakasir mempublikasikan daftar IP pengirim.
+- Batas & pola anti-fraud pembelian (banyak pesanan gagal beruntun, kartu/akun baru dengan nominal besar).
 
 ## 5. Melaporkan celah
 

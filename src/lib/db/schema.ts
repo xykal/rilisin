@@ -2,13 +2,15 @@
  * Skema database Rilisin.
  *  - Fase 1: akun, toko, katalog, rilis, file, library, moderasi.
  *  - Fase 1.5: keamanan akun (2FA, log keamanan, sesi) + komunitas chat grup + laporan.
- * Tabel transaksi/uang (Fase 2) ditambahkan belakangan lewat migrasi baru — lihat blueprint bagian 8.
+ *  - Fase 2: uang — pesanan, log event pembayaran, buku besar saldo seller (append-only), rekening & pencairan.
+ *    Aturan emas: rupiah selalu BIGINT (tanpa desimal), saldo = SUM(ledger), ledger tidak pernah di-UPDATE/DELETE.
  */
 import { relations, sql } from "drizzle-orm";
 import {
   bigint,
   bigserial,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -58,6 +60,9 @@ export const entitlementSource = pgEnum("entitlement_source", [
   "admin",
 ]);
 export const chatRoomKind = pgEnum("chat_room_kind", ["public", "announcement"]);
+export const orderStatus = pgEnum("order_status", ["pending", "paid", "expired", "canceled", "refunded"]);
+export const ledgerKind = pgEnum("ledger_kind", ["sale", "refund", "payout", "payout_reversal", "adjustment"]);
+export const payoutStatus = pgEnum("payout_status", ["requested", "paid", "rejected", "canceled"]);
 export const reportStatus = pgEnum("report_status", ["open", "resolved", "dismissed"]);
 
 // ─── Akun ────────────────────────────────────────────────────────────────────
@@ -163,6 +168,8 @@ export const sellerProfiles = pgTable("seller_profiles", {
   isTrusted: boolean("is_trusted").notNull().default(false),
   /** Komisi dalam basis poin (1000 = 10%). Dipakai mulai Fase 2. */
   commissionBps: integer("commission_bps").notNull().default(1000),
+  /** Promo seller awal: sebelum tanggal ini komisi 0% (snapshot ke pesanan saat checkout). */
+  zeroCommissionUntil: tsz("zero_commission_until"),
   activatedAt: tsz("activated_at").notNull().defaultNow(),
 });
 
@@ -538,6 +545,156 @@ export const sellerProfilesRelations = relations(sellerProfiles, ({ one }) => ({
   user: one(users, { fields: [sellerProfiles.userId], references: [users.id] }),
 }));
 
+// ─── Uang (Fase 2) ───────────────────────────────────────────────────────────
+/** Data pembayaran yang ditampilkan ke pembeli (bukan rahasia): string QRIS / nomor VA / link. */
+export type PaymentData = { qrString?: string | null; vaNumber?: string | null; paymentLink?: string | null };
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Kode pesanan acak (juga dipakai sebagai order_id di payment gateway). Tidak bisa ditebak. */
+    code: text("code").notNull().unique(),
+    buyerId: uuid("buyer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    sellerId: uuid("seller_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    productTitle: text("product_title").notNull(),
+    /** Harga produk yang dibayar (dasar komisi). Biaya gateway TIDAK termasuk. */
+    amountIdr: bigint("amount_idr", { mode: "number" }).notNull(),
+    /** Biaya layanan pembayaran dari gateway (dibayar pembeli di atas harga). */
+    gatewayFeeIdr: bigint("gateway_fee_idr", { mode: "number" }).notNull().default(0),
+    totalPayIdr: bigint("total_pay_idr", { mode: "number" }).notNull().default(0),
+    commissionBps: integer("commission_bps").notNull(),
+    commissionIdr: bigint("commission_idr", { mode: "number" }).notNull(),
+    sellerEarningIdr: bigint("seller_earning_idr", { mode: "number" }).notNull(),
+    status: orderStatus("status").notNull().default("pending"),
+    provider: text("provider").notNull(),
+    paymentMethod: text("payment_method").notNull(),
+    providerTxnId: text("provider_txn_id"),
+    paymentData: jsonb("payment_data").$type<PaymentData>(),
+    isSandbox: boolean("is_sandbox").notNull().default(false),
+    expiresAt: tsz("expires_at").notNull(),
+    paidAt: tsz("paid_at"),
+    lastCheckedAt: tsz("last_checked_at"),
+    refundedAt: tsz("refunded_at"),
+    refundReason: text("refund_reason"),
+    refundedBy: uuid("refunded_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("orders_buyer_idx").on(t.buyerId, t.createdAt),
+    index("orders_seller_idx").on(t.sellerId, t.status, t.paidAt),
+    index("orders_status_idx").on(t.status, t.createdAt),
+    uniqueIndex("orders_provider_txn_idx").on(t.provider, t.providerTxnId).where(sql`provider_txn_id is not null`),
+    /** Maksimal 1 pesanan menunggu pembayaran per pembeli per produk (klik ganda = pesanan yang sama). */
+    uniqueIndex("orders_one_pending_idx").on(t.buyerId, t.productId).where(sql`status = 'pending'`),
+    check(
+      "orders_money_check",
+      sql`amount_idr > 0 and gateway_fee_idr >= 0 and commission_idr >= 0 and seller_earning_idr >= 0 and commission_idr + seller_earning_idr = amount_idr`,
+    ),
+  ],
+);
+
+/** Log mentah setiap event pembayaran (webhook/polling/simulasi) — audit & investigasi. Append-only. */
+export const paymentEvents = pgTable(
+  "payment_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    provider: text("provider").notNull(),
+    source: text("source").notNull(),
+    orderCode: text("order_code"),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    result: text("result").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("payment_events_order_idx").on(t.orderId, t.createdAt)],
+);
+
+/** Rekening/e-wallet tujuan pencairan. Nomor rekening dienkripsi (AES-GCM); yang tampil cuma 4 digit terakhir. */
+export const payoutAccounts = pgTable("payout_accounts", {
+  sellerId: uuid("seller_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  method: text("method").notNull(),
+  providerName: text("provider_name").notNull(),
+  accountHolder: text("account_holder").notNull(),
+  accountNumberEnc: text("account_number_enc").notNull(),
+  accountLast4: text("account_last4").notNull(),
+  /** Diisi admin setelah nama pemilik rekening dicek (KYC sederhana). Ganti rekening = verifikasi ulang. */
+  verifiedAt: tsz("verified_at"),
+  verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: tsz("updated_at").notNull().defaultNow(),
+});
+
+export const payouts = pgTable(
+  "payouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sellerId: uuid("seller_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    amountIdr: bigint("amount_idr", { mode: "number" }).notNull(),
+    status: payoutStatus("status").notNull().default("requested"),
+    /** Snapshot tujuan saat diajukan (kalau rekening diganti belakangan, pencairan ini tetap ke tujuan lama). */
+    method: text("method").notNull(),
+    providerName: text("provider_name").notNull(),
+    accountHolder: text("account_holder").notNull(),
+    accountNumberEnc: text("account_number_enc").notNull(),
+    accountLast4: text("account_last4").notNull(),
+    requestedAt: tsz("requested_at").notNull().defaultNow(),
+    processedAt: tsz("processed_at"),
+    processedBy: uuid("processed_by").references(() => users.id, { onDelete: "set null" }),
+    transferRef: text("transfer_ref"),
+    rejectReason: text("reject_reason"),
+  },
+  (t) => [
+    index("payouts_status_idx").on(t.status, t.requestedAt),
+    index("payouts_seller_idx").on(t.sellerId, t.requestedAt),
+    uniqueIndex("payouts_one_open_idx").on(t.sellerId).where(sql`status = 'requested'`),
+    check("payouts_amount_check", sql`amount_idr > 0`),
+  ],
+);
+
+/**
+ * Buku besar saldo seller. Satu baris = satu mutasi (positif = masuk, negatif = keluar).
+ *  - sale: +pendapatan seller, available_at = paid_at + masa tahan (7 hari)
+ *  - refund: −pendapatan, available_at = sama dengan sale-nya (kalau masih ditahan, yang berkurang saldo tertahan)
+ *  - payout: −jumlah saat pengajuan (langsung mengurangi saldo tersedia) · payout_reversal: +jumlah kalau ditolak/dibatalkan
+ * Saldo tersedia = SUM(amount) WHERE available_at <= now(); tertahan = SUM(amount) WHERE available_at > now().
+ */
+export const ledgerEntries = pgTable(
+  "ledger_entries",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    sellerId: uuid("seller_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    kind: ledgerKind("kind").notNull(),
+    amountIdr: bigint("amount_idr", { mode: "number" }).notNull(),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "restrict" }),
+    payoutId: uuid("payout_id").references(() => payouts.id, { onDelete: "restrict" }),
+    availableAt: tsz("available_at").notNull(),
+    memo: text("memo"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("ledger_seller_idx").on(t.sellerId, t.availableAt),
+    /** Idempoten: 1 pesanan = maksimal 1 sale & 1 refund; 1 pencairan = maksimal 1 debit & 1 pengembalian. */
+    uniqueIndex("ledger_order_kind_idx").on(t.orderId, t.kind).where(sql`order_id is not null`),
+    uniqueIndex("ledger_payout_kind_idx").on(t.payoutId, t.kind).where(sql`payout_id is not null`),
+    check("ledger_amount_check", sql`amount_idr <> 0`),
+  ],
+);
+
 export const productsRelations = relations(products, ({ one, many }) => ({
   seller: one(users, { fields: [products.sellerId], references: [users.id] }),
   media: many(productMedia),
@@ -569,3 +726,5 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Release = typeof releases.$inferSelect;
 export type ReleaseFile = typeof releaseFiles.$inferSelect;
+export type Order = typeof orders.$inferSelect;
+export type Payout = typeof payouts.$inferSelect;

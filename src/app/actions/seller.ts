@@ -71,12 +71,17 @@ const productSchema = z
     descriptionMd: z.string().max(20000, "Deskripsi maksimal 20.000 karakter"),
     websiteUrl: optionalUrl,
     sourceUrl: optionalUrl,
-    pricingModel: z.enum(["free", "fixed"]),
-    priceIdr: z.coerce.number().int().min(0).max(10_000_000),
+    pricingModel: z.enum(["free", "fixed", "pwyw"]),
+    priceIdr: z.coerce.number().int().min(0).max(10_000_000, "Maksimal Rp10.000.000"),
+    minPriceIdr: z.coerce.number().int().min(0).max(10_000_000, "Maksimal Rp10.000.000"),
   })
   .superRefine((d, ctx) => {
     if (d.pricingModel === "fixed" && d.priceIdr < 10_000) {
       ctx.addIssue({ code: "custom", path: ["priceIdr"], message: "Harga minimal Rp10.000" });
+    }
+    if (d.pricingModel === "pwyw") {
+      if (d.minPriceIdr > 0 && d.minPriceIdr < 1_000) ctx.addIssue({ code: "custom", path: ["minPriceIdr"], message: "Minimal Rp0 (boleh gratis) atau mulai Rp1.000" });
+      if (d.priceIdr > 0 && d.priceIdr < d.minPriceIdr) ctx.addIssue({ code: "custom", path: ["priceIdr"], message: "Harga saran tidak boleh di bawah minimal" });
     }
   });
 
@@ -92,6 +97,7 @@ function readProductForm(formData: FormData) {
     sourceUrl: String(formData.get("sourceUrl") ?? ""),
     pricingModel: String(formData.get("pricingModel") ?? "free"),
     priceIdr: String(formData.get("priceIdr") ?? "0").replace(/[^\d]/g, "") || "0",
+    minPriceIdr: String(formData.get("minPriceIdr") ?? "0").replace(/[^\d]/g, "") || "0",
     platforms: formData.getAll("platforms").map(String).join(","),
   };
   const parsed = productSchema.safeParse({ ...values, platforms: formData.getAll("platforms").map(String) });
@@ -132,7 +138,8 @@ export async function createProductAction(_prev: FormState, formData: FormData):
       websiteUrl: d.websiteUrl,
       sourceUrl: d.sourceUrl,
       pricingModel: d.pricingModel,
-      priceIdr: d.pricingModel === "fixed" ? d.priceIdr : 0,
+      priceIdr: d.pricingModel === "free" ? 0 : d.priceIdr,
+      minPriceIdr: d.pricingModel === "pwyw" ? d.minPriceIdr : 0,
     })
     .returning({ id: products.id });
 
@@ -180,7 +187,8 @@ export async function updateProductAction(_prev: FormState, formData: FormData):
       websiteUrl: d.websiteUrl,
       sourceUrl: d.sourceUrl,
       pricingModel: d.pricingModel,
-      priceIdr: d.pricingModel === "fixed" ? d.priceIdr : 0,
+      priceIdr: d.pricingModel === "free" ? 0 : d.priceIdr,
+      minPriceIdr: d.pricingModel === "pwyw" ? d.minPriceIdr : 0,
       updatedAt: new Date(),
     })
     .where(eq(products.id, product.id));

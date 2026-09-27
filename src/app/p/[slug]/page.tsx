@@ -37,8 +37,9 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Prom
   return { title: product.title, description: product.summary };
 }
 
-export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
+export default async function ProductPage({ params, searchParams }: PageProps<"/p/[slug]">) {
   const { slug } = await params;
+  const { diambil } = await searchParams;
   const [product, user] = await Promise.all([getProduct(slug), getCurrentUser()]);
   if (!product) notFound();
 
@@ -261,6 +262,9 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
               </div>
             ) : canDownload ? (
               <div className="mt-4 space-y-2.5">
+                {diambil && owned && (
+                  <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">Masuk Library. Selamat menikmati!</p>
+                )}
                 {!isFree && (owned || isOwner || staff) && (
                   <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
                     {owned ? "Kamu sudah memiliki produk ini." : "Akses pemilik / moderator."}
@@ -297,12 +301,13 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
               </div>
             ) : (
               <div className="mt-4">
-                <button type="button" disabled className={cn(buttonStyles.primary, "w-full !py-3")}>
-                  <ShoppingCart className="h-4 w-4" /> Beli {formatRupiah(product.priceIdr)}
-                </button>
+                <ButtonLink href={`/beli/${product.slug}`} className="w-full !py-3">
+                  <ShoppingCart className="h-4 w-4" />{" "}
+                  {product.pricingModel === "pwyw" ? "Beli — bayar seikhlasnya" : `Beli ${formatRupiah(product.priceIdr)}`}
+                </ButtonLink>
                 <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500">
                   <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Checkout (QRIS, e-wallet, VA) aktif di Fase 2. Setelah bayar, file langsung muncul di Library.
+                  Bayar pakai QRIS atau Virtual Account. Setelah lunas, file langsung muncul di Library + update gratis.
                 </p>
               </div>
             )}

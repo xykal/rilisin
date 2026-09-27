@@ -26,6 +26,7 @@ type ProductDefaults = {
   sourceUrl?: string | null;
   pricingModel?: string;
   priceIdr?: number;
+  minPriceIdr?: number;
 };
 
 export function ProductForm({ product, locked }: { product?: ProductDefaults; locked?: boolean }) {
@@ -110,13 +111,13 @@ export function ProductForm({ product, locked }: { product?: ProductDefaults; lo
           </Field>
         </div>
 
-        <Field label="Harga" error={fe.priceIdr}>
+        <Field label="Harga" error={fe.priceIdr ?? fe.minPriceIdr}>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {[
+            {([
               { value: "free", title: "Gratis", desc: "Siapa pun bisa download" },
-              { value: "fixed", title: "Harga tetap", desc: "Checkout aktif di Fase 2" },
-              { value: "pwyw", title: "Bayar seikhlasnya", desc: "Segera (Fase 2)", disabled: true },
-            ].map((o) => (
+              { value: "fixed", title: "Harga tetap", desc: "Pembeli bayar sesuai harga" },
+              { value: "pwyw", title: "Bayar seikhlasnya", desc: "Pembeli pilih nominal sendiri" },
+            ] as { value: string; title: string; desc: string; disabled?: boolean }[]).map((o) => (
               <label key={o.value} className={cn("cursor-pointer", o.disabled && "cursor-not-allowed opacity-50")}>
                 <input
                   type="radio"
@@ -146,7 +147,38 @@ export function ProductForm({ product, locked }: { product?: ProductDefaults; lo
                   placeholder="49000"
                 />
               </div>
-              <p className="mt-1.5 text-xs text-slate-500">Min. Rp10.000. Kamu terima harga dikurangi komisi 10% (0% di 3 bulan pertama).</p>
+              <p className="mt-1.5 text-xs text-slate-500">Min. Rp10.000. Kamu terima harga dikurangi komisi 10% (0% di 3 bulan pertama). Biaya gateway dibayar pembeli.</p>
+            </div>
+          )}
+          {pricing === "pwyw" && (
+            <div className="mt-3 grid max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-semibold text-slate-700">
+                Minimal bayar
+                <span className="relative mt-1 block">
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">Rp</span>
+                  <input
+                    name="minPriceIdr"
+                    inputMode="numeric"
+                    defaultValue={v?.minPriceIdr ?? String(product?.minPriceIdr ?? 0)}
+                    className={cn(inputStyles, "pl-10")}
+                    placeholder="0"
+                  />
+                </span>
+              </label>
+              <label className="block text-xs font-semibold text-slate-700">
+                Harga saran (opsional)
+                <span className="relative mt-1 block">
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">Rp</span>
+                  <input
+                    name="priceIdr"
+                    inputMode="numeric"
+                    defaultValue={v?.priceIdr ?? (product?.priceIdr ? String(product.priceIdr) : "")}
+                    className={cn(inputStyles, "pl-10")}
+                    placeholder="25000"
+                  />
+                </span>
+              </label>
+              <p className="text-xs text-slate-500 sm:col-span-2">Minimal Rp0 = pembeli boleh ambil gratis (tetap bisa menyumbang). Selain itu minimal Rp1.000.</p>
             </div>
           )}
         </Field>

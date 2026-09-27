@@ -14,6 +14,7 @@ import { hashPassword } from "../src/lib/auth/password";
 import * as schema from "../src/lib/db/schema";
 import { makeApk, makeCover, makeIcon, makePdf, makeScreenshot, makeZip, type ScreenSpec, type Visual } from "./seed-assets";
 import { seedChat } from "./seed-chat";
+import { seedPayments } from "./seed-payments";
 
 config({ path: ".env.local", quiet: true });
 
@@ -57,8 +58,9 @@ type ProductSpec = {
   platforms: string[];
   tags: string[];
   license: string;
-  pricing?: "free" | "fixed";
+  pricing?: "free" | "fixed" | "pwyw";
   price?: number;
+  minPrice?: number;
   colors: [string, string];
   visual: Visual;
   screens: ScreenSpec[];
@@ -130,6 +132,44 @@ Ada saran fitur? Tulis di kolom komunitas (segera hadir).`,
     downloads: 12840,
     createdDaysAgo: 82,
     heat: 0.8,
+  },
+  {
+    key: "kasirkupro",
+    seller: "nusantaralabs",
+    title: "KasirKu Pro",
+    summary: "Versi Pro KasirKu: multi kasir & shift, laporan laba per barang, ekspor Excel, dan backup otomatis.",
+    description: `**KasirKu Pro** untuk toko yang sudah ramai: beberapa kasir, shift, dan laporan lebih dalam.
+
+## Tambahan dibanding versi gratis
+- Multi kasir + shift (buka/tutup kas, selisih kas otomatis)
+- Laporan laba per barang & per kategori
+- Ekspor laporan ke Excel / CSV
+- Backup otomatis terjadwal ke penyimpanan HP
+- Dukungan prioritas lewat chat
+
+Sekali bayar, **update gratis selamanya** untuk versi 3.x.`,
+    category: "aplikasi",
+    categoryLabel: "Aplikasi",
+    platforms: ["android", "windows"],
+    tags: ["kasir", "umkm", "pos", "laporan", "pro"],
+    license: "Lisensi komersial (1 toko)",
+    pricing: "fixed",
+    price: 49_000,
+    colors: ["#0f766e", "#134e4a"],
+    visual: "phone",
+    screens: [
+      { title: "Shift Kasir", subtitle: "Shift pagi · Rina", stats: [["Kas awal", "Rp500rb"], ["Selisih", "Rp0"]], items: ["Buka shift 07:00", "Transaksi 64", "Tunai Rp1,8 jt", "QRIS Rp940rb", "Tutup shift 15:00"] },
+      { title: "Laba per Barang", subtitle: "September 2026", stats: [["Laba", "Rp9,1 jt"], ["Margin", "31%"]], items: ["Kopi Susu - Rp2,4 jt", "Roti Bakar - Rp1,1 jt", "Mie Instan - Rp860rb", "Teh Botol - Rp540rb", "Ekspor ke Excel"] },
+      { title: "Backup Otomatis", subtitle: "Setiap hari 23:00", items: ["Backup terakhir: kemarin 23:00", "Ukuran 2,4 MB", "Simpan 14 cadangan", "Pulihkan dari file"] },
+    ],
+    releases: [
+      { version: "3.0.0", daysAgo: 40, changelog: "- Rilis pertama KasirKu Pro", files: [{ platform: "android", kind: "apk", name: "kasirku-pro-3.0.0.apk", mb: 3.6 }] },
+      { version: "3.1.0", daysAgo: 10, changelog: "- Laba per kategori\n- Ekspor CSV\n- Perbaikan shift lintas hari", files: [{ platform: "android", kind: "apk", name: "kasirku-pro-3.1.0.apk", mb: 3.7 }, { platform: "windows", kind: "zip", name: "KasirKuPro-3.1.0-windows.zip", mb: 4.6 }] },
+    ],
+    android: { pkg: "id.nusantaralabs.kasirku.pro", registration: "registered", checked: true },
+    downloads: 214,
+    createdDaysAgo: 42,
+    heat: 0.4,
   },
   {
     key: "catatduit",
@@ -283,6 +323,9 @@ Ada saran fitur? Tulis di kolom komunitas (segera hadir).`,
   {
     key: "tebakkata",
     seller: "pixelrantau",
+    pricing: "pwyw",
+    price: 10_000,
+    minPrice: 0,
     title: "Tebak Kata Daerah",
     summary: "Tebak arti kata dari bahasa daerah se-Indonesia. Main di browser atau Android.",
     description: `Seberapa kenal kamu dengan bahasa daerah? Tebak arti kata dari bahasa Jawa, Sunda, Minang, Batak, Bugis, dan lainnya.
@@ -572,6 +615,14 @@ async function main() {
   const t0 = Date.now();
 
   console.log("» Reset database…");
+  // Pengaman: seed MENGHAPUS seluruh isi database. Tolak database non-lokal (Neon/Supabase/production)
+  // kecuali benar-benar disengaja lewat SEED_ALLOW_REMOTE=hapus-semua-data.
+  const dbHost = new URL(process.env.DATABASE_URL!).hostname;
+  if (!["localhost", "127.0.0.1", "::1", "postgres"].includes(dbHost) && process.env.SEED_ALLOW_REMOTE !== "hapus-semua-data") {
+    console.error(`✗ Seed ditolak: DATABASE_URL mengarah ke "${dbHost}" (bukan database lokal). Seed akan MENGHAPUS SEMUA DATA.`);
+    console.error("  Kalau memang sengaja (mis. database staging kosong): SEED_ALLOW_REMOTE=hapus-semua-data npx tsx scripts/seed.ts");
+    process.exit(1);
+  }
   await client.unsafe("DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
   await migrate(db, { migrationsFolder: "drizzle" });
 
@@ -655,6 +706,7 @@ async function main() {
         license: p.license,
         pricingModel: p.pricing ?? "free",
         priceIdr: p.price ?? 0,
+        minPriceIdr: p.minPrice ?? 0,
         androidPackage: p.android?.pkg ?? null,
         androidRegistration: p.android?.registration ?? null,
         androidCheckedAt: p.android?.checked ? ago(p.createdDaysAgo - 1) : null,
@@ -779,9 +831,12 @@ async function main() {
   console.log("» Membuat ruang komunitas & percakapan demo…");
   const chat = await seedChat(db, { userIds, put, now });
 
+  console.log("» Membuat transaksi, saldo & pencairan demo…");
+  const pay = await seedPayments(db, { userIds, productIds, now });
+
   await client.end();
   console.log(
-    `✓ Seed selesai dalam ${((Date.now() - t0) / 1000).toFixed(1)} dtk — ${PRODUCTS.length} produk, ${fileCount} file, ${logs.length} log unduhan, ${chat.rooms} ruang chat, ${chat.messages} pesan.`,
+    `✓ Seed selesai dalam ${((Date.now() - t0) / 1000).toFixed(1)} dtk — ${PRODUCTS.length} produk, ${fileCount} file, ${logs.length} log unduhan, ${chat.rooms} ruang chat, ${chat.messages} pesan, ${pay.orders} pesanan.`,
   );
   console.log("  Akun demo (password: rilisin123): admin@rilisin.test · seller@rilisin.test · user@rilisin.test · moderator: dimas24@contoh.test");
 }
