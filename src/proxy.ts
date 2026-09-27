@@ -35,15 +35,8 @@ function siteLockOk(request: NextRequest) {
 
 export function proxy(request: NextRequest) {
   if (!siteLockOk(request)) {
-    return new NextResponse("Situs uji coba Rilisin — butuh username & password dari tim.", {
-      status: 401,
-      headers: {
-        "WWW-Authenticate": 'Basic realm="Rilisin (uji coba)", charset="UTF-8"',
-        "Content-Type": "text/plain; charset=utf-8",
-        "X-Robots-Tag": "noindex, nofollow",
-        "Cache-Control": "no-store",
-      },
-    });
+    // Rewrite ke route handler yang mengirim 401 + WWW-Authenticate (header ini dibuang Vercel kalau dikirim dari proxy)
+    return NextResponse.rewrite(new URL("/api/site-lock", request.url));
   }
 
   const locked = Boolean(process.env.SITE_LOCK_PASSWORD);
