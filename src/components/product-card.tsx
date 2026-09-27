@@ -62,7 +62,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
 export function ProductGrid({ items, cols = 4 }: { items: ProductCardData[]; cols?: 3 | 4 }) {
   return (
-    <div className={`grid gap-5 sm:grid-cols-2 lg:grid-cols-3 ${cols === 4 ? "xl:grid-cols-4" : ""}`}>
+    <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 ${cols === 4 ? "xl:grid-cols-4" : ""}`}>
       {items.map((p) => (
         <ProductCard key={p.id} product={p} />
       ))}

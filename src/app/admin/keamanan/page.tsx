@@ -79,7 +79,7 @@ export default async function SecurityLogPage({ searchParams }: PageProps<"/admi
       <h1 className="text-3xl font-extrabold tracking-tight text-ink">Log keamanan</h1>
       <p className="mt-1 text-sm text-slate-500">IP tidak disimpan mentah — hanya hash (UU PDP). Log dipakai untuk mendeteksi brute force, bot, dan penyalahgunaan.</p>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <Card key={c.label} className="flex items-center gap-3 p-4">
             <span className={cn("flex h-11 w-11 items-center justify-center rounded-xl", c.tone)}>
@@ -93,7 +93,7 @@ export default async function SecurityLogPage({ searchParams }: PageProps<"/admi
         ))}
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-5">
           <p className="flex items-center gap-2 font-bold text-ink">
             <KeyRound className="h-4 w-4 text-brand-600" /> 2FA akun staf

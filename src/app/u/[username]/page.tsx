@@ -32,7 +32,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
             <Avatar name={name} avatarKey={profile.avatarKey} size={96} className="ring-4 ring-white" />
             <div className="min-w-0 flex-1">
               <h1 className="flex flex-wrap items-center gap-2 text-2xl font-extrabold tracking-tight text-ink">
-                {name}
+                <span className="min-w-0 [overflow-wrap:anywhere]">{name}</span>
                 {profile.isTrusted && (
                   <span title="Seller terpercaya" className="text-brand-600">
                     <BadgeCheck className="h-6 w-6" />

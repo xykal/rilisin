@@ -91,19 +91,29 @@ export default async function ReviewQueuePage({ searchParams }: PageProps<"/admi
         ) : (
           <Card className="divide-y divide-slate-100">
             {newProducts.map((p) => (
-              <Link key={p.id} href={`/admin/review/${p.id}`} className="flex items-center gap-4 p-4 hover:bg-slate-50">
+              <Link key={p.id} href={`/admin/review/${p.id}`} className="flex items-center gap-3 p-4 hover:bg-slate-50 sm:gap-4">
                 <ProductIcon iconKey={p.iconKey} title={p.title} size={48} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-ink">{p.title}</p>
-                  <p className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
-                    <span>@{p.sellerUsername}</span>·<span>{categoryLabel(p.category)}</span>·
+                  <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                    <span className="break-all">@{p.sellerUsername}</span>·<span>{categoryLabel(p.category)}</span>·
                     <span className="flex gap-1">{p.platforms.map((pl) => <PlatformIcon key={pl} platform={pl} className="h-3.5 w-3.5" />)}</span>·
                     <span>akun dibuat {timeAgo(p.sellerCreatedAt)}</span>
                   </p>
+                  {/* HP & tablet kecil: badge Android pindah ke bawah supaya teks tidak terjepit */}
+                  {p.platforms.includes("android") && (
+                    <span className="mt-1.5 block md:hidden">
+                      <AndroidBadge registration={p.androidRegistration} size="sm" />
+                    </span>
+                  )}
                 </div>
-                {p.platforms.includes("android") && <AndroidBadge registration={p.androidRegistration} size="sm" />}
-                <span className="hidden text-xs text-slate-500 sm:block">menunggu {timeAgo(p.submittedAt)}</span>
-                <ArrowRight className="h-4 w-4 text-slate-300" />
+                {p.platforms.includes("android") && (
+                  <span className="shrink-0 max-md:hidden">
+                    <AndroidBadge registration={p.androidRegistration} size="sm" />
+                  </span>
+                )}
+                <span className="hidden shrink-0 text-xs text-slate-500 sm:block">menunggu {timeAgo(p.submittedAt)}</span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
               </Link>
             ))}
           </Card>

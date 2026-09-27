@@ -32,7 +32,7 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
 
   if (!user.seller) {
     return (
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1fr_440px]">
+      <div className="mx-auto grid grid-cols-1 max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_440px]">
         <div>
           <p className="text-sm font-semibold text-brand-700">Seller Center</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">Rilis karyamu ke ribuan pengguna Indonesia</h1>
@@ -87,11 +87,11 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
         <div>
           <p className="text-sm font-semibold text-brand-700">Seller Center</p>
           <h1 className="flex items-center gap-2 text-3xl font-extrabold tracking-tight text-ink">
-            {user.seller.storeName}
-            {user.seller.isTrusted && <BadgeCheck className="h-6 w-6 text-brand-600" aria-label="Seller terpercaya" />}
+            <span className="min-w-0 [overflow-wrap:anywhere]">{user.seller.storeName}</span>
+            {user.seller.isTrusted && <BadgeCheck className="h-6 w-6 shrink-0 text-brand-600" aria-label="Seller terpercaya" />}
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ButtonLink href={`/@${user.username}`} variant="secondary">
             <Eye className="h-4 w-4" /> Profil publik
           </ButtonLink>
@@ -101,7 +101,7 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { icon: Package, label: "Karya tayang", value: published.length },
           { icon: Download, label: "Total unduhan", value: totalDownloads },
@@ -116,11 +116,11 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
         ))}
       </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-bold text-ink">Karya kamu</h2>
-            <Link href="/seller/produk" className="text-sm font-semibold text-brand-700 hover:underline">Kelola semua →</Link>
+            <Link href="/seller/produk" className="-my-1 py-1 text-sm font-semibold text-brand-700 hover:underline">Kelola semua →</Link>
           </div>
           {items.length === 0 ? (
             <EmptyState icon={<Package className="h-10 w-10" />} title="Belum ada karya">
@@ -134,7 +134,7 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
               {items.slice(0, 6).map((p) => {
                 const pendingRelease = p.releases.find((r) => r.status === "review" || r.status === "draft");
                 return (
-                  <Link key={p.id} href={`/seller/produk/${p.id}`} className="flex items-center gap-4 p-4 hover:bg-slate-50">
+                  <Link key={p.id} href={`/seller/produk/${p.id}`} className="flex items-center gap-3 p-4 hover:bg-slate-50 sm:gap-4">
                     <ProductIcon iconKey={p.iconKey} title={p.title} size={44} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold text-ink">{p.title}</p>
@@ -142,10 +142,16 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
                         Diubah {timeAgo(p.updatedAt)}
                         {pendingRelease && p.status === "published" && ` · rilis v${pendingRelease.version} ${pendingRelease.status === "review" ? "sedang direview" : "masih draft"}`}
                       </p>
+                      {/* HP: status pindah ke bawah judul supaya judul tidak kepotong habis */}
+                      <span className="mt-1.5 block sm:hidden">
+                        <ProductStatusBadge status={p.status} />
+                      </span>
                     </div>
                     <span className="hidden text-sm text-slate-500 sm:block">{formatCompact(p.downloadCount)} unduhan</span>
-                    <ProductStatusBadge status={p.status} />
-                    <ArrowRight className="h-4 w-4 text-slate-300" />
+                    <span className="shrink-0 max-sm:hidden">
+                      <ProductStatusBadge status={p.status} />
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
                   </Link>
                 );
               })}

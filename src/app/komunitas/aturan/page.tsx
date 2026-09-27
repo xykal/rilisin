@@ -27,7 +27,7 @@ export default function RulesPage() {
         Aturan ini berlaku untuk semua ruang.
       </p>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {RULES.map((r) => (
           <Card key={r.title} className="p-5">
             <r.icon className="h-6 w-6 text-brand-600" />

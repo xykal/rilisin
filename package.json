@@ -13,7 +13,9 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "setup": "bash scripts/dev-db.sh && tsx scripts/seed.ts",
-    "test:smoke": "node scripts/smoke-test.mjs"
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "test:responsive": "node scripts/qa/responsive-audit.mjs",
+    "test:ui": "node scripts/qa/interactive-check.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.3",
@@ -40,6 +42,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "fflate": "^0.8.3",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

@@ -51,7 +51,7 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <Link href="/admin/review" className="text-sm font-semibold text-brand-700 hover:underline">← Antrian review</Link>
+      <Link href="/admin/review" className="inline-block py-1 text-sm font-semibold text-brand-700 hover:underline">← Antrian review</Link>
       <div className="mb-6 mt-1 flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex flex-wrap items-center gap-3 text-3xl font-extrabold tracking-tight text-ink">
           {product.title} <ProductStatusBadge status={product.status} />
@@ -75,7 +75,7 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
         </Alert>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-6">
           <Card className="overflow-hidden">
             <div className="aspect-[21/9] bg-slate-100">
@@ -152,7 +152,7 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
                     {r.files.length === 0 && <li className="text-sm text-slate-400">Tidak ada file.</li>}
                   </ul>
                   {r.status === "review" && product.status === "published" && (
-                    <div className="mt-4 grid gap-3 border-t border-amber-200 pt-4 sm:grid-cols-2">
+                    <div className="mt-4 grid grid-cols-1 gap-3 border-t border-amber-200 pt-4 sm:grid-cols-2">
                       <form action={approveReleaseAction}>
                         <input type="hidden" name="releaseId" value={r.id} />
                         <SubmitButton variant="success" className="w-full" pendingText="Menyetujui…"><Check className="h-4 w-4" /> Setujui rilis v{r.version}</SubmitButton>
@@ -182,7 +182,7 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
                 <input type="hidden" name="productId" value={product.id} />
                 {hasAndroid && product.androidRegistration === "registered" && (
                   <label className="flex items-start gap-2 text-sm text-slate-700">
-                    <input type="checkbox" name="androidChecked" className="mt-1 accent-brand-600" />
+                    <input type="checkbox" name="androidChecked" className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600" />
                     Bukti pendaftaran developer Android sudah saya cek
                   </label>
                 )}
@@ -207,8 +207,8 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
           <Card className="p-5 text-sm">
             <h2 className="font-bold text-ink">Seller</h2>
             <p className="mt-2 flex items-center gap-1.5 font-semibold text-ink">
-              {seller.sellerProfile?.storeName ?? seller.displayName}
-              {seller.sellerProfile?.isTrusted && <BadgeCheck className="h-4 w-4 text-brand-600" />}
+              <span className="min-w-0 [overflow-wrap:anywhere]">{seller.sellerProfile?.storeName ?? seller.displayName}</span>
+              {seller.sellerProfile?.isTrusted && <BadgeCheck className="h-4 w-4 shrink-0 text-brand-600" />}
             </p>
             <p className="text-slate-500">@{seller.username} · {seller.email}</p>
             <dl className="mt-3 space-y-1.5 text-slate-600">

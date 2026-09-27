@@ -66,9 +66,53 @@ npm run build && npm run start  # buka http://localhost:3000
 | `npm run db:generate` | Buat file migrasi baru setelah mengubah `src/lib/db/schema.ts` |
 | `npm run typecheck` / `npm run lint` | Cek TypeScript / ESLint |
 | `npm run test:smoke` | Tes end-to-end **97 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, dll). Server harus jalan. Menambah data uji → jalankan `db:seed` lagi |
+| `npm run test:responsive -- <engine> <quick\|full>` | Audit tampilan: 36 halaman × 8 (quick) atau 25 (full) ukuran layar. Engine: `chromium`, `webkit`, `firefox`, `all`. Tambah `shots` untuk screenshot |
+| `npm run test:ui -- <engine>` | Cek komponen interaktif: laci menu, mega menu, dropdown akun, chat, overlay tahan pesan, sheet hapus |
 
 > **Di sandbox chat ini:** database, file upload (`.local/`), `node_modules`, dan `.next` **tidak ikut tersimpan**. Kalau sandbox restart:
 > `npm install && npm run setup && npm run build && npm run start`
+
+## Responsif & kompatibilitas browser (dicek 27 Sep 2026)
+
+Semua halaman diuji otomatis dengan Playwright di **25 ukuran layar**, dari **280px** (Galaxy Fold tertutup) sampai **3440px** (monitor ultrawide). Ukuran di antaranya: HP kecil & besar, HP landscape, tablet (portrait/landscape), laptop, Full HD, dan QHD.
+
+| Engine | Mewakili | Hasil |
+|---|---|---|
+| Chromium | Chrome, Edge, Samsung Internet, Opera, WebView Android | 900 kombinasi halaman×layar: **0 masalah**; semua komponen interaktif muat |
+| WebKit | Safari iPhone, iPad, Mac | 925 kombinasi (termasuk data nama super panjang): **0 masalah**; login lewat HTTPS & komponen interaktif OK |
+| Firefox | Firefox desktop & Android | 296 kombinasi: **0 masalah**; komponen interaktif OK |
+
+Yang dicek:
+- **Tata letak:** tidak ada scroll horizontal, elemen keluar layar, atau teks meluber keluar kotaknya.
+- **Kualitas:** tidak ada error JS/konsol; semua halaman HTTP 200.
+- **Komponen interaktif:** laci menu HP, mega menu (hover di desktop, tap di tablet), dropdown akun, overlay "tahan pesan" + bar emoji, dan sheet "Hapus untuk semua orang" muat di layar.
+- **Kolom ketik chat** selalu terlihat, termasuk di HP landscape.
+- **Uji teks ekstrem:** judul 80 karakter, nama toko/nama user 50 karakter tanpa spasi, username 20 karakter, pesan chat berisi URL & kata sangat panjang.
+
+Aturan layout yang dipakai (penting kalau menambah halaman baru):
+- **Grid responsif selalu punya kolom dasar** `grid-cols-1`, dan kolom fleksibel memakai `minmax(0,1fr)`, bukan `1fr` polos. Tanpa itu, satu baris konten panjang bisa melebarkan kolom melewati layar (bug lama di Seller Center HP).
+- **Teks buatan user di dalam `flex`** dibungkus `<span className="min-w-0 truncate">` atau `[overflow-wrap:anywhere]`. Ada jaring pengaman global juga: `overflow-wrap: break-word` di body, dan `anywhere` di h1–h3.
+- **Chat:** tata letak "desktop" (daftar ruang + obrolan berdampingan) hanya aktif kalau layar **≥ 768px lebar DAN ≥ 560px tinggi** (varian `chat-wide` / `chat-narrow` di `globals.css`). HP landscape memakai tata letak layar penuh.
+- **Tombol di HP (< 640px)** boleh turun baris kalau labelnya panjang.
+- **Mega menu** bisa discroll kalau lebih tinggi dari layar.
+- **Tab chat di latar belakang** melepas koneksi realtime setelah 45 detik, lalu menyambung lagi otomatis saat dibuka.
+
+Batasan yang perlu diketahui:
+- **Browser:** yang didukung adalah browser modern, mengikuti syarat Tailwind CSS v4: Safari/iOS 16.4+, Chrome/Edge 111+, Firefox 128+ (browser ±3 tahun terakhir). Browser yang sangat tua mungkin menampilkan gaya kurang rapi.
+- **Getar saat menahan pesan** hanya jalan di Android (iPhone tidak mengizinkan web memakai getar).
+- **Hosting:** chat realtime memakai SSE. Pastikan hosting production memakai **HTTP/2**; ini standar di Vercel, Cloudflare, dan nginx modern. Di HTTP/1.1 browser cuma memberi ±6 koneksi per situs untuk semua tab.
+
+Cara mengulang tes:
+```bash
+npm install && npx playwright install --with-deps chromium webkit firefox   # sekali saja
+npm run test:responsive -- chromium full      # 900 kombinasi, ±4 menit
+npm run test:ui -- chromium
+# WebKit perlu HTTPS (cookie login __Host- + Secure):
+node scripts/qa/https-proxy.mjs &              # https://localhost:3443
+BASE=https://localhost:3443 npm run test:responsive -- webkit quick
+BASE=https://localhost:3443 npm run test:ui -- webkit
+```
+Tes login memakai akun demo, jadi jalankan `npm run db:seed` dulu kalau datanya sudah diubah.
 
 ### Kalau login tidak "nyangkut" di preview
 Preview berjalan di dalam iframe. Beberapa browser (terutama Safari) memblokir cookie di iframe — buka preview di tab baru.
@@ -105,6 +149,7 @@ src/
 scripts/
   seed.ts, seed-chat.ts      Data demo (produk + percakapan komunitas)
   smoke-test.mjs             Tes end-to-end tanpa browser
+  qa/                        Tes tampilan pakai browser sungguhan (Playwright): responsive-audit, interactive-check, https-proxy
 drizzle/                     Migrasi SQL (0000_init, 0001_security_chat)
 ```
 

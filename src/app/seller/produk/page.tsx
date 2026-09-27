@@ -19,7 +19,7 @@ export default async function SellerProductsPage({ searchParams }: PageProps<"/s
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Link href="/seller" className="text-sm font-semibold text-brand-700 hover:underline">← Seller Center</Link>
+          <Link href="/seller" className="inline-block py-1 text-sm font-semibold text-brand-700 hover:underline">← Seller Center</Link>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">Karya saya</h1>
         </div>
         <ButtonLink href="/seller/produk/baru"><Plus className="h-4 w-4" /> Tambah karya</ButtonLink>

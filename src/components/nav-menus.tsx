@@ -166,14 +166,14 @@ export function DesktopNav({ data }: { data: NavData }) {
         {open && (
           <div
             id={`menu-${open}`}
-            className="anim-slide-down absolute inset-x-0 top-full z-50 border-b border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10"
+            className="anim-slide-down absolute inset-x-0 top-full z-50 max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain border-b border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10"
             onClick={(e) => {
               if ((e.target as HTMLElement).closest("a")) close();
             }}
           >
             {open === "jelajahi" && (
               <>
-                <div className="mx-auto grid max-w-7xl gap-8 px-6 py-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                <div className="mx-auto grid grid-cols-1 max-w-7xl gap-8 px-6 py-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1.2fr)]">
                   <div className="min-w-0">
                     <Heading>Kategori</Heading>
                     <div className="grid grid-cols-2 gap-1">
@@ -263,7 +263,7 @@ export function DesktopNav({ data }: { data: NavData }) {
             )}
 
             {open === "komunitas" && (
-              <div className="mx-auto grid max-w-7xl gap-8 px-6 py-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+              <div className="mx-auto grid grid-cols-1 max-w-7xl gap-8 px-6 py-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
                 <div className="min-w-0">
                   <Heading>Ruang obrolan</Heading>
                   <div className="grid grid-cols-2 gap-1 xl:grid-cols-3">
@@ -309,7 +309,7 @@ export function DesktopNav({ data }: { data: NavData }) {
             )}
 
             {open === "panduan" && (
-              <div className="mx-auto grid max-w-7xl gap-1 px-6 py-6 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mx-auto grid grid-cols-1 max-w-7xl gap-1 px-6 py-6 sm:grid-cols-2 lg:grid-cols-4">
                 {GUIDES.map((g) => (
                   <Link key={g.href} href={g.href} className="group rounded-2xl p-4 hover:bg-brand-50/70">
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 transition-colors group-hover:bg-brand-600 group-hover:text-white">
@@ -405,7 +405,7 @@ export function MobileNav({
               }}
             >
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 pt-[max(env(safe-area-inset-top),0.75rem)]">
-                <p className="font-extrabold text-ink">{user ? `Hai, ${user.displayName.split(" ")[0]} 👋` : "Menu"}</p>
+                <p className="min-w-0 truncate font-extrabold text-ink">{user ? `Hai, ${user.displayName.split(" ")[0]} 👋` : "Menu"}</p>
                 <button
                   type="button"
                   onClick={close}
@@ -435,7 +435,8 @@ export function MobileNav({
                       className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 active:bg-brand-50"
                     >
                       <CategoryIcon category={c.slug} className="h-4 w-4 shrink-0 text-brand-600" />
-                      <span className="truncate">{c.label}</span>
+                      {/* boleh 2 baris (bukan dipotong "Templ…") — laci di HP kecil cuma ±250px */}
+                      <span className="min-w-0 leading-tight">{c.label}</span>
                     </Link>
                   ))}
                 </div>

@@ -68,7 +68,7 @@ export default async function ManageProductPage({ params, searchParams }: PagePr
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <Link href="/seller/produk" className="text-sm font-semibold text-brand-700 hover:underline">← Karya saya</Link>
+      <Link href="/seller/produk" className="inline-block py-1 text-sm font-semibold text-brand-700 hover:underline">← Karya saya</Link>
       <div className="mb-6 mt-1 flex flex-wrap items-center justify-between gap-4">
         <h1 className="flex flex-wrap items-center gap-3 text-3xl font-extrabold tracking-tight text-ink">
           {product.title} <ProductStatusBadge status={product.status} />
@@ -100,7 +100,7 @@ export default async function ManageProductPage({ params, searchParams }: PagePr
         {product.status === "review" && <Alert tone="warning">Sedang direview — data dikunci sampai ada keputusan moderator.</Alert>}
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-8">
           {/* 1. Info */}
           <Card className="p-6 sm:p-8">
@@ -128,7 +128,7 @@ export default async function ManageProductPage({ params, searchParams }: PagePr
           <Card className="p-6 sm:p-8">
             <h2 className="text-lg font-bold text-ink">Gambar</h2>
             <p className="mb-5 mt-1 text-sm text-slate-500">PNG / JPG / WEBP, maks. 5 MB. Otomatis dikonversi ke WEBP & metadata lokasi (EXIF) dihapus.</p>
-            <div className="grid gap-6 sm:grid-cols-[auto_1fr]">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-[auto_minmax(0,1fr)]">
               <div>
                 <p className="mb-2 text-sm font-semibold text-slate-800">Ikon <span className="font-normal text-slate-400">(persegi, min. 512px)</span></p>
                 <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">

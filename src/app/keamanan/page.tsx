@@ -81,7 +81,7 @@ export default function SecurityCenterPage() {
       {SECTIONS.map((s) => (
         <section key={s.title} className="mt-12">
           <h2 className="text-xl font-bold text-ink">{s.title}</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {s.items.map((it) => (
               <Card key={it.title} className="p-5">
                 <it.icon className="h-6 w-6 text-brand-600" />
@@ -93,7 +93,7 @@ export default function SecurityCenterPage() {
         </section>
       ))}
 
-      <section className="mt-12 grid gap-4 lg:grid-cols-2">
+      <section className="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="border-amber-200 bg-amber-50/60 p-6">
           <p className="font-bold text-amber-900">Tips aman untuk kamu</p>
           <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-amber-900/90">

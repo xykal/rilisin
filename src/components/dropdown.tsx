@@ -24,9 +24,14 @@ export function Dropdown({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Tutup saat pindah halaman — tapi JANGAN saat hydration pertama: kalau user sudah mengetuk menu sebelum JS siap
+  // (HP lambat / Safari), menu yang baru terbuka tidak boleh langsung menutup sendiri.
+  const routeKey = `${pathname}?${searchParams.toString()}`;
+  const lastRoute = useRef(routeKey);
   useEffect(() => {
-    if (ref.current) ref.current.open = false;
-  }, [pathname, searchParams]);
+    if (lastRoute.current !== routeKey && ref.current) ref.current.open = false;
+    lastRoute.current = routeKey;
+  }, [routeKey]);
 
   useEffect(() => {
     function onPointer(e: MouseEvent) {

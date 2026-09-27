@@ -113,7 +113,7 @@ export default async function ReportsPage() {
                 {now?.deletedAt && <Badge tone="slate">Sudah dihapus</Badge>}
                 <span className="ml-auto text-xs text-slate-500">terakhir {timeAgo(g.last_at)}</span>
               </div>
-              <div className="grid gap-5 p-5 md:grid-cols-[1.3fr_1fr]">
+              <div className="grid grid-cols-1 gap-5 p-5 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
                 <div>
                   <p className="text-xs text-slate-500">
                     <b className="text-slate-700">{snap.authorName}</b> @{snap.authorUsername} · di{" "}

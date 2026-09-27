@@ -6,7 +6,8 @@ export function cn(...classes: (string | false | null | undefined)[]) {
 }
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap";
+  // HP (< 640px): label panjang boleh turun baris daripada meluber keluar tombol
+  "inline-flex items-center justify-center gap-2 rounded-xl text-center text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap max-sm:whitespace-normal";
 
 export const buttonStyles = {
   primary: `${buttonBase} bg-brand-600 px-4 py-2.5 text-white shadow-sm shadow-brand-600/20 hover:bg-brand-700`,

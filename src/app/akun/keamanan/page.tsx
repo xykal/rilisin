@@ -74,7 +74,7 @@ export default async function SecurityPage({ searchParams }: PageProps<"/akun/ke
           </span>
           <div className="flex-1">
             <p className="text-lg font-bold text-ink">{score === 3 ? "Akunmu terlindungi dengan baik" : "Keamanan akunmu bisa ditingkatkan"}</p>
-            <ul className="mt-2 grid gap-1.5 text-sm sm:grid-cols-3">
+            <ul className="mt-2 grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-3">
               {checks.map((c) => (
                 <li key={c.label} className="flex items-start gap-2">
                   {c.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />}
@@ -168,7 +168,7 @@ export default async function SecurityPage({ searchParams }: PageProps<"/akun/ke
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
-                    {describeUserAgent(s.userAgent)}
+                    <span className="min-w-0">{describeUserAgent(s.userAgent)}</span>
                     {current && <Badge tone="green">Perangkat ini</Badge>}
                   </p>
                   <p className="text-xs text-slate-500">

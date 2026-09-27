@@ -5,7 +5,7 @@ import { Logo } from "./logo";
 export function SiteFooter() {
   return (
     <footer className="mt-20 border-t border-slate-200 bg-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-4">
+      <div className="mx-auto grid grid-cols-1 max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-4">
         <div className="md:col-span-1">
           <Logo />
           <p className="mt-3 text-sm text-slate-500">{SITE.tagline}.</p>

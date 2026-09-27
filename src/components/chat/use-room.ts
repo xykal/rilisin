@@ -59,7 +59,7 @@ export function useRoom(opts: {
 
   /** Gabungkan pesan dari server. `mode`: new = boleh tambah pesan baru; known = hanya perbarui yang sudah ada. */
   const upsert = useCallback((incoming: ChatMessageDTO[], mode: "new" | "known" | "sync" = "new") => {
-    if (!incoming.length) return;
+    if (!incoming?.length) return; // defensif: respons tanpa daftar pesan diabaikan
     setMsgs((prev) => {
       let next: Record<string, LocalMessage> | null = null;
       const values = Object.values(prev).filter((m) => !m.pending);
@@ -167,12 +167,40 @@ export function useRoom(opts: {
         }
       };
     };
-    connect();
-
+    /*
+     * Tab di latar belakang > 45 dtk → koneksi realtime dilepas; saat tab dibuka lagi → sambung ulang + ambil
+     * pesan yang terlewat (event "ready" memanggil resync). Alasannya: di HTTP/1.1 browser cuma memberi ±6 koneksi
+     * per situs untuk SEMUA tab — banyak tab chat yang menggantung bisa bikin halaman lain di situs ini macet.
+     * Bonus: beban server & status "online" lebih jujur (seperti WhatsApp: online hanya saat aplikasi dibuka).
+     */
+    let paused = false;
+    let pauseTimer = 0;
     const onVisible = () => {
-      if (document.visibilityState === "visible") void resync();
+      window.clearTimeout(pauseTimer);
+      if (document.visibilityState === "visible") {
+        if (paused) {
+          paused = false;
+          attempt = 0;
+          window.clearTimeout(retryTimer);
+          setStatus("connecting");
+          connect();
+        } else void resync();
+        return;
+      }
+      pauseTimer = window.setTimeout(() => {
+        if (stopped || document.visibilityState === "visible") return;
+        paused = true;
+        window.clearTimeout(retryTimer);
+        es?.close();
+        es = null;
+      }, 45_000);
     };
+
+    connect();
+    if (document.visibilityState === "hidden") onVisible(); // dibuka langsung di tab belakang
+
     const onOnline = () => {
+      if (paused) return; // disambung ulang saat tab terlihat lagi
       if (es?.readyState === EventSource.CLOSED) {
         window.clearTimeout(retryTimer);
         connect();
@@ -183,6 +211,7 @@ export function useRoom(opts: {
     return () => {
       stopped = true;
       window.clearTimeout(retryTimer);
+      window.clearTimeout(pauseTimer);
       es?.close();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onOnline);

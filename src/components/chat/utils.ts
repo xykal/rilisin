@@ -89,6 +89,9 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; status: number; error: string; code?: string; retryAfter?: number };
 
+const CONNECTION_LOST = "Koneksi terputus. Cek internet kamu lalu coba lagi.";
+type ApiBody = { error?: string; code?: string; retryAfter?: number };
+
 export async function chatApi<T>(url: string, body?: unknown): Promise<ApiResult<T>> {
   try {
     const res = await fetch(url, {
@@ -99,13 +102,22 @@ export async function chatApi<T>(url: string, body?: unknown): Promise<ApiResult
       cache: "no-store",
     });
     if (res.status === 204) return { ok: true, data: undefined as T };
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return { ok: false, status: res.status, error: data.error ?? `Gagal (${res.status})`, code: data.code, retryAfter: data.retryAfter };
+    let data: ApiBody | null = null;
+    try {
+      const parsed: unknown = await res.json();
+      if (parsed && typeof parsed === "object") data = parsed as ApiBody;
+    } catch {
+      data = null;
     }
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: data?.error ?? `Gagal (${res.status})`, code: data?.code, retryAfter: data?.retryAfter };
+    }
+    // 2xx tapi body rusak/terputus (mis. pindah halaman saat respons masih dibaca, sinyal jelek) → anggap gagal
+    // jaringan, JANGAN dianggap sukses dengan data kosong (dulu memicu "e is undefined" di Firefox).
+    if (!data) return { ok: false, status: 0, error: CONNECTION_LOST };
     return { ok: true, data: data as T };
   } catch {
-    return { ok: false, status: 0, error: "Koneksi terputus. Cek internet kamu lalu coba lagi." };
+    return { ok: false, status: 0, error: CONNECTION_LOST };
   }
 }
 

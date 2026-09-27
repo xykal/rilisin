@@ -55,7 +55,7 @@ export default async function TotpSetupPage() {
         <Link href="/akun/keamanan" className="hover:underline">Keamanan akun</Link> / Aktifkan 2FA
       </p>
       <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink">Aktifkan verifikasi 2 langkah</h1>
-      <div className="mt-8 grid gap-6 md:grid-cols-[1fr_1.1fr]">
+      <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <Card className="p-6 text-center">
           {secret && qrSrc ? (
             <>

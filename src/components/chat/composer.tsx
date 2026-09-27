@@ -38,7 +38,8 @@ export function Composer(p: Props) {
     const el = taRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 148)}px`;
+    // padding (9px atas + 9px bawah) sekarang ada di dalam textarea supaya seluruh "pil" bisa diketuk
+    el.style.height = `${Math.min(el.scrollHeight, 166)}px`;
   };
 
   // Masuk mode edit → isi teks lama; keluar → kosongkan
@@ -208,7 +209,7 @@ export function Composer(p: Props) {
             </button>
           </>
         )}
-        <div className={cn("flex min-w-0 flex-1 items-end rounded-[22px] border bg-white px-3.5 py-[9px] transition-colors", tooLong ? "border-red-300" : "border-slate-200 focus-within:border-brand-300")}>
+        <div className={cn("flex min-w-0 flex-1 items-end rounded-[22px] border bg-white transition-colors", tooLong ? "border-red-300" : "border-slate-200 focus-within:border-brand-300")}>
           <textarea
             ref={taRef}
             value={text}
@@ -237,7 +238,7 @@ export function Composer(p: Props) {
                 } else if (p.replyTo) p.onCancelReply();
               }
             }}
-            className="block max-h-[148px] w-full resize-none bg-transparent text-[15px] leading-[22px] text-ink placeholder:text-slate-400 focus:outline-none"
+            className="block max-h-[166px] w-full resize-none rounded-[22px] bg-transparent px-3.5 py-[9px] text-[15px] leading-[22px] text-ink placeholder:text-slate-400 focus:outline-none"
           />
         </div>
         <button

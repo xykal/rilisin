@@ -44,6 +44,9 @@ import { ActionSheet, EmojiSheet, Lightbox, LinkSheet, MuteSheet, ReactionsSheet
 import { useRoom } from "./use-room";
 import { copyText, dayKey, dayLabel, listTimeLabel, roomTint, timeLabel, TzContext, useDeviceTz, useMediaQuery, useTz } from "./utils";
 
+/** Kebalikan persis dari varian CSS `chat-wide` (min-width 48rem DAN min-height 35rem). */
+const CHAT_NARROW_QUERY = "not all and (min-width: 48rem), not all and (min-height: 35rem)";
+
 type RoomInitial = {
   messages: ChatMessageDTO[];
   hasMore: boolean;
@@ -93,7 +96,8 @@ export function ChatApp({
   }, []);
 
   // Layar HP: ruang chat tampil layar penuh (seperti aplikasi chat) — kunci scroll halaman di belakangnya.
-  const mobile = useMediaQuery("(max-width: 767px)");
+  // Sama persis dengan varian CSS chat-narrow (globals.css): layar sempit ATAU pendek (HP landscape)
+  const mobile = useMediaQuery(CHAT_NARROW_QUERY);
   useEffect(() => {
     if (!room || !mobile) return;
     const html = document.documentElement;
@@ -108,15 +112,16 @@ export function ChatApp({
 
   return (
     <TzContext.Provider value={tz}>
-      <div className="mx-auto max-w-7xl md:px-6 md:py-5">
-        <div className="md:grid md:h-[calc(100dvh-7.5rem)] md:min-h-[560px] md:grid-cols-[320px_minmax(0,1fr)] md:overflow-hidden md:rounded-[28px] md:border md:border-slate-200/80 md:bg-white md:shadow-xl md:shadow-slate-900/5 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <aside className={cn("flex min-h-0 flex-col bg-white md:border-r md:border-slate-200/80", room && "max-md:hidden")}>
+      <div className="mx-auto max-w-7xl chat-wide:px-6 chat-wide:py-5">
+        {/* tinggi = layar − (banner 32 + header 65 + padding 40) ≈ 8.75rem → halaman tidak perlu discroll */}
+        <div className="chat-wide:grid chat-wide:h-[calc(100dvh-8.75rem)] chat-wide:min-h-[420px] chat-wide:grid-cols-[320px_minmax(0,1fr)] chat-wide:overflow-hidden chat-wide:rounded-[28px] chat-wide:border chat-wide:border-slate-200/80 chat-wide:bg-white chat-wide:shadow-xl chat-wide:shadow-slate-900/5 chat-wide-lg:grid-cols-[360px_minmax(0,1fr)]">
+          <aside className={cn("flex min-h-0 flex-col bg-white chat-wide:border-r chat-wide:border-slate-200/80", room && "chat-narrow:hidden")}>
             <RoomList rooms={rooms} activeSlug={activeSlug} viewer={viewer} memberCount={memberCount} />
           </aside>
           <section
             className={cn(
               "flex min-h-0 min-w-0 flex-col",
-              room ? "max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:z-50 max-md:h-dvh max-md:bg-white" : "max-md:hidden",
+              room ? "chat-narrow:fixed chat-narrow:inset-x-0 chat-narrow:top-0 chat-narrow:z-50 chat-narrow:h-dvh chat-narrow:bg-white" : "chat-narrow:hidden",
             )}
             style={room && mobile && vv ? { height: vv.height, top: vv.top } : undefined}
           >
@@ -177,7 +182,7 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
   const shown = rooms.filter((r) => !q || `${r.name} ${r.description}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
-      <div className="px-4 pb-3 pt-5 md:pt-4">
+      <div className="px-4 pb-3 pt-5 chat-wide:pt-4">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-2xl font-extrabold tracking-tight text-ink">Komunitas</h1>
           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
@@ -265,7 +270,7 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
 
 function EmptyPane() {
   return (
-    <div className="chat-wallpaper hidden h-full flex-col items-center justify-center p-10 text-center md:flex">
+    <div className="chat-wallpaper hidden h-full flex-col items-center justify-center p-10 text-center chat-wide:flex">
       <div className="rounded-[28px] bg-white/85 p-8 shadow-sm ring-1 ring-slate-200/70 backdrop-blur">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/30">
           <MessagesSquare className="h-8 w-8" />
@@ -562,7 +567,7 @@ function RoomView({
       <div className="relative flex h-full min-h-0 flex-col">
         {/* Header ruang */}
         <header className="z-10 flex items-center gap-2.5 border-b border-slate-200/80 bg-white/95 px-2 py-2 pt-[max(env(safe-area-inset-top),0.5rem)] backdrop-blur sm:px-4">
-          <Link href="/komunitas" className="-ml-0.5 rounded-full p-2 text-slate-700 hover:bg-slate-100 md:hidden" aria-label="Kembali ke daftar ruang">
+          <Link href="/komunitas" className="-ml-0.5 rounded-full p-2 text-slate-700 hover:bg-slate-100 chat-wide:hidden" aria-label="Kembali ke daftar ruang">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <button type="button" onClick={() => setSheet({ kind: "info" })} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-0.5 text-left">
@@ -648,7 +653,7 @@ function RoomView({
                     </>
                   )}
                 </p>
-                <button type="button" onClick={closeTip} aria-label="Tutup tips" className="rounded-full p-0.5 text-slate-400 hover:text-slate-600">
+                <button type="button" onClick={closeTip} aria-label="Tutup tips" className="-m-1 shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
                   <X className="h-4 w-4" />
                 </button>
               </div>

@@ -62,7 +62,7 @@ export function ChangePasswordForm() {
       <Field label="Password saat ini" htmlFor="currentPassword" error={fe.currentPassword}>
         <input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password" className={inputStyles} />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Password baru" htmlFor="newPassword" error={fe.newPassword} hint="Min. 10 karakter, bukan password umum">
           <input id="newPassword" name="newPassword" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputStyles} />
         </Field>
@@ -162,7 +162,7 @@ export function DisableTotpForm() {
   if (state?.success) return <Alert tone="warning">{state.success}</Alert>;
   return (
     <form action={action} className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Password saat ini" htmlFor="disable-password" error={fe.password}>
           <input id="disable-password" name="password" type="password" required autoComplete="current-password" className={inputStyles} />
         </Field>

@@ -49,7 +49,7 @@ export function MessageFocus({
    */
   const armed = useRef(false);
   const allowed = (e: { detail: number }) => armed.current || e.detail === 0;
-  const [layout, setLayout] = useState<{ colTop: number; shift: number; side: number; maxBubbleH: number } | null>(null);
+  const [layout, setLayout] = useState<{ colTop: number; shift: number; side: number; maxBubbleH: number; barDx: number; menuDx: number } | null>(null);
   const [phase, setPhase] = useState<"enter" | "open" | "closing">("enter");
 
   useLayoutEffect(() => {
@@ -66,9 +66,22 @@ export function MessageFocus({
     const maxTop = vh - margin - menuH - gap - bubbleH;
     const top = Math.min(Math.max(rect.top, minTop), Math.max(minTop, maxTop));
     const side = mine ? Math.max(margin, vw - rect.right) : Math.max(margin, rect.left);
+    // Bar reaksi & menu lebih lebar dari bubble pendek → geser horizontal secukupnya supaya tetap di dalam layar.
+    // Bubble-nya sendiri tidak ikut bergeser (tetap di posisi aslinya, seperti WhatsApp).
+    const fitDx = (w: number) => {
+      if (!w) return 0;
+      if (mine) {
+        const left = vw - side - w; // elemen rata kanan
+        return left < margin ? margin - left : 0; // (+) geser ke kanan
+      }
+      const right = side + w; // elemen rata kiri
+      return right > vw - margin ? vw - margin - right : 0; // (−) geser ke kiri
+    };
+    const barDx = fitDx(barRef.current?.offsetWidth ?? 0);
+    const menuDx = fitDx(menuRef.current?.offsetWidth ?? 0);
     openedAt.current = performance.now();
     // ukur dulu, baru posisikan (useLayoutEffect → sebelum paint, tidak berkedip)
-    setLayout({ colTop: top - (barH ? barH + gap : 0), shift: rect.top - top, side, maxBubbleH });
+    setLayout({ colTop: top - (barH ? barH + gap : 0), shift: rect.top - top, side, maxBubbleH, barDx, menuDx });
   }, [rect, mine]);
 
   useEffect(() => {
@@ -139,6 +152,7 @@ export function MessageFocus({
             ref={barRef}
             className="focus-emoji-bar mb-2"
             style={{
+              translate: layout?.barDx ? `${layout.barDx}px 0` : undefined,
               transformOrigin: `${originX} bottom`,
               transform: open ? "scale(1)" : "scale(0.6)",
               opacity: open ? 1 : 0,
@@ -161,7 +175,7 @@ export function MessageFocus({
               type="button"
               aria-label="Emoji lainnya"
               onClick={(ev) => allowed(ev) && close(onMoreEmoji)}
-              className="ml-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+              className="ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 max-[329px]:h-[30px] max-[329px]:w-[30px]"
             >
               <Plus className="h-5 w-5" />
             </button>
@@ -190,6 +204,7 @@ export function MessageFocus({
           role="menu"
           className="focus-menu mt-2"
           style={{
+            translate: layout?.menuDx ? `${layout.menuDx}px 0` : undefined,
             transformOrigin: `${originX} top`,
             transform: open ? "scale(1)" : "scale(0.7)",
             opacity: open ? 1 : 0,

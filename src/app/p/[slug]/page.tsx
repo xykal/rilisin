@@ -64,9 +64,9 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       {/* Breadcrumb */}
       <nav className="mb-5 flex items-center gap-1.5 text-sm text-slate-500" aria-label="Breadcrumb">
-        <Link href="/jelajahi" className="hover:text-ink">Jelajahi</Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <Link href={`/jelajahi?kategori=${product.category}`} className="hover:text-ink">
+        <Link href="/jelajahi" className="-my-1 shrink-0 py-1 hover:text-ink">Jelajahi</Link>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        <Link href={`/jelajahi?kategori=${product.category}`} className="-my-1 shrink-0 whitespace-nowrap py-1 hover:text-ink">
           {categoryLabel(product.category)}
         </Link>
         <ChevronRight className="h-3.5 w-3.5" />
@@ -82,7 +82,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
         </Alert>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* ─── Kolom utama ─────────────────────────────── */}
         <div className="min-w-0 space-y-8">
           <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -98,9 +98,9 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
                 <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{product.title}</h1>
                 <p className="mt-1 text-slate-600">{product.summary}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Link href={`/@${product.seller.username}`} className="flex items-center gap-2 text-sm font-semibold text-brand-700 hover:underline">
+                  <Link href={`/@${product.seller.username}`} className="-my-1 flex min-w-0 items-center gap-2 py-1 text-sm font-semibold text-brand-700 hover:underline">
                     <Avatar name={sellerName} avatarKey={product.seller.avatarKey} size={22} />
-                    {sellerName}
+                    <span className="min-w-0 truncate">{sellerName}</span>
                   </Link>
                   <span className="text-slate-300">•</span>
                   <Badge>{categoryLabel(product.category)}</Badge>
@@ -169,10 +169,10 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
               <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-ink">
                 <Smartphone className="h-5 w-5 text-brand-600" /> Info instalasi Android
               </h2>
-              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-slate-500">Nama paket</dt>
-                  <dd className="mt-0.5 font-mono text-ink">{product.androidPackage ?? "-"}</dd>
+                  <dd className="mt-0.5 break-all font-mono text-ink">{product.androidPackage ?? "-"}</dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Status developer</dt>
@@ -374,7 +374,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[slug]">) {
       {moreFromSeller.length > 0 && (
         <section className="mt-14">
           <h2 className="mb-5 text-xl font-bold text-ink">Karya lain dari {sellerName}</h2>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {moreFromSeller.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

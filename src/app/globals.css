@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+/*
+ * Tata letak chat "desktop" (daftar ruang + obrolan berdampingan) hanya kalau layar cukup LEBAR dan cukup TINGGI.
+ * HP landscape (lebar ≥ 768 tapi tinggi < 560) memakai tata letak layar penuh ala HP → kolom ketik selalu terlihat.
+ * chat-narrow = kebalikan persis chat-wide. Kondisi yang sama dipakai di JS (chat-app.tsx → CHAT_NARROW_QUERY).
+ */
+@custom-variant chat-wide {
+  @media (min-width: 48rem) and (min-height: 35rem) {
+    @slot;
+  }
+}
+@custom-variant chat-wide-lg {
+  @media (min-width: 64rem) and (min-height: 35rem) {
+    @slot;
+  }
+}
+@custom-variant chat-narrow {
+  @media not all and (min-width: 48rem), not all and (min-height: 35rem) {
+    @slot;
+  }
+}
+
 @theme {
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -24,10 +45,16 @@
 body {
   background: #f6f7fb;
   color: var(--color-ink);
+  /* Jaring pengaman: kata super panjang tanpa spasi (judul/nama toko/URL buatan user) dipatahkan, tidak mendorong layout keluar layar */
+  overflow-wrap: break-word;
 }
 
 /* Fokus keyboard yang jelas (aksesibilitas). Di layer base supaya bisa ditimpa utility (mis. focus:outline-none). */
 @layer base {
+  /* Judul sering berisi teks buatan user → boleh patah di mana saja kalau satu kata lebih lebar dari layar */
+  h1, h2, h3 {
+    overflow-wrap: anywhere;
+  }
   :focus-visible {
     outline: 2px solid var(--color-brand-500);
     outline-offset: 2px;
@@ -272,6 +299,7 @@ details > summary::-webkit-details-marker {
 .focus-emoji:active { transform: scale(1.25) !important; }
 .focus-menu {
   width: 236px;
+  max-width: calc(100vw - 24px);
   overflow: hidden;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.97);
@@ -289,6 +317,14 @@ details > summary::-webkit-details-marker {
   text-align: left;
 }
 .focus-menu-item + .focus-menu-item { border-top: 1px solid #eceef4; }
+/* Layar sempit: bar reaksi (6 emoji + tombol +) harus muat di lebar layar − 24px */
+@media (max-width: 359px) {
+  .focus-emoji { height: 36px; width: 36px; font-size: 24px; }
+}
+@media (max-width: 329px) {
+  .focus-emoji-bar { padding: 4px 5px; }
+  .focus-emoji { height: 32px; width: 32px; font-size: 21px; }
+}
 .focus-menu-item:hover, .focus-menu-item:focus-visible { background: #f4f5f9; outline: none; }
 .focus-menu-item:active { background: #e9ebf2; }
 }

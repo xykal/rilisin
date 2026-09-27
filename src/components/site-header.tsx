@@ -42,8 +42,9 @@ export async function SiteHeader() {
           </label>
         </form>
 
-        <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
-          <Link href="/jelajahi" className={cn(buttonStyles.ghost, "lg:hidden")} aria-label="Cari">
+        <div className="relative ml-auto flex items-center gap-1.5 lg:ml-0">
+          {/* Layar super sempit (mis. Galaxy Fold tertutup, 280px): ikon cari disembunyikan — kolom cari ada di laci menu */}
+          <Link href="/jelajahi" className={cn(buttonStyles.ghost, "lg:hidden max-[319px]:hidden")} aria-label="Cari">
             <Search className="h-5 w-5" />
           </Link>
 
@@ -65,6 +66,9 @@ export async function SiteHeader() {
               <Suspense>
                 <Dropdown
                   label="Menu akun"
+                  // HP: panel menempel ke tepi kanan grup tombol (bukan ke avatar) & lebarnya selalu muat layar (aman sampai 280px)
+                  className="max-sm:static"
+                  panelClassName="max-sm:w-[min(20rem,calc(100vw_-_2rem))] max-sm:min-w-0"
                   summary={
                     <span className="flex items-center gap-1.5 rounded-xl p-1 hover:bg-slate-100">
                       <Avatar name={user.displayName} avatarKey={user.avatarKey} size={32} />

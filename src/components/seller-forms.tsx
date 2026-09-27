@@ -49,7 +49,7 @@ export function ProductForm({ product, locked }: { product?: ProductDefaults; lo
         <Field label="Ringkasan singkat" htmlFor="summary" error={fe.summary} hint="Muncul di kartu produk & hasil pencarian (maks. 160 karakter)">
           <input id="summary" name="summary" required maxLength={160} defaultValue={v?.summary ?? product?.summary} className={inputStyles} placeholder="Satu kalimat yang menjelaskan manfaat utama karyamu" />
         </Field>
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field label="Kategori" htmlFor="category" error={fe.category}>
             <select id="category" name="category" required defaultValue={v?.category ?? product?.category ?? ""} className={inputStyles}>
               <option value="" disabled>Pilih kategori</option>
@@ -101,7 +101,7 @@ export function ProductForm({ product, locked }: { product?: ProductDefaults; lo
           <input id="tags" name="tags" defaultValue={v?.tags ?? product?.tags?.join(", ")} className={inputStyles} />
         </Field>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field label="Website" htmlFor="websiteUrl" optional error={fe.websiteUrl}>
             <input id="websiteUrl" name="websiteUrl" type="url" defaultValue={v?.websiteUrl ?? product?.websiteUrl ?? ""} className={inputStyles} placeholder="https://" />
           </Field>
@@ -111,7 +111,7 @@ export function ProductForm({ product, locked }: { product?: ProductDefaults; lo
         </div>
 
         <Field label="Harga" error={fe.priceIdr}>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {[
               { value: "free", title: "Gratis", desc: "Siapa pun bisa download" },
               { value: "fixed", title: "Harga tetap", desc: "Checkout aktif di Fase 2" },
@@ -218,7 +218,7 @@ export function ReleaseForm({ productId, suggestedVersion }: { productId: string
       <input type="hidden" name="productId" value={productId} />
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
       {state?.success && <Alert tone="success">{state.success}</Alert>}
-      <div className="grid gap-4 sm:grid-cols-[160px_1fr]">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
         <Field label="Versi" htmlFor="version" error={fe.version}>
           <input id="version" name="version" required defaultValue={state?.values?.version ?? suggestedVersion} className={cn(inputStyles, "font-mono")} />
         </Field>

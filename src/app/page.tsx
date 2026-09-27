@@ -35,7 +35,7 @@ export default async function HomePage() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_30rem_at_85%_-10%,rgba(110,91,255,0.18),transparent),radial-gradient(40rem_20rem_at_0%_110%,rgba(255,209,102,0.18),transparent)]"
         />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-20">
+        <div className="relative mx-auto grid grid-cols-1 max-w-7xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:py-20">
           <div className="min-w-0">
             <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl">
               Rilis karyamu.
@@ -56,7 +56,7 @@ export default async function HomePage() {
                 <Rocket className="h-4 w-4" /> Mulai rilis — gratis
               </ButtonLink>
             </div>
-            <dl className="mt-10 grid max-w-md grid-cols-3 gap-6">
+            <dl className="mt-10 grid max-w-md grid-cols-3 gap-4 sm:gap-6">
               {[
                 { label: "Karya", value: stats.products },
                 { label: "Kreator", value: stats.sellers },
@@ -64,7 +64,7 @@ export default async function HomePage() {
               ].map((s) => (
                 <div key={s.label}>
                   <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{s.label}</dt>
-                  <dd className="mt-1 text-2xl font-extrabold text-ink">{formatCompact(s.value)}</dd>
+                  <dd className="mt-1 whitespace-nowrap text-xl font-extrabold tabular-nums text-ink max-[339px]:text-lg sm:text-2xl">{formatCompact(s.value)}</dd>
                 </div>
               ))}
             </dl>
@@ -174,7 +174,7 @@ export default async function HomePage() {
 
         {/* ─── CTA seller ────────────────────────────────────── */}
         <section className="overflow-hidden rounded-3xl bg-ink text-white">
-          <div className="grid gap-10 p-8 sm:p-12 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-10 p-8 sm:p-12 lg:grid-cols-2">
             <div>
               <p className="text-sm font-semibold text-brand-300">Untuk developer &amp; kreator</p>
               <h2 className="mt-2 text-3xl font-extrabold tracking-tight">Punya aplikasi, game, atau template? Rilis di sini.</h2>
@@ -186,7 +186,7 @@ export default async function HomePage() {
                 Buka toko sekarang <ArrowRight className="h-4 w-4" />
               </ButtonLink>
             </div>
-            <ul className="grid gap-4 sm:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[
                 { icon: Percent, title: "Komisi 10%", text: "Hanya untuk produk berbayar. 0% selama 3 bulan pertama untuk seller awal." },
                 { icon: Wallet, title: "Cair ke rekening", text: "Saldo penjualan bisa ditarik ke bank / e-wallet (aktif di Fase 2)." },
@@ -205,7 +205,7 @@ export default async function HomePage() {
 
         {/* ─── Komunitas ─────────────────────────────────────── */}
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="grid gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+          <div className="grid grid-cols-1 gap-8 p-6 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-center">
             <div>
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/30">
                 <MessagesSquare className="h-6 w-6" />
