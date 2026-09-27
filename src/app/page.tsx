@@ -8,7 +8,6 @@ import {
   Rocket,
   ShieldCheck,
   Smartphone,
-  Sparkles,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,10 +17,15 @@ import { ProductGrid } from "@/components/product-card";
 import { ButtonLink, SectionHeading } from "@/components/ui";
 import { CATEGORIES } from "@/lib/config";
 import { formatCompact } from "@/lib/format";
+import { getRoomsForViewer } from "@/lib/chat/server";
 import { getHomeData } from "@/lib/queries";
 
 export default async function HomePage() {
-  const { trending, newest, featured, stats } = await getHomeData();
+  const [{ trending, newest, featured, stats }, rooms] = await Promise.all([getHomeData(), getRoomsForViewer(null)]);
+  const activeRooms = rooms
+    .filter((r) => r.lastMessage && r.kind === "public")
+    .sort((a, b) => (b.lastMessage!.at > a.lastMessage!.at ? 1 : -1))
+    .slice(0, 4);
 
   return (
     <>
@@ -33,10 +37,7 @@ export default async function HomePage() {
         />
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-20">
           <div className="min-w-0">
-            <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-              <Sparkles className="h-3.5 w-3.5" /> Untuk developer &amp; kreator Indonesia
-            </span>
-            <h1 className="mt-5 text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl">
+            <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl">
               Rilis karyamu.
               <br />
               <span className="bg-gradient-to-r from-brand-600 to-violet-500 bg-clip-text text-transparent">
@@ -203,16 +204,41 @@ export default async function HomePage() {
         </section>
 
         {/* ─── Komunitas ─────────────────────────────────────── */}
-        <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12">
-          <MessagesSquare className="mx-auto h-10 w-10 text-brand-600" />
-          <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">Komunitas segera hadir</h2>
-          <p className="mx-auto mt-2 max-w-xl text-slate-600">
-            Forum tanya-jawab, showcase karya, devlog, dan request aplikasi — tempat kreator dan pengguna saling
-            bantu. Sedang disiapkan untuk Fase 3.
-          </p>
-          <ButtonLink href="/komunitas" variant="secondary" className="mt-6">
-            Lihat rencananya
-          </ButtonLink>
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="grid gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+            <div>
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/30">
+                <MessagesSquare className="h-6 w-6" />
+              </span>
+              <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Ngobrol bareng kreator, realtime</h2>
+              <p className="mt-2 max-w-md text-slate-600">
+                Ruang obrolan untuk tanya-jawab coding, pamer karya, sampai cerita jualan. Balas, kasih reaksi emoji, edit &amp; hapus
+                pesan — dengan filter anti spam &amp; judol.
+              </p>
+              <ButtonLink href="/komunitas" className="mt-6">
+                Gabung obrolan <ArrowRight className="h-4 w-4" />
+              </ButtonLink>
+            </div>
+            <ul className="grid gap-2.5">
+              {activeRooms.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href={`/komunitas/${r.slug}`}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3 transition hover:border-brand-200 hover:bg-white hover:shadow-md"
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-xl shadow-sm">{r.emoji}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-bold text-ink">{r.name}</span>
+                      <span className="block truncate text-sm text-slate-500">
+                        <b className="font-semibold text-slate-600">{r.lastMessage!.authorName.split(" ")[0]}:</b> {r.lastMessage!.preview}
+                      </span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       </div>
     </>

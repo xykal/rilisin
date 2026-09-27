@@ -13,6 +13,7 @@ import postgres from "postgres";
 import { hashPassword } from "../src/lib/auth/password";
 import * as schema from "../src/lib/db/schema";
 import { makeApk, makeCover, makeIcon, makePdf, makeScreenshot, makeZip, type ScreenSpec, type Visual } from "./seed-assets";
+import { seedChat } from "./seed-chat";
 
 config({ path: ".env.local", quiet: true });
 
@@ -606,14 +607,24 @@ async function main() {
     sellerIds.set(s.username, u!.id);
   }
 
+  const userIds = new Map<string, string>([["tim_rilisin", admin!.id], ["rina", demoUser!.id], ...sellerIds]);
   const pool = [];
   for (const [i, name] of POOL_NAMES.entries()) {
     const username = `${name.split(" ")[0]!.toLowerCase()}${10 + i}`;
     const [u] = await db
       .insert(schema.users)
-      .values({ email: `${username}@contoh.test`, username, displayName: name, passwordHash, createdAt: ago(30 + (i % 60)) })
+      .values({
+        email: `${username}@contoh.test`,
+        username,
+        displayName: name,
+        passwordHash,
+        createdAt: ago(30 + (i % 60)),
+        // Satu anggota jadi moderator relawan komunitas (demo badge & menu moderator di chat)
+        role: username === "dimas24" ? "moderator" : "user",
+      })
       .returning({ id: schema.users.id });
     pool.push(u!.id);
+    userIds.set(username, u!.id);
   }
 
   console.log("» Membuat produk, gambar & file demo…");
@@ -765,11 +776,14 @@ async function main() {
     await db.insert(schema.moderationActions).values({ moderatorId: admin!.id, targetType: "product", targetId: productIds.get(key)!, action: "feature", createdAt: ago(5) });
   }
 
+  console.log("» Membuat ruang komunitas & percakapan demo…");
+  const chat = await seedChat(db, { userIds, put, now });
+
   await client.end();
   console.log(
-    `✓ Seed selesai dalam ${((Date.now() - t0) / 1000).toFixed(1)} dtk — ${PRODUCTS.length} produk, ${fileCount} file, ${logs.length} log unduhan.`,
+    `✓ Seed selesai dalam ${((Date.now() - t0) / 1000).toFixed(1)} dtk — ${PRODUCTS.length} produk, ${fileCount} file, ${logs.length} log unduhan, ${chat.rooms} ruang chat, ${chat.messages} pesan.`,
   );
-  console.log("  Akun demo (password: rilisin123): admin@rilisin.test · seller@rilisin.test · user@rilisin.test");
+  console.log("  Akun demo (password: rilisin123): admin@rilisin.test · seller@rilisin.test · user@rilisin.test · moderator: dimas24@contoh.test");
 }
 
 main().catch((err) => {

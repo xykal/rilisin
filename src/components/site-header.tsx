@@ -1,36 +1,15 @@
-import { and, count, eq } from "drizzle-orm";
-import {
-  ChevronDown,
-  Library,
-  LogOut,
-  Menu,
-  Search,
-  ShieldCheck,
-  Store,
-  UserRound,
-} from "lucide-react";
+import { ChevronDown, KeyRound, Library, LogOut, Search, ShieldCheck, Store, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
-import { db } from "@/lib/db";
-import { products, releases } from "@/lib/db/schema";
+import { getModerationCounts } from "@/lib/moderation";
+import { getNavData } from "@/lib/nav";
 import { Avatar } from "./bits";
 import { Dropdown } from "./dropdown";
 import { Logo } from "./logo";
+import { DesktopNav, MobileNav } from "./nav-menus";
 import { buttonStyles, cn } from "./ui";
-
-async function pendingReviewCount() {
-  const [[p], [r]] = await Promise.all([
-    db.select({ n: count() }).from(products).where(eq(products.status, "review")),
-    db
-      .select({ n: count() })
-      .from(releases)
-      .innerJoin(products, eq(products.id, releases.productId))
-      .where(and(eq(releases.status, "review"), eq(products.status, "published"))),
-  ]);
-  return (p?.n ?? 0) + (r?.n ?? 0);
-}
 
 const menuItem =
   "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100";
@@ -38,26 +17,17 @@ const menuItem =
 export async function SiteHeader() {
   const user = await getCurrentUser();
   const staff = isStaff(user);
-  const pending = staff ? await pendingReviewCount() : 0;
+  const [nav, counts] = await Promise.all([getNavData(), staff ? getModerationCounts() : Promise.resolve(null)]);
+  const pending = counts?.total ?? 0;
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
-        <Link href="/" className="shrink-0" aria-label="Beranda">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+        <Link href="/" className="mr-2 shrink-0" aria-label="Beranda">
           <Logo />
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
-          <Link href="/jelajahi" className={buttonStyles.ghost}>
-            Jelajahi
-          </Link>
-          <Link href="/komunitas" className={buttonStyles.ghost}>
-            Komunitas
-          </Link>
-          <Link href="/panduan/android" className={buttonStyles.ghost}>
-            Panduan Android
-          </Link>
-        </nav>
+        <DesktopNav data={nav} />
 
         <form action="/jelajahi" className="ml-auto hidden flex-1 justify-end lg:flex">
           <label className="relative w-full max-w-xs">
@@ -72,7 +42,7 @@ export async function SiteHeader() {
           </label>
         </form>
 
-        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+        <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
           <Link href="/jelajahi" className={cn(buttonStyles.ghost, "lg:hidden")} aria-label="Cari">
             <Search className="h-5 w-5" />
           </Link>
@@ -82,15 +52,13 @@ export async function SiteHeader() {
               {staff && (
                 <Link href="/admin/review" className={cn(buttonStyles.ghost, "relative max-sm:hidden")}>
                   <ShieldCheck className="h-4 w-4" />
-                  Review
+                  Moderasi
                   {pending > 0 && (
-                    <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                      {pending}
-                    </span>
+                    <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{pending}</span>
                   )}
                 </Link>
               )}
-              <Link href="/library" className={cn(buttonStyles.ghost, "max-sm:hidden")}>
+              <Link href="/library" className={cn(buttonStyles.ghost, "max-lg:hidden")}>
                 <Library className="h-4 w-4" />
                 Library
               </Link>
@@ -120,12 +88,14 @@ export async function SiteHeader() {
                         <UserRound className="h-4 w-4" /> Profil publik
                       </Link>
                     )}
+                    <Link href="/akun/keamanan" className={menuItem}>
+                      <KeyRound className="h-4 w-4" /> Keamanan akun
+                      {!user.mfaEnabled && <span className="ml-auto rounded-full bg-amber-100 px-2 text-[10px] font-bold text-amber-800">2FA off</span>}
+                    </Link>
                     {staff && (
                       <Link href="/admin/review" className={menuItem}>
-                        <ShieldCheck className="h-4 w-4" /> Antrian review
-                        {pending > 0 && (
-                          <span className="ml-auto rounded-full bg-amber-100 px-2 text-xs font-bold text-amber-800">{pending}</span>
-                        )}
+                        <ShieldCheck className="h-4 w-4" /> Moderasi
+                        {pending > 0 && <span className="ml-auto rounded-full bg-amber-100 px-2 text-xs font-bold text-amber-800">{pending}</span>}
                       </Link>
                     )}
                   </div>
@@ -148,22 +118,14 @@ export async function SiteHeader() {
             </>
           )}
 
-          <Suspense>
-            <Dropdown
-              label="Menu navigasi"
-              className="md:hidden"
-              summary={
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-slate-100">
-                  <Menu className="h-5 w-5" />
-                </span>
-              }
-            >
-              <Link href="/jelajahi" className={menuItem}>Jelajahi</Link>
-              <Link href="/komunitas" className={menuItem}>Komunitas</Link>
-              <Link href="/panduan/android" className={menuItem}>Panduan Android</Link>
-              {!user && <Link href="/masuk" className={menuItem}>Masuk</Link>}
-            </Dropdown>
-          </Suspense>
+          <MobileNav
+            data={nav}
+            user={
+              user
+                ? { displayName: user.displayName, username: user.username, isSeller: !!user.seller, isStaff: staff, pending }
+                : null
+            }
+          />
         </div>
       </div>
     </header>

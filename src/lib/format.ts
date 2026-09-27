@@ -55,6 +55,15 @@ export function formatDateTime(date: Date | string | null | undefined) {
   return dateTimeFmt.format(new Date(date));
 }
 
+/** Waktu sekian milidetik yang lalu (helper di luar render agar mudah dites). */
+export function msAgo(ms: number) {
+  return new Date(Date.now() - ms);
+}
+
+export function isWithin(date: Date | string, ms: number) {
+  return Date.now() - new Date(date).getTime() < ms;
+}
+
 /** "3 hari yang lalu" */
 export function timeAgo(date: Date | string | null | undefined) {
   if (!date) return "-";

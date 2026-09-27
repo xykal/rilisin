@@ -1,7 +1,8 @@
 /**
- * Skema database Rilisin (Fase 1: akun, toko, katalog, rilis, file, library, moderasi).
- * Tabel transaksi/uang (Fase 2) dan komunitas (Fase 3) ditambahkan belakangan
- * lewat migrasi baru — lihat blueprint bagian 8.
+ * Skema database Rilisin.
+ *  - Fase 1: akun, toko, katalog, rilis, file, library, moderasi.
+ *  - Fase 1.5: keamanan akun (2FA, log keamanan, sesi) + komunitas chat grup + laporan.
+ * Tabel transaksi/uang (Fase 2) ditambahkan belakangan lewat migrasi baru — lihat blueprint bagian 8.
  */
 import { relations, sql } from "drizzle-orm";
 import {
@@ -10,9 +11,11 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
+  primaryKey,
   timestamp,
   uniqueIndex,
   uuid,
@@ -54,6 +57,8 @@ export const entitlementSource = pgEnum("entitlement_source", [
   "gift",
   "admin",
 ]);
+export const chatRoomKind = pgEnum("chat_room_kind", ["public", "announcement"]);
+export const reportStatus = pgEnum("report_status", ["open", "resolved", "dismissed"]);
 
 // ─── Akun ────────────────────────────────────────────────────────────────────
 export const users = pgTable(
@@ -69,6 +74,15 @@ export const users = pgTable(
     avatarKey: text("avatar_key"),
     createdAt: createdAt(),
     bannedAt: tsz("banned_at"),
+    banReason: text("ban_reason"),
+    passwordChangedAt: tsz("password_changed_at"),
+    /** Secret TOTP (2FA) terenkripsi AES-256-GCM. null = 2FA belum aktif. */
+    totpSecretEnc: text("totp_secret_enc"),
+    /** Secret sementara saat proses aktivasi 2FA (belum dikonfirmasi). */
+    totpPendingEnc: text("totp_pending_enc"),
+    totpEnabledAt: tsz("totp_enabled_at"),
+    /** Time-step TOTP terakhir yang dipakai — kode yang sama tidak bisa dipakai 2x (anti replay). */
+    totpLastStep: bigint("totp_last_step", { mode: "number" }),
   },
   (t) => [
     uniqueIndex("users_email_lower_idx").on(sql`lower(${t.email})`),
@@ -86,9 +100,56 @@ export const sessions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     expiresAt: tsz("expires_at").notNull(),
     userAgent: text("user_agent"),
+    ipHash: text("ip_hash"),
+    lastSeenAt: tsz("last_seen_at"),
     createdAt: createdAt(),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
+);
+
+/** Kode cadangan 2FA (sekali pakai). Hanya hash-nya yang disimpan. */
+export const recoveryCodes = pgTable(
+  "recovery_codes",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    usedAt: tsz("used_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("recovery_codes_user_idx").on(t.userId)],
+);
+
+/** Tantangan login 2FA: password sudah benar, tinggal verifikasi kode. `id` = SHA-256 token cookie. */
+export const authChallenges = pgTable("auth_challenges", {
+  id: text("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  nextPath: text("next_path").notNull().default("/"),
+  attempts: integer("attempts").notNull().default(0),
+  expiresAt: tsz("expires_at").notNull(),
+  createdAt: createdAt(),
+});
+
+/** Log keamanan: login, gagal login, 2FA, ganti password, pesan diblokir, aksi admin, dll. */
+export const securityEvents = pgTable(
+  "security_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type").notNull(),
+    ipHash: text("ip_hash"),
+    userAgent: text("user_agent"),
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("security_events_user_time_idx").on(t.userId, t.createdAt),
+    index("security_events_type_time_idx").on(t.type, t.createdAt),
+  ],
 );
 
 export const sellerProfiles = pgTable("seller_profiles", {
@@ -286,6 +347,184 @@ export const moderationActions = pgTable(
   (t) => [index("moderation_target_idx").on(t.targetType, t.targetId)],
 );
 
+// ─── Komunitas: chat grup ───────────────────────────────────────────────────
+export const chatRooms = pgTable("chat_rooms", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  emoji: text("emoji").notNull(),
+  description: text("description").notNull().default(""),
+  /** announcement = hanya admin/moderator yang bisa kirim pesan. */
+  kind: chatRoomKind("kind").notNull().default("public"),
+  sort: integer("sort").notNull().default(0),
+  /** Mode lambat: jeda minimal (detik) antar pesan per anggota. 0 = mati. */
+  slowModeSec: integer("slow_mode_sec").notNull().default(0),
+  pinnedMessageId: uuid("pinned_message_id"),
+  lastMessageAt: tsz("last_message_at"),
+  createdAt: createdAt(),
+});
+
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Urutan pesan (dipakai untuk paginasi & hitung belum dibaca). */
+    seq: bigserial("seq", { mode: "number" }).notNull().unique(),
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => chatRooms.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull().default(""),
+    replyToId: uuid("reply_to_id"),
+    /** ID acak dari browser — kirim ulang karena sinyal jelek tidak bikin pesan dobel. */
+    clientId: text("client_id"),
+    imageKey: text("image_key"),
+    imageW: integer("image_w"),
+    imageH: integer("image_h"),
+    createdAt: createdAt(),
+    /** Naik setiap ada perubahan (edit, hapus, reaksi) — dipakai sinkronisasi realtime. */
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+    editedAt: tsz("edited_at"),
+    deletedAt: tsz("deleted_at"),
+    deletedBy: uuid("deleted_by").references(() => users.id, { onDelete: "set null" }),
+    /** author | moderator */
+    deleteReason: text("delete_reason"),
+    /** Disembunyikan otomatis karena dilaporkan banyak anggota (menunggu moderator). */
+    reportHiddenAt: tsz("report_hidden_at"),
+  },
+  (t) => [
+    index("chat_messages_room_seq_idx").on(t.roomId, t.seq),
+    index("chat_messages_room_updated_idx").on(t.roomId, t.updatedAt),
+    index("chat_messages_author_time_idx").on(t.authorId, t.createdAt),
+    uniqueIndex("chat_messages_author_client_idx").on(t.authorId, t.clientId),
+  ],
+);
+
+/** Satu reaksi per orang per pesan (seperti WhatsApp). */
+export const chatReactions = pgTable(
+  "chat_reactions",
+  {
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => chatMessages.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.messageId, t.userId] })],
+);
+
+/** "Hapus untuk saya": pesan disembunyikan hanya untuk user ini. */
+export const chatHiddenMessages = pgTable(
+  "chat_hidden_messages",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => chatMessages.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.messageId] })],
+);
+
+/** Penanda sudah dibaca sampai pesan ke-berapa (untuk badge belum dibaca). */
+export const chatReads = pgTable(
+  "chat_reads",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => chatRooms.id, { onDelete: "cascade" }),
+    lastReadSeq: bigint("last_read_seq", { mode: "number" }).notNull().default(0),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.roomId] })],
+);
+
+/** Riwayat edit (hanya untuk moderator saat menangani laporan). */
+export const chatMessageEdits = pgTable(
+  "chat_message_edits",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => chatMessages.id, { onDelete: "cascade" }),
+    previousBody: text("previous_body").notNull(),
+    editedAt: createdAt(),
+  },
+  (t) => [index("chat_message_edits_msg_idx").on(t.messageId)],
+);
+
+/** Bisukan anggota (roomId null = semua ruang). */
+export const chatMutes = pgTable(
+  "chat_mutes",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    roomId: uuid("room_id").references(() => chatRooms.id, { onDelete: "cascade" }),
+    until: tsz("until").notNull(),
+    reason: text("reason"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("chat_mutes_user_until_idx").on(t.userId, t.until)],
+);
+
+/** Gambar yang diupload untuk chat (sudah dikonversi ke WebP, metadata EXIF dibuang). */
+export const chatUploads = pgTable(
+  "chat_uploads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    uploaderId: uuid("uploader_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    storageKey: text("storage_key").notNull().unique(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    usedAt: tsz("used_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("chat_uploads_uploader_time_idx").on(t.uploaderId, t.createdAt)],
+);
+
+/** Laporan dari anggota (pesan chat; nanti juga produk & profil). */
+export const reports = pgTable(
+  "reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetType: text("target_type").notNull(), // chat_message | product | user
+    targetId: uuid("target_id").notNull(),
+    reason: text("reason").notNull(),
+    note: text("note"),
+    /** Salinan konten saat dilaporkan — tetap ada walau pesan diedit/dihapus pelaku. */
+    snapshot: jsonb("snapshot").$type<Record<string, unknown>>(),
+    status: reportStatus("status").notNull().default("open"),
+    resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+    resolvedAt: tsz("resolved_at"),
+    resolution: text("resolution"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("reports_reporter_target_idx").on(t.reporterId, t.targetType, t.targetId),
+    index("reports_status_time_idx").on(t.status, t.createdAt),
+    index("reports_target_idx").on(t.targetType, t.targetId),
+  ],
+);
+
 // ─── Relasi (untuk query bertingkat) ────────────────────────────────────────
 export const usersRelations = relations(users, ({ one, many }) => ({
   sellerProfile: one(sellerProfiles, {
@@ -325,6 +564,8 @@ export const releaseFilesRelations = relations(releaseFiles, ({ one }) => ({
 }));
 
 export type User = typeof users.$inferSelect;
+export type ChatRoom = typeof chatRooms.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Release = typeof releases.$inferSelect;
 export type ReleaseFile = typeof releaseFiles.$inferSelect;

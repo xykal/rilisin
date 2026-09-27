@@ -6,11 +6,24 @@ import { loginAction, registerAction } from "@/app/actions/auth";
 import { SubmitButton } from "./submit-button";
 import { Alert, Field, inputStyles } from "./ui";
 
+/** Input jebakan bot: tidak terlihat manusia, tapi sering diisi bot otomatis. */
+function Honeypot() {
+  return (
+    <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
+      <label>
+        Website
+        <input type="text" name="website" tabIndex={-1} autoComplete="off" defaultValue="" />
+      </label>
+    </div>
+  );
+}
+
 export function LoginForm({ next }: { next: string }) {
   const [state, action] = useActionState(loginAction, undefined);
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="relative space-y-4">
       <input type="hidden" name="next" value={next} />
+      <Honeypot />
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
       <Field label="Email atau username" htmlFor="identifier">
         <input
@@ -39,12 +52,14 @@ export function LoginForm({ next }: { next: string }) {
   );
 }
 
-export function RegisterForm({ next }: { next: string }) {
+export function RegisterForm({ next, formToken }: { next: string; formToken: string }) {
   const [state, action] = useActionState(registerAction, undefined);
   const fe = state?.fieldErrors ?? {};
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="relative space-y-4">
       <input type="hidden" name="next" value={next} />
+      <input type="hidden" name="ft" value={formToken} />
+      <Honeypot />
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
       <Field label="Nama tampilan" htmlFor="displayName" error={fe.displayName}>
         <input id="displayName" name="displayName" required maxLength={50} defaultValue={state?.values?.displayName} className={inputStyles} placeholder="Budi Santoso" />
@@ -67,8 +82,8 @@ export function RegisterForm({ next }: { next: string }) {
       <Field label="Email" htmlFor="email" error={fe.email}>
         <input id="email" name="email" type="email" required autoComplete="email" defaultValue={state?.values?.email} className={inputStyles} placeholder="nama@email.com" />
       </Field>
-      <Field label="Password" htmlFor="password" error={fe.password} hint="Minimal 8 karakter">
-        <input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" className={inputStyles} />
+      <Field label="Password" htmlFor="password" error={fe.password} hint="Minimal 10 karakter, jangan pakai password yang sama dengan akun lain">
+        <input id="password" name="password" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputStyles} />
       </Field>
       <SubmitButton className="w-full !py-3" pendingText="Membuat akun…">
         Buat akun

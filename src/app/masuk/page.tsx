@@ -11,7 +11,8 @@ export const metadata: Metadata = { title: "Masuk" };
 const DEMO_ACCOUNTS = [
   { email: "user@rilisin.test", role: "Pengguna biasa" },
   { email: "seller@rilisin.test", role: "Seller (Nusantara Labs)" },
-  { email: "admin@rilisin.test", role: "Admin / moderator" },
+  { email: "admin@rilisin.test", role: "Admin" },
+  { email: "dimas24@contoh.test", role: "Moderator komunitas" },
 ];
 
 export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {

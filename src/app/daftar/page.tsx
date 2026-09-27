@@ -5,6 +5,7 @@ import { LogoMark } from "@/components/logo";
 import { Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { SITE } from "@/lib/config";
+import { issueFormToken } from "@/lib/security/form-guard";
 import { safeNextPath } from "@/lib/slug";
 
 export const metadata: Metadata = { title: "Daftar" };
@@ -22,7 +23,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/daftar"
         <p className="mt-1 text-sm text-slate-500">Gratis. Download karya developer lokal atau mulai rilis karyamu sendiri.</p>
       </div>
       <Card className="p-6 sm:p-8">
-        <RegisterForm next={nextPath} />
+        <RegisterForm next={nextPath} formToken={issueFormToken()} />
       </Card>
     </div>
   );

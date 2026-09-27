@@ -1,9 +1,15 @@
-# Rilisin — prototype Fase 1
+# Rilisin — prototype (Fase 1 + Komunitas & Keamanan)
 
-> "Rumah karya developer Indonesia". Tempat share gratis & jual aplikasi, game, source code, template, aset desain, dan e-book.
+> "Rumah karya developer Indonesia". Tempat share gratis & jual aplikasi, game, source code, template, aset desain, dan e-book — plus komunitas chat grup.
 > **Rilisin** masih nama kerja: domain & merek belum dicek. Ganti nama cukup di `src/lib/config.ts`.
 
-Ini hasil **Fase 1** dari blueprint (`../blueprint-store-komunitas.md`), yaitu fondasi + "share gratis". Fitur uang (checkout, saldo, payout) ada di Fase 2, komunitas di Fase 3.
+Blueprint lengkap ada di `../blueprint-store-komunitas.md`. Yang sudah jadi:
+
+- **Fase 1** — fondasi + "share gratis": katalog, upload, download aman, library, moderasi.
+- **Komunitas (ditarik maju dari Fase 3)** — chat grup realtime ala WhatsApp.
+- **Keamanan (sebagian Fase 4 ditarik maju)** — 2FA, CSP, anti brute force, log keamanan, moderasi chat.
+
+Fitur uang (checkout, saldo, payout) masih di **Fase 2**. Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 
 ---
 
@@ -11,15 +17,18 @@ Ini hasil **Fase 1** dari blueprint (`../blueprint-store-komunitas.md`), yaitu f
 
 | Area | Fitur |
 |---|---|
-| Akun | Daftar, masuk, keluar. Password di-hash scrypt, session disimpan di database (yang disimpan cuma hash token), rate limit percobaan login |
-| Katalog | Beranda (pilihan editor, trending 7 hari, baru rilis), halaman Jelajahi dengan filter kategori/platform/harga, pencarian full-text, 3 pilihan urutan |
-| Produk | Cover, ikon, screenshot, deskripsi Markdown (HTML mentah tidak dirender), riwayat versi, info lisensi, label verifikasi developer Android |
-| Download | Wajib login. Tombol (POST) → cek hak akses → catat unduhan → redirect ke **signed URL** yang berlaku 10 menit dan terikat ke akun |
-| Library | Semua karya yang pernah diunduh, plus tanda **"Update tersedia"** kalau ada versi baru |
-| Seller Center | Aktifkan toko, profil publik `/@username`, tambah/edit karya, upload gambar & file rilis, checklist "siap tayang", kirim ke review, rilis versi baru |
-| Keamanan file | Validasi dari isi file (magic bytes, bukan cuma ekstensi), APK wajib berisi `AndroidManifest.xml`, SHA-256 tiap file, blokir hash, deteksi file identik milik seller lain, gambar dikonversi ke WEBP (EXIF/GPS terbuang) |
-| Moderasi | Antrian review karya baru & update rilis, setujui/tolak dengan alasan, blokir hash (malware/bajakan), pilihan editor, tangguhkan/pulihkan, seller terpercaya (auto-tayang), log moderasi |
-| Android 2026 | Seller mengisi nama paket & status verifikasi developer. Pengguna melihat label + panduan instal (`/panduan/android`). APK berbayar wajib dari developer terdaftar |
+| Navigasi | Header dengan **mega menu** saat kursor diarahkan (Jelajahi: kategori + jumlah karya, platform, pintasan, pilihan editor · Komunitas: daftar ruang · Panduan). Bisa juga dibuka dengan klik & keyboard. Di HP: laci menu dari kanan |
+| Katalog | Beranda (pilihan editor, trending 7 hari, baru rilis, cuplikan obrolan komunitas), Jelajahi dengan filter kategori/platform/harga, pencarian full-text |
+| Produk | Cover, ikon, screenshot, deskripsi Markdown aman, riwayat versi, lisensi, label verifikasi developer Android |
+| Download | Wajib login. Tombol (POST) → cek hak akses → catat → **signed URL** 10 menit yang terikat ke akun |
+| Library | Karya yang pernah diunduh + tanda **"Update tersedia"** |
+| Seller Center | Toko, profil `/@username`, editor karya, upload gambar & file rilis, checklist siap tayang, kirim review, rilis versi baru |
+| **Komunitas (chat grup)** | 8 ruang (Pengumuman, Nongkrong, Tanya Jawab Coding, Pamer Karya, Android & Flutter, Desain, Cerita Seller, Game Dev). Pesan **realtime**, "sedang mengetik…", jumlah online, badge belum dibaca + penanda "N pesan belum dibaca", pemisah tanggal, balasan (quote), gambar, format `*tebal*` `_miring_` `~coret~` `` `kode` `` + blok kode, link & @mention, emoji besar |
+| **Tahan pesan (ala WhatsApp iPhone)** | Tahan ±0,4 dtk (atau klik kanan / tombol ▾ di desktop / Enter di keyboard) → latar **blur**, pesan terangkat, **bar reaksi emoji** di atas, **menu** di bawah: Balas · Salin · Edit · Sematkan* · Laporkan · Bisukan* · Hapus → *sheet* **Hapus untuk saya / Hapus untuk semua orang**. Geser pesan ke kanan = balas cepat. (*khusus moderator) |
+| Aturan chat | Edit ≤ 15 menit (label "diedit"), hapus untuk semua ≤ 48 jam (moderator kapan saja), 1 reaksi per orang per pesan, pesan tersemat, ruang pengumuman (hanya staf), mode lambat per ruang |
+| **Keamanan akun** | Halaman `/akun/keamanan`: **2FA (TOTP)** + 10 kode cadangan, ganti password (perangkat lain otomatis keluar), daftar perangkat + keluarkan, riwayat aktivitas keamanan |
+| Moderasi | Review karya & rilis · **Laporan chat** (hapus, pulihkan, tolak, bisukan, blokir akun) · **Log keamanan** (login gagal, akun terkunci, bot, judol diblokir, aksi moderator) |
+| Halaman info | `/keamanan` (Pusat Keamanan), `/komunitas/aturan`, `/panduan/android`, `/.well-known/security.txt` |
 
 ## Akun demo
 
@@ -27,11 +36,14 @@ Password semua akun: **`rilisin123`**
 
 | Email | Peran |
 |---|---|
-| `user@rilisin.test` | Pengguna biasa. Library-nya sudah terisi dan ada 1 update tersedia |
-| `seller@rilisin.test` | Seller "Nusantara Labs". Punya karya tayang, 1 karya sedang direview, 1 draft, dan rilis KasirKu v2.1.0 yang menunggu review |
-| `admin@rilisin.test` | Admin/moderator. Antriannya berisi contoh karya "APK MOD" yang **harus ditolak**; sistem sudah mendeteksi file-nya identik dengan KasirKu |
+| `user@rilisin.test` | Rina, pengguna biasa. Library terisi (1 update tersedia), ada **pesan belum dibaca** di #nongkrong & #pamer-karya |
+| `seller@rilisin.test` | Seller "Nusantara Labs" (karya tayang, 1 direview, 1 draft, rilis v2.1.0 menunggu review) |
+| `admin@rilisin.test` | Admin. Antrian review + **2 laporan chat** (1 sudah tersembunyi otomatis) |
+| `dimas24@contoh.test` | **Moderator komunitas** (bisa sematkan, hapus pesan siapa pun, bisukan anggota) |
 
-Semua produk, akun, dan angka unduhan adalah **data demo**. File yang bisa diunduh cuma placeholder (ZIP/APK/PDF kecil), bukan aplikasi sungguhan.
+Semua produk, akun, obrolan, dan angka unduhan adalah **data demo**. File unduhan hanya placeholder kecil.
+
+**Coba 2FA:** masuk → menu akun → *Keamanan akun* → *Aktifkan 2FA* → scan QR dengan Google Authenticator/Authy → simpan kode cadangan → keluar & masuk lagi.
 
 ---
 
@@ -41,27 +53,25 @@ Butuh: **Node.js ≥ 20.9** dan **PostgreSQL** (skrip di bawah memasangnya otoma
 
 ```bash
 npm install
-cp .env.example .env.local      # lalu isi DATABASE_URL & APP_SECRET (lihat komentar di file)
+cp .env.example .env.local      # isi DATABASE_URL & APP_SECRET (lihat komentar di file)
 npm run setup                   # nyalakan PostgreSQL lokal + buat tabel + isi data demo
 npm run build && npm run start  # buka http://localhost:3000
 ```
 
-Untuk development (auto-reload): `npm run dev`.
-
 | Perintah | Fungsi |
 |---|---|
 | `npm run setup` | Nyalakan PostgreSQL lokal + reset & isi data demo |
-| `npm run db:seed` | Reset database & storage lokal, lalu isi data demo. ⚠️ **Semua data dihapus** |
+| `npm run db:seed` | Reset database & storage lokal lalu isi data demo. ⚠️ **Semua data dihapus** |
 | `npm run db:migrate` | Jalankan migrasi (tanpa menghapus data) |
 | `npm run db:generate` | Buat file migrasi baru setelah mengubah `src/lib/db/schema.ts` |
 | `npm run typecheck` / `npm run lint` | Cek TypeScript / ESLint |
-| `npm run test:smoke` | Smoke test end-to-end, 36 pengecekan. Server harus sudah jalan. Menambah data uji; jalankan `db:seed` lagi untuk reset |
+| `npm run test:smoke` | Tes end-to-end **97 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, dll). Server harus jalan. Menambah data uji → jalankan `db:seed` lagi |
 
-> **Di sandbox chat ini:** database (`/var/lib/postgresql`), file upload (`.local/`), `node_modules`, dan `.next` **tidak ikut tersimpan**. Kalau sandbox restart, jalankan lagi:
+> **Di sandbox chat ini:** database, file upload (`.local/`), `node_modules`, dan `.next` **tidak ikut tersimpan**. Kalau sandbox restart:
 > `npm install && npm run setup && npm run build && npm run start`
 
 ### Kalau login tidak "nyangkut" di preview
-Preview berjalan di dalam iframe. Beberapa browser (terutama Safari) memblokir cookie di iframe. Solusinya: buka preview di tab baru.
+Preview berjalan di dalam iframe. Beberapa browser (terutama Safari) memblokir cookie di iframe — buka preview di tab baru.
 
 ---
 
@@ -69,87 +79,106 @@ Preview berjalan di dalam iframe. Beberapa browser (terutama Safari) memblokir c
 
 ```
 src/
+  proxy.ts                   Content-Security-Policy + nonce per request, HSTS
   app/
     page.tsx                 Beranda
-    jelajahi/                Katalog + filter + pencarian
-    p/[slug]/                Halaman produk
-    u/[username]/            Profil seller (diakses lewat /@username)
-    masuk/, daftar/          Login & registrasi
-    library/                 Library pengguna
-    seller/                  Seller Center (dashboard, daftar karya, editor)
-    admin/review/            Antrian & detail review moderator
-    panduan/android/         Panduan instal APK (aturan verifikasi 2026)
-    komunitas/               Teaser Fase 3
-    actions/                 Server Actions: auth, seller, admin
-    api/uploads/             Upload 3 langkah: init → (PUT) → complete
-    api/storage/             Endpoint driver "local" (pengganti R2 saat dev)
-    api/download/[fileId]/   Cek hak akses + catat unduhan → signed URL
-    media/[...path]/         Menyajikan gambar publik (dev)
-  components/                UI: kartu produk, form seller, uploader, dll
+    jelajahi/, p/[slug]/, u/[username]/, library/, seller/, panduan/android/
+    komunitas/               Chat: daftar ruang, [room] (ruang chat), aturan
+    akun/keamanan/           Keamanan akun + 2fa/ (aktivasi 2FA)
+    masuk/verifikasi/        Langkah ke-2 login (kode 2FA / kode cadangan)
+    keamanan/                Pusat Keamanan (publik)
+    admin/                   review/, laporan/ (laporan chat), keamanan/ (log keamanan)
+    actions/                 Server Actions: auth, security, moderation, seller, admin
+    api/chat/                rooms/[slug]/messages|typing|read, messages/[id], stream (SSE), uploads
+    api/uploads/, api/storage/, api/download/, media/
+  components/
+    chat/                    chat-app, message-bubble (gestur tahan/geser), message-focus (overlay blur),
+                             sheets (action sheet, emoji, reaksi, lapor, bisukan, link luar), composer, format
+    nav-menus.tsx            Mega menu desktop + laci menu HP
+    security-forms.tsx       Form 2FA, ganti password, kode cadangan
   lib/
-    db/schema.ts             Skema database (Drizzle)
-    auth/                    Password, session, user aktif, guard peran
-    storage/                 Kontrak storage + driver lokal (R2 menyusul)
-    uploads.ts               Validasi & finalisasi upload
-    files.ts                 Deteksi tipe file dari magic bytes
-    queries.ts               Query data untuk halaman
-    config.ts                Nama situs, kategori, platform, lisensi, batas
+    chat/                    shared (tipe & aturan), server (query & aksi), bus (realtime), notify, filter (judol), text
+    security/                crypto (AES-GCM, HKDF), totp, events (log), labels, password-policy, form-guard, login-guard
+    auth/                    password, session, current-user, guards, mfa
+    api.ts                   Helper route handler: CSRF (Origin + Content-Type), batas ukuran body
+    db/schema.ts             Skema database (Drizzle) — 23 tabel
 scripts/
-  dev-db.sh                  Pasang & nyalakan PostgreSQL lokal
-  migrate.ts, seed.ts        Migrasi & data demo
-  seed-assets.ts             Generator ikon/cover/screenshot & file demo
+  seed.ts, seed-chat.ts      Data demo (produk + percakapan komunitas)
   smoke-test.mjs             Tes end-to-end tanpa browser
-drizzle/                     File migrasi SQL
+drizzle/                     Migrasi SQL (0000_init, 0001_security_chat)
 ```
 
 ## Alur penting
 
-**Upload (3 langkah, siap untuk R2):**
-1. Browser minta izin ke `POST /api/uploads/init`. Server mengecek hak akses, ukuran, dan ekstensi, lalu memberi URL upload + token bertanda tangan (HMAC).
-2. Browser meng-upload file langsung ke URL tersebut:
-   - sekarang ke endpoint lokal;
-   - nanti ke presigned URL Cloudflare R2, jadi server tidak ikut menanggung bandwidth.
-3. `POST /api/uploads/complete` memeriksa isi file (magic bytes), menghitung SHA-256, dan mengecek blocklist. Lalu:
-   - gambar diproses jadi WEBP;
-   - file rilis dipindah ke folder privat.
+**Chat realtime:**
+1. Browser membuka `GET /api/chat/stream?room=…` (Server-Sent Events, wajib login, maks 6 koneksi per akun).
+2. Setiap pesan baru / edit / hapus / reaksi disimpan ke PostgreSQL, lalu server mengirim sinyal kecil lewat **`NOTIFY`**.
+3. Setiap instance server yang `LISTEN` mengambil pesan itu **sekali** dari database, lalu meneruskannya ke semua browser di ruang tersebut.
+4. Kalau koneksi putus, browser menyambung ulang otomatis dan menyinkronkan perubahan yang terlewat (`?since=`).
+5. Pesan dikirim secara *optimistic* (langsung tampil). `clientId` acak membuat kirim ulang tidak menghasilkan pesan dobel.
 
-**Review:** seller baru → status `review` → moderator setuju/tolak. Seller terpercaya bisa langsung tayang (tetap tercatat di log). Update rilis untuk produk yang sudah tayang juga masuk antrian, dan versi lama tetap bisa diunduh sampai versi baru disetujui.
+**Login dengan 2FA:** password benar → tantangan disimpan (cookie httpOnly, 10 menit, maks 5 percobaan) → kode TOTP/kode cadangan → baru session dibuat.
 
-## Keamanan yang sudah diterapkan
+**Upload & review karya:** sama seperti Fase 1 (init → PUT → complete; cek magic bytes, SHA-256, blocklist; review moderator).
 
-- **Cookie session:** `httpOnly`. Di HTTPS juga `Secure` + `SameSite=None` + `Partitioned` (supaya jalan di iframe preview). Di domain sendiri nanti cukup `SameSite=Lax`.
-- **Anti-CSRF:** Server Actions dicek Origin-nya oleh Next.js, dan semua route handler POST/PUT dicek Origin-nya secara manual.
-- **Token upload/download:** HMAC-SHA256, berumur pendek, dan terikat ke user. Link download tidak bisa dibagikan ke akun lain.
-- **Anti open redirect:** parameter `next` di halaman login cuma boleh path internal.
-- **Anti path traversal:** key storage divalidasi ketat, jadi path traversal ditolak.
-- **Markdown aman:** HTML mentah tidak dirender, gambar eksternal tidak dimuat, link diberi `rel="nofollow ugc noopener"`.
-- **Privasi:** IP pengunduh disimpan dalam bentuk hash, bukan mentah (UU PDP).
-- **Anti user-enumeration:** waktu respons login dibuat sama, baik email ada maupun tidak.
+## Keamanan yang sudah diterapkan (ringkas)
+
+Lengkapnya di [`SECURITY.md`](./SECURITY.md).
+
+- **Header:** CSP dengan nonce + `strict-dynamic`, HSTS, `X-Frame-Options`/`frame-ancestors`, nosniff, Referrer-Policy, Permissions-Policy, COOP.
+- **Akun:**
+  - 2FA TOTP (secret terenkripsi AES-256-GCM, anti replay) + kode cadangan (hash ber-pepper);
+  - kunci akun 15 menit setelah 8× gagal;
+  - rate limit per IP & per akun;
+  - anti-enumeration;
+  - kebijakan password (min 10, tolak password umum);
+  - honeypot + token waktu anti-bot;
+  - cookie `__Host-`;
+  - session baru tiap login, keluarkan semua perangkat saat ganti password.
+- **Chat:**
+  - validasi zod;
+  - pembersihan karakter tak terlihat/bidi/zalgo;
+  - filter **judol** (tahan trik `5l0t g4c0r`);
+  - rate limit, deteksi flood, mode lambat;
+  - akun baru < 24 jam tak bisa kirim link;
+  - peringatan link luar;
+  - lapor → auto-sembunyi di 3 laporan;
+  - bisukan & blokir;
+  - gambar dicek magic bytes, EXIF dibuang.
+- **Umum:**
+  - CSRF (Origin + Content-Type JSON);
+  - batas ukuran body;
+  - IP hanya disimpan sebagai hash;
+  - IP dibaca dari proxy tepercaya (`TRUSTED_PROXY_HOPS`);
+  - log keamanan & log moderasi.
 
 ## Belum ada / batasan prototype
 
 - **Pembayaran:** belum ada. Tombol beli nonaktif sampai **Fase 2** (Xendit).
-- **Akun:** belum ada login Google, verifikasi email, dan reset password. Semuanya butuh layanan email/Google Cloud dan dikerjakan saat deploy.
-- **Storage:** baru driver lokal. Driver **R2** ditambahkan saat deploy.
-- **Rate limit:** masih di memori, cukup untuk 1 server. Di Vercel perlu Redis/Upstash.
-- **Scan malware:** belum otomatis (ClamAV masuk Fase 4). Sementara moderator cek manual.
-- **Review ulang:** edit info/gambar produk yang sudah tayang langsung berlaku tanpa review ulang. Perlu diputuskan sebelum beta publik.
-- **Komunitas, ulasan & rating, notifikasi:** masuk Fase 3.
-- **Review keamanan:** sebelum memegang uang sungguhan, kode sebaiknya direview **developer/security reviewer manusia**.
+- **Akun:**
+  - belum ada login Google, verifikasi email, dan reset password (butuh layanan email/Google Cloud, dikerjakan saat deploy);
+  - admin belum *wajib* 2FA di demo (`REQUIRE_STAFF_2FA=0`); di production set `1`.
+- **Realtime:**
+  - presence ("N online") dan rate limit masih dihitung per proses server;
+  - untuk banyak instance/serverless → Redis (Upstash) + layanan realtime (mis. Supabase Realtime), atau jalankan chat di server Node biasa;
+  - `LISTEN` butuh koneksi database langsung (`DATABASE_URL_DIRECT`), bukan transaction pooler.
+- **Chat:**
+  - belum ada pencarian pesan, notifikasi push, DM pribadi, dan deteksi gambar tidak pantas otomatis (masih mengandalkan laporan);
+  - job pembersih (salinan pesan terhapus > 30 hari, gambar tak terpakai) belum dijadwalkan.
+- **File:** scan malware otomatis (ClamAV) masuk Fase 4; storage baru driver lokal (R2 saat deploy).
+- **Review ulang:** edit produk yang sudah tayang langsung berlaku tanpa review ulang — perlu diputuskan sebelum beta publik.
+- **Audit:** sebelum memegang uang sungguhan, kode sebaiknya direview **security reviewer manusia** / pentest.
 
 ## Menuju production (butuh akun milik kamu)
 
 1. **Domain:** cek ketersediaan nama + merek di DJKI.
 2. **Supabase (database):**
-   - buat project;
-   - salin connection string *Transaction pooler* ke `DATABASE_URL`;
+   - `DATABASE_URL` = Transaction pooler, `DATABASE_URL_DIRECT` = Direct/Session (untuk chat realtime);
    - jalankan `npm run db:migrate`.
-3. **Cloudflare R2 (file):**
-   - buat 1 bucket publik (gambar) + 1 bucket privat (file aplikasi);
-   - buat API token;
-   - aku tambahkan driver `r2`.
-4. **Vercel (hosting):**
-   - import repo dari GitHub;
-   - isi environment variables;
-   - set `ALLOWED_ORIGINS` ke domain kamu.
-5. **Xendit (pembayaran):** buat akun & sandbox untuk Fase 2, sambil mulai urus NIB/PSE dan KYB.
+3. **Cloudflare R2 (file):** 1 bucket publik (gambar) + 1 privat (file aplikasi) + API token → aku tambahkan driver `r2`.
+4. **Hosting:**
+   - isi env: `APP_SECRET` (acak ≥ 32 karakter), `ALLOWED_ORIGINS=domainkamu`, `REQUIRE_STAFF_2FA=1`, `TRUSTED_PROXY_HOPS=1`;
+   - `FRAME_ANCESTORS` kosongkan;
+   - ganti kontak di `public/.well-known/security.txt`.
+5. **Upstash Redis:** rate limit & presence lintas server.
+6. **Xendit (pembayaran):** akun sandbox untuk Fase 2, sambil urus NIB/PSE dan KYB.

@@ -33,7 +33,23 @@ const ACTION_LABELS: Record<string, string> = {
   untrust_seller: "mencabut status terpercaya",
   android_checked: "mengecek bukti verifikasi Android",
   auto_publish_trusted: "tayang otomatis (seller terpercaya)",
+  delete_message: "menghapus pesan chat",
+  restore_message: "memulihkan pesan chat",
+  dismiss_reports: "menolak laporan chat",
+  pin: "menyematkan pesan",
+  unpin: "melepas sematan pesan",
+  ban: "memblokir akun",
+  unban: "membuka blokir akun",
 };
+
+function actionLabel(action: string) {
+  const mute = action.match(/^mute_(\d+)m$/);
+  if (mute) {
+    const m = Number(mute[1]);
+    return `membisukan anggota ${m >= 1440 ? `${m / 1440} hari` : `${m / 60} jam`}`;
+  }
+  return ACTION_LABELS[action] ?? action;
+}
 
 export default async function ReviewQueuePage({ searchParams }: PageProps<"/admin/review">) {
   await requireStaff("/admin/review");
@@ -127,7 +143,7 @@ export default async function ReviewQueuePage({ searchParams }: PageProps<"/admi
           {recent.map((a) => (
             <div key={a.id} className="flex flex-wrap items-baseline gap-x-2 px-4 py-3">
               <span className="font-semibold text-ink">{a.moderator ? `@${a.moderator}` : "Sistem"}</span>
-              <span className="text-slate-600">{ACTION_LABELS[a.action] ?? a.action}</span>
+              <span className="text-slate-600">{actionLabel(a.action)}</span>
               <span className="text-slate-400">({a.targetType})</span>
               {a.note && <span className="truncate text-slate-500">— {a.note}</span>}
               <span className="ml-auto text-xs text-slate-400">{formatDateTime(a.createdAt)}</span>

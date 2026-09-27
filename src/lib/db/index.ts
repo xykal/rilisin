@@ -3,10 +3,11 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-// Satu koneksi pool per proses (di mode dev, simpan di globalThis supaya tidak bocor saat hot reload).
+// Satu pool koneksi per proses. Disimpan di globalThis supaya tidak terduplikasi antar bundle
+// route (Next.js bisa memuat modul yang sama lebih dari sekali) maupun saat hot reload.
 const globalForDb = globalThis as unknown as { pgClient?: ReturnType<typeof postgres> };
 
-const client =
+export const pg =
   globalForDb.pgClient ??
   postgres(process.env.DATABASE_URL!, {
     max: 10,
@@ -15,7 +16,7 @@ const client =
     onnotice: () => {},
   });
 
-if (process.env.NODE_ENV !== "production") globalForDb.pgClient = client;
+globalForDb.pgClient = pg;
 
-export const db = drizzle(client, { schema });
+export const db = drizzle(pg, { schema });
 export { schema };

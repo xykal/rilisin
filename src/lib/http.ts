@@ -33,8 +33,19 @@ export function isSameOrigin(req: Request): boolean {
   return EXTRA_ORIGINS.some((p) => matchHost(p, originHost));
 }
 
+/**
+ * IP klien untuk rate limit & log. Header X-Forwarded-For bisa dipalsukan klien, jadi yang dipakai
+ * adalah entri yang ditambahkan proxy tepercaya terdekat (dihitung dari belakang).
+ * TRUSTED_PROXY_HOPS = jumlah proxy di depan app (Vercel/Cloudflare/nginx biasanya 1).
+ */
 export function clientIpFrom(h: Headers) {
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  const hops = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS ?? 1) || 1);
+  const chain = (h.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const ip = chain.length ? chain[Math.max(0, chain.length - hops)] : null;
+  return (ip || h.get("x-real-ip") || "unknown").slice(0, 64);
 }
 
 export async function getClientIp() {

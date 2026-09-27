@@ -26,10 +26,12 @@ body {
   color: var(--color-ink);
 }
 
-/* Fokus keyboard yang jelas (aksesibilitas) */
-:focus-visible {
-  outline: 2px solid var(--color-brand-500);
-  outline-offset: 2px;
+/* Fokus keyboard yang jelas (aksesibilitas). Di layer base supaya bisa ditimpa utility (mis. focus:outline-none). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
 }
 
 /* Scrollbar horizontal tipis untuk galeri screenshot */
@@ -97,3 +99,201 @@ details > summary::-webkit-details-marker {
 .prose-rilis th, .prose-rilis td { border: 1px solid #e2e5ee; padding: 0.45em 0.7em; text-align: left; }
 .prose-rilis th { background: #f4f5fa; }
 .prose-rilis hr { border-color: #e2e5ee; }
+
+/* ─── Animasi umum ──────────────────────────────────────────────────────── */
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes fade-out { from { opacity: 1 } to { opacity: 0 } }
+@keyframes sheet-up { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes sheet-down { from { transform: translateY(0) } to { transform: translateY(110%) } }
+@keyframes pop-in { from { opacity: 0; transform: scale(.92) } to { opacity: 1; transform: scale(1) } }
+@keyframes slide-up { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes slide-down { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes bubble-flash { 0%, 100% { box-shadow: 0 1px 0.5px rgba(15,18,34,.13) } 30%, 70% { box-shadow: 0 0 0 4px rgba(110,91,255,.45) } }
+.anim-fade-in { animation: fade-in .2s ease-out both }
+.anim-fade-out { animation: fade-out .19s ease-in both }
+.anim-sheet-up { animation: sheet-up .32s cubic-bezier(.2,.9,.25,1) both }
+.anim-sheet-down { animation: sheet-down .2s ease-in both }
+.anim-pop-in { animation: pop-in .2s cubic-bezier(.2,.9,.3,1.2) both }
+.anim-slide-up { animation: slide-up .22s ease-out both }
+.anim-slide-down { animation: slide-down .18s ease-out both }
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-in, .anim-fade-out, .anim-sheet-up, .anim-sheet-down, .anim-pop-in, .anim-slide-up, .anim-slide-down { animation-duration: 1ms }
+}
+
+@layer components {
+/* ─── Chat ──────────────────────────────────────────────────────────────── */
+.chat-wallpaper {
+  background-color: #efedf8;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%235b43f5' stroke-opacity='.07' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 18l-8 8 8 8M38 18l8 8-8 8'/%3E%3Ccircle cx='118' cy='26' r='9'/%3E%3Cpath d='M70 70l4 9 10 1-7 7 2 10-9-5-9 5 2-10-7-7 10-1z'/%3E%3Crect x='112' y='96' width='26' height='18' rx='4'/%3E%3Cpath d='M118 120h14M20 112c8-10 18-10 26 0M26 132h16'/%3E%3Cpath d='M130 60l6 6m0-6l-6 6M60 138a6 6 0 1012 0 6 6 0 10-12 0'/%3E%3C/g%3E%3C/svg%3E");
+}
+.chat-bubble {
+  position: relative;
+  border-radius: 18px;
+  padding: 6px 9px 7px 10px;
+  font-size: 15px;
+  line-height: 1.38;
+  color: var(--color-ink);
+  box-shadow: 0 1px 0.5px rgba(15, 18, 34, 0.13);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-y;
+  cursor: default;
+  outline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+.chat-bubble-theirs { background: #fff; }
+.chat-bubble-mine { background: #e6e1ff; }
+.chat-bubble-emoji { background: transparent !important; box-shadow: none !important; padding: 0 2px; }
+.chat-bubble-flash { animation: bubble-flash 1.6s ease-in-out; }
+.chat-bubble-lifted { box-shadow: 0 10px 30px -8px rgba(15, 18, 34, 0.35), 0 1px 0.5px rgba(15, 18, 34, 0.13); }
+.chat-tail { position: absolute; top: 0; }
+.chat-tail-theirs { left: -7px; color: #fff; }
+.chat-tail-mine { right: -7px; color: #e6e1ff; }
+.chat-text { white-space: pre-wrap; }
+.chat-text-emoji { font-size: 44px; line-height: 1.15; padding-bottom: 14px; }
+.chat-spacer { display: inline-block; width: 58px; height: 1px; }
+.chat-spacer-wide { width: 96px; }
+.chat-meta {
+  position: absolute;
+  right: 9px;
+  bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 1;
+  color: #6b7185;
+  white-space: nowrap;
+}
+.chat-meta-float { right: 4px; bottom: 0; background: rgba(255, 255, 255, 0.9); border-radius: 999px; padding: 3px 6px; }
+.chat-meta-image { color: #fff; background: rgba(15, 18, 34, 0.45); border-radius: 999px; padding: 3px 7px; right: 8px; bottom: 8px; }
+.chat-removed { display: flex; align-items: center; gap: 6px; font-style: italic; color: #6b7185; font-size: 14px; }
+.chat-badge { flex-shrink: 0; border-radius: 6px; padding: 1px 5px; font-size: 10.5px; font-weight: 700; line-height: 16px; }
+.chat-quote {
+  display: block;
+  width: 100%;
+  min-width: 160px;
+  margin: 2px 0 5px;
+  border-left: 4px solid;
+  border-radius: 8px;
+  background: rgba(15, 18, 34, 0.05);
+  padding: 4px 8px 5px;
+  text-align: left;
+}
+.chat-bubble-mine .chat-quote { background: rgba(75, 52, 217, 0.08); }
+.chat-image { position: relative; display: block; margin: 0 -5px 4px -6px; overflow: hidden; border-radius: 13px; }
+.chat-image img { display: block; width: 100%; max-width: 300px; min-width: 180px; max-height: 340px; object-fit: cover; -webkit-user-drag: none; }
+.chat-link { color: #2f6fdd; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
+.chat-mention { color: var(--color-brand-700); font-weight: 600; }
+.chat-code { font-family: var(--font-mono); font-size: 0.86em; background: rgba(15, 18, 34, 0.07); border-radius: 5px; padding: 1px 5px; }
+.chat-pre {
+  margin: 4px 0;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+  border-radius: 10px;
+  background: #0f1222;
+  color: #e6e8f2;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.chat-reactions {
+  position: absolute;
+  bottom: -19px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  border-radius: 999px;
+  background: #fff;
+  padding: 2px 7px;
+  font-size: 15px;
+  line-height: 20px;
+  box-shadow: 0 1px 3px rgba(15, 18, 34, 0.18);
+  border: 1px solid #eceef4;
+}
+.chat-reactions-mine { border-color: var(--color-brand-300); background: #f7f5ff; }
+.chat-chevron {
+  position: absolute;
+  top: 3px;
+  display: none;
+  border-radius: 999px;
+  padding: 1px;
+  color: #6b7185;
+}
+.chat-chevron-theirs { right: 4px; background: linear-gradient(to left, #fff 65%, transparent); padding-left: 10px; }
+.chat-chevron-mine { right: 4px; background: linear-gradient(to left, #e6e1ff 65%, transparent); padding-left: 10px; }
+@media (hover: hover) and (pointer: fine) {
+  .group\/row:hover .chat-chevron { display: block; }
+}
+.chat-swipe-icon {
+  position: absolute;
+  left: -34px;
+  top: 50%;
+  margin-top: -14px;
+  display: flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-brand-600);
+  opacity: 0;
+  pointer-events: none;
+}
+.focus-emoji-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.97);
+  padding: 5px 6px;
+  box-shadow: 0 12px 32px -8px rgba(15, 18, 34, 0.35);
+  transition: transform 260ms cubic-bezier(.2, .9, .3, 1.25), opacity 160ms ease-out;
+}
+.focus-emoji {
+  display: flex;
+  height: 40px;
+  width: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 27px;
+  line-height: 1;
+  transition: transform 240ms cubic-bezier(.2, .9, .3, 1.4), background-color 120ms;
+}
+.focus-emoji:hover { background: #f1f2f6; }
+.focus-emoji:active { transform: scale(1.25) !important; }
+.focus-menu {
+  width: 236px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 16px 40px -10px rgba(15, 18, 34, 0.4);
+  transition: transform 240ms cubic-bezier(.2, .9, .3, 1.15), opacity 150ms ease-out;
+}
+.focus-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  font-size: 16px;
+  text-align: left;
+}
+.focus-menu-item + .focus-menu-item { border-top: 1px solid #eceef4; }
+.focus-menu-item:hover, .focus-menu-item:focus-visible { background: #f4f5f9; outline: none; }
+.focus-menu-item:active { background: #e9ebf2; }
+}
+
+@keyframes drawer-in { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes drawer-out { from { transform: translateX(0) } to { transform: translateX(100%) } }
+.anim-drawer-in { animation: drawer-in .28s cubic-bezier(.2,.9,.25,1) both }
+.anim-drawer-out { animation: drawer-out .2s ease-in both }

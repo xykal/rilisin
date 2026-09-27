@@ -10,7 +10,7 @@ export function SiteFooter() {
           <Logo />
           <p className="mt-3 text-sm text-slate-500">{SITE.tagline}.</p>
           <p className="mt-4 text-xs text-slate-400">
-            Prototype Fase 1 · nama &amp; domain masih sementara.
+            Prototype · nama &amp; domain masih sementara.
           </p>
         </div>
         <div>
@@ -30,7 +30,8 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-slate-600">
             <li><Link href="/seller" className="hover:text-brand-700">Mulai berbagi / jualan</Link></li>
             <li><Link href="/panduan/android" className="hover:text-brand-700">Verifikasi developer Android</Link></li>
-            <li><Link href="/komunitas" className="hover:text-brand-700">Komunitas (segera)</Link></li>
+            <li><Link href="/komunitas" className="hover:text-brand-700">Komunitas</Link></li>
+            <li><Link href="/komunitas/aturan" className="hover:text-brand-700">Aturan komunitas</Link></li>
           </ul>
         </div>
         <div>
@@ -38,7 +39,8 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-slate-600">
             <li><span className="text-slate-400">Syarat &amp; Ketentuan (disusun sebelum launch)</span></li>
             <li><span className="text-slate-400">Kebijakan Privasi (disusun sebelum launch)</span></li>
-            <li><span className="text-slate-400">Laporkan konten: tombol &quot;Laporkan&quot; di tiap produk (Fase 3)</span></li>
+            <li><Link href="/keamanan" className="hover:text-brand-700">Pusat Keamanan</Link></li>
+            <li><a href="/.well-known/security.txt" className="hover:text-brand-700">Lapor celah keamanan</a></li>
           </ul>
         </div>
       </div>
