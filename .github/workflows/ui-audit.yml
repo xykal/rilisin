@@ -43,7 +43,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: echo "APP_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")" >> "$GITHUB_ENV"
+      - name: APP_SECRET acak (di-mask di log)
+        run: |
+          s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+          echo "::add-mask::$s"
+          echo "APP_SECRET=$s" >> "$GITHUB_ENV"
       - run: npx playwright install --with-deps chromium
       - run: npx tsx scripts/seed.ts && npm run build
       - name: Jalankan server

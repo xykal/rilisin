@@ -49,7 +49,10 @@ jobs:
       - name: Install
         run: npm ci --no-audit --no-fund
       - name: APP_SECRET acak (khusus run ini)
-        run: echo "APP_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")" >> "$GITHUB_ENV"
+        run: |
+          s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+          echo "::add-mask::$s"
+          echo "APP_SECRET=$s" >> "$GITHUB_ENV"
       - name: Lint
         run: npm run lint
       - name: Typecheck

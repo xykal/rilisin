@@ -9,6 +9,13 @@ updates:
       semua-dependency:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    ignore:
+      # TypeScript 7 (native/Go) belum didukung typescript-eslint (CI gagal di PR #3) — naikkan manual kalau sudah siap
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # @types/node mengikuti runtime minimal yang didukung (engines: node >= 20.9), bukan versi Node terbaru
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
