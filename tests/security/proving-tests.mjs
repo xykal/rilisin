@@ -364,9 +364,17 @@ async function loginDemo(label, session, identifier = "user@rilisin.test") {
 
     // h. halaman /verifikasi-email aman diakses tanpa token
     const verifyPage = await guest.html("/verifikasi-email");
-    ok(verifyPage.status === 200, "Halaman /verifikasi-email terbuka tanpa error (500)");
+    if (verifyPage.res.status !== 200) {
+      console.error(
+        `DEBUG /verifikasi-email: status=${verifyPage.res.status} location=${verifyPage.res.headers.get("location")} ` +
+          `body=${clean(verifyPage.text).replace(/\s+/g, " ").slice(0, 300)}`,
+      );
+    }
+    ok(verifyPage.res.status === 200 && verifyPage.text.includes("Verifikasi email"), "Halaman /verifikasi-email terbuka untuk tamu (200)");
     const buka = await guest.req("/verifikasi-email/buka?token=token-ngawur");
-    ok(buka.status === 303, "Link verifikasi palsu → 303 ke halaman status");
+    ok(buka.status === 303 && (buka.headers.get("location") ?? "").includes("kedaluwarsa=1"), "Link verifikasi palsu → 303 ke /verifikasi-email?kedaluwarsa=1 (tidak 500)");
+    const expiredPage = await guest.html("/verifikasi-email?kedaluwarsa=1");
+    ok(expiredPage.res.status === 200 && expiredPage.text.includes("sudah tidak berlaku"), "Halaman verifikasi dengan link mati menjelaskan keadaan dengan jujur");
   } else {
     console.log("· Lewati tes login Google (GOOGLE_CLIENT_ID/GOOGLE_AUTH_URL tidak diisi)");
   }
