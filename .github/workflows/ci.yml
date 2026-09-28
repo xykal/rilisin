@@ -80,6 +80,8 @@ jobs:
           echo "server tidak menyala"; cat server.log; exit 1
       - name: Smoke test end-to-end
         run: node scripts/smoke-test.mjs
+      - name: Security proving tests (429, injeksi, IDOR, CSRF, batas auth)
+        run: npm run test:security
       - name: Contract test Pakasir v2
         run: npm run test:pakasir
       - name: Log server (kalau gagal)
