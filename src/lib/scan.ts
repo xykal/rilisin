@@ -139,9 +139,15 @@ export async function scanStats() {
   return row ?? { pending: 0, clean: 0, infected: 0, error: 0, oldest: null };
 }
 
-/** Status worker untuk halaman Sistem: dianggap hidup kalau terakhir mengklaim antrean < 15 menit lalu. */
+/**
+ * Status worker untuk halaman Sistem. Dianggap hidup kalau terakhir mengklaim antrean dalam
+ * SCAN_WORKER_TTL_MIN menit terakhir (default 15 — cocok untuk worker yang selalu nyala).
+ * Worker terjadwal (mis. cron GitHub Actions per jam) butuh jendela lebih lebar dari jeda antar-run:
+ * set SCAN_WORKER_TTL_MIN sedikit di atas interval (contoh: 90 untuk cron per jam).
+ */
 export async function workerStatus() {
   const kv = await getKv("scan_worker");
   const seen = kv?.updatedAt ?? null;
-  return { seen, alive: seen ? Date.now() - seen.getTime() < LEASE_MINUTES * 60_000 : false, engine: String(kv?.value.engine ?? "") };
+  const ttlMin = Math.max(LEASE_MINUTES, Number(process.env.SCAN_WORKER_TTL_MIN ?? "") || LEASE_MINUTES);
+  return { seen, alive: seen ? Date.now() - seen.getTime() < ttlMin * 60_000 : false, engine: String(kv?.value.engine ?? "") };
 }

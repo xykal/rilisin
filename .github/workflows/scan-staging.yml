@@ -1,0 +1,47 @@
+# Worker antivirus TERJADWAL untuk staging — pengganti VPS.
+# Repo publik = runner GitHub Actions gratis (menit tak terbatas). Worker (scanner/worker.mjs) mandiri:
+# tidak menyentuh database, tidak perlu `npm ci`/build/app — hanya HTTPS keluar ke app + clamd di localhost.
+# Alur tiap run: nyalakan clamd (service) → worker mode ONCE menguras antrean scan staging → keluar.
+# Endpoint yang dipanggil (`/api/internal/scan/*`) dikecualikan dari Basic Auth staging (proxy.ts) &
+# dilindungi SCAN_WORKER_TOKEN, jadi worker tidak butuh kredensial kunci situs.
+#
+# Biaya idle: clamd mengunduh database signature (±2–3 mnt) tiap run walau antrean kosong — bandwidth dari
+# CDN ClamAV, bukan GitHub, jadi tidak membebani kuota/risiko akun. Jadwal sengaja per jam (bukan tiap
+# beberapa menit) untuk menekan pemborosan; pakai tombol "Run workflow" untuk memindai segera.
+name: Scan staging (ClamAV)
+
+on:
+  schedule:
+    - cron: "7 * * * *" # tiap jam menit ke-7 (hindari :00 yang padat)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Jangan tumpuk run (mis. run terjadwal menyusul dispatch) — satu pemindaian cukup.
+concurrency:
+  group: scan-staging
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Worker ONCE → staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      clamav:
+        image: clamav/clamav:stable
+        ports: ["3310:3310"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Kuras antrean scan staging
+        env:
+          RILISIN_URL: https://rilisin.xyverse.my.id
+          SCAN_WORKER_TOKEN: ${{ secrets.SCAN_WORKER_TOKEN }}
+          CLAMD_HOST: localhost
+          ONCE: "1"
+          WORKER_NAME: gh-actions-staging
+        run: node scanner/worker.mjs
