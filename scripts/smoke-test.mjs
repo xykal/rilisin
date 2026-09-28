@@ -805,7 +805,7 @@ async function register(s, username, password, extra = {}) {
   ok(clean(await (await review(kc.text, { rating: "4", body: "Seru! Lihat juga www.contoh-game.xyz ya" })).text()).includes("Link tidak diizinkan"), "Ulasan: link ditolak (anti-spam)");
   await review(kc.text, { rating: "4", body: "Seru dan edukatif, anak saya suka level hutan bakau." });
   const kAfter = await guest.html(KANCIL);
-  ok(kAfter.text.includes("anak saya suka level hutan bakau") && kAfter.text.includes("(7 ulasan)") && kAfter.text.includes(">Pemilik<"), "Ulasan: tayang dengan badge Pemilik & rating dihitung ulang");
+  ok(kAfter.text.includes("anak saya suka level hutan bakau") && kAfter.text.includes("(7 ulasan)") && kAfter.text.includes("Pemilik</span>"), "Ulasan: tayang dengan badge Pemilik & rating dihitung ulang");
   ok((await notifs(pixel)).some((n) => n.type === "review_new" && n.title.includes("Petualangan Si Kancil")), "Notifikasi: seller dapat notifikasi ulasan baru");
   const kc2 = await rina.html(KANCIL);
   ok(clean(await (await review(kc2.text, { rating: "5", body: "Seru dan edukatif, anak saya suka level hutan bakau. Bug level 8 sudah beres!" })).text()).includes("Ulasan diperbarui"), "Ulasan: bisa diubah pemiliknya");
