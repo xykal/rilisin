@@ -275,7 +275,7 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
   - `LISTEN` butuh koneksi database langsung (`DATABASE_URL_DIRECT`), bukan transaction pooler.
 - **Chat:**
   - belum ada pencarian pesan, notifikasi push, DM pribadi, dan deteksi gambar tidak pantas otomatis (masih mengandalkan laporan).
-- **File:** scan malware sudah jalan (Fase 4) tapi **worker ClamAV produksi belum di-hosting** — perlu VPS/mesin apa pun yang bisa HTTPS keluar (`scanner/`, lihat `scanner/docker-compose.yml`); sampai itu aktif, moderasi tetap manual dan `REQUIRE_CLEAN_SCAN` masih 0. Storage: driver lokal (dev) & Vercel Blob (staging); R2 saat trafik besar.
+- **File:** scan malware sudah jalan (Fase 4) dan **worker ClamAV produksi sudah aktif via cron GitHub Actions** (workflow `scan-staging.yml`, tiap jam + manual "Run workflow" — tanpa VPS, runner repo publik gratis). `REQUIRE_CLEAN_SCAN` masih 0 (file baru langsung bisa diunduh; dinyalakan kalau mau wajib-tunggu-scan). Storage: driver lokal (dev) & Vercel Blob (staging); R2 saat trafik besar.
 - **Review ulang:** edit produk yang sudah tayang langsung berlaku tanpa review ulang — perlu diputuskan sebelum beta publik.
 - **Audit:** sebelum memegang uang sungguhan, kode sebaiknya direview **security reviewer manusia** / pentest.
 
