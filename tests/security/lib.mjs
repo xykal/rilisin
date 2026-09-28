@@ -14,6 +14,15 @@ const BASIC = process.env.SMOKE_BASIC_AUTH
 export const DEMO_PW = process.env.SMOKE_DEMO_PASSWORD || process.env.SEED_DEMO_PASSWORD || "rilisin123";
 
 export const clean = (t) => t.replaceAll("<!-- -->", "");
+// Atribut HTML di-respons server ter-escape; balikin ke nilai asli sebelum dikirim ulang.
+export const decode = (s) =>
+  s
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const uuid = () => crypto.randomUUID();
 
@@ -68,7 +77,7 @@ export class Session {
     const res = await this.req(path);
     return { res, text: clean(await res.text()) };
   }
-  /** POST <form> server action seperti browser tanpa JS. */
+  /** POST <form> server action seperti browser tanpa JS (progressive enhancement). */
   async submitForm(pagePath, html, marker, fields = {}) {
     const chunks = html.split("<form").slice(1).map((c) => c.split("</form>")[0]);
     const form = chunks.find((c) => c.includes(marker));
@@ -79,9 +88,15 @@ export class Session {
       const name = tag.match(/name="([^"]*)"/)?.[1];
       if (!name) continue;
       if (Object.hasOwn(fields, name)) continue;
-      fd.append(name, tag.match(/value="([^"]*)"/)?.[1] ?? "");
+      // Nilai atribut di HTML ter-escape (&quot; dst) — harus di-decode, kalau tidak
+      // deskriptor Server Action ($ACTION_1:0) rusak dan server membalas 500.
+      fd.append(decode(name), decode(tag.match(/value="([^"]*)"/)?.[1] ?? ""));
     }
     for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    // Kunci uji Turnstile (CI): browser akan mengisi token dummy ini.
+    if (form.includes('data-turnstile="1x00000000000000000000AA"')) {
+      fd.append("cf-turnstile-response", "XXXX.DUMMY.TOKEN.XXXX");
+    }
     return this.req(pagePath, { method: "POST", body: fd });
   }
   async login(identifier, password = DEMO_PW) {
