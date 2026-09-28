@@ -16,7 +16,7 @@
  * Butuh seed demo: user@rilisin.test & seller@rilisin.test (password SEED_DEMO_PASSWORD).
  */
 import { randomBytes } from "node:crypto";
-import { BASE, Session, ok, uuid, DEMO_PW, clean } from "./lib.mjs";
+import { BASE, Session, ok, sleep, uuid, DEMO_PW, clean } from "./lib.mjs";
 
 const b64url = (buf) => buf.toString("base64url");
 
@@ -333,6 +333,8 @@ async function loginDemo(label, session, identifier = "user@rilisin.test") {
     const signup = new Session();
     const signupPage = await signup.html("/daftar");
     ok(signupPage.text.includes('data-testid="google-login"'), "Halaman /daftar menawarkan \"Daftar dengan Google\"");
+    // Form guard menolak form yang dikirim < 1,5 detik setelah halaman dibuka (anti-bot)
+    await sleep(1700);
     const signupRes = await signup.submitForm("/daftar", signupPage.text, 'name="username"', {
       displayName: "Pra Daftar",
       username: localUsername,
