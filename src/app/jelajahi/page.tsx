@@ -23,6 +23,7 @@ const SORTS = [
   { value: undefined, label: "Trending" },
   { value: "baru", label: "Terbaru" },
   { value: "populer", label: "Terpopuler" },
+  { value: "rating", label: "Rating tertinggi" },
 ];
 
 const PRICES = [
@@ -54,7 +55,7 @@ export default async function ExplorePage({ searchParams }: PageProps<"/jelajahi
     kategori: CATEGORIES.some((c) => c.slug === str("kategori")) ? str("kategori") : undefined,
     platform: PLATFORMS.some((p) => p.slug === str("platform")) ? str("platform") : undefined,
     harga: ["gratis", "berbayar"].includes(str("harga") ?? "") ? str("harga") : undefined,
-    sort: ["baru", "populer"].includes(str("sort") ?? "") ? str("sort") : undefined,
+    sort: ["baru", "populer", "rating"].includes(str("sort") ?? "") ? str("sort") : undefined,
   };
   const pageNum = Math.max(1, Number.parseInt(str("hal") ?? "1", 10) || 1);
 

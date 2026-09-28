@@ -126,6 +126,13 @@ details > summary::-webkit-details-marker {
 .prose-rilis th, .prose-rilis td { border: 1px solid #e2e5ee; padding: 0.45em 0.7em; text-align: left; }
 .prose-rilis th { background: #f4f5fa; }
 .prose-rilis hr { border-color: #e2e5ee; }
+/* Konten forum/ulasan dari user: kata/URL panjang wajib patah, tabel & kode boleh digulir di dalam kotaknya (bukan halaman) */
+.prose-rilis { overflow-wrap: anywhere; }
+.prose-rilis pre { max-width: 100%; overflow-x: auto; }
+.prose-rilis table { display: block; max-width: 100%; overflow-x: auto; }
+.prose-compact { font-size: 0.925rem; line-height: 1.65; }
+.prose-compact > * + * { margin-top: 0.7em; }
+.prose-compact h1, .prose-compact h2, .prose-compact h3 { font-size: 1rem; }
 
 /* ─── Animasi umum ──────────────────────────────────────────────────────── */
 @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }

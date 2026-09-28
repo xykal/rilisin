@@ -6,14 +6,15 @@ import { NextResponse, type NextRequest } from "next/server";
  *
  * 1. Kunci situs (opsional, untuk staging): kalau SITE_LOCK_PASSWORD diisi, setiap request wajib HTTP Basic Auth —
  *    termasuk /api/* dan request prefetch (supaya kunci tidak bisa dilewati dengan header next-router-prefetch).
- *    Pengecualian: webhook payment gateway (dipanggil server gateway) & /.well-known/*.
+ *    Pengecualian: webhook payment gateway (dipanggil server gateway), berhenti-langganan satu klik dari email
+ *    (dipanggil server Gmail/Yahoo, diotorisasi token HMAC) & /.well-known/*.
  * 2. Content-Security-Policy dengan nonce acak per request untuk halaman (bukan API/prefetch).
  *    Hanya script ber-nonce (dari Next.js sendiri) yang boleh jalan → XSS jauh lebih sulit dieksploitasi.
  *
  * FRAME_ANCESTORS: siapa yang boleh menampilkan situs ini di dalam iframe.
  *   production → 'none' (default, anti clickjacking) · preview demo → *
  */
-const LOCK_EXEMPT = /^\/(api\/payments\/[a-z]+\/webhook|\.well-known\/|robots\.txt$)/;
+const LOCK_EXEMPT = /^\/(api\/payments\/[a-z]+\/webhook|api\/notifications\/unsubscribe$|\.well-known\/|robots\.txt$)/;
 
 function sameSecret(a: string, b: string) {
   const ab = Buffer.from(a);

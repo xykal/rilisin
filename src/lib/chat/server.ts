@@ -35,6 +35,8 @@ import {
   type ReportReason,
 } from "./shared";
 import { countLinks, normalizeMessage } from "./text";
+import { notify, type NotifyInput } from "@/lib/notifications/server";
+import { extractMentions } from "@/lib/community/shared";
 
 export type ChatActor = { id: string; role: ChatRole; displayName: string; createdAt: Date };
 
@@ -470,7 +472,36 @@ export async function sendMessage(
   await db.update(chatRooms).set({ lastMessageAt: msg.createdAt }).where(eq(chatRooms.id, room.id));
   await markRead(actor.id, room.id, msg.seq);
   await signalMessage(room.id, msg.id, true);
+  await notifyChatPeople(actor, room, body, replyToId).catch((err) => console.error("[chat] notifikasi gagal", err));
   return (await getMessageDTO(msg.id))!;
+}
+
+/** Balasan & @mention di chat → notifikasi lonceng (tanpa email; digabung per ruang selama belum dibaca). */
+async function notifyChatPeople(actor: ChatActor, room: ChatRoom, body: string, replyToId: string | null) {
+  const url = `/komunitas/${room.slug}`;
+  const data = { roomName: room.name, snippet: snippet(body || "📷 Foto", 120) };
+  const notes: NotifyInput[] = [];
+  let replyAuthor: string | null = null;
+  if (replyToId) {
+    const [t] = await db.select({ authorId: chatMessages.authorId }).from(chatMessages).where(eq(chatMessages.id, replyToId)).limit(1);
+    if (t && t.authorId !== actor.id) {
+      replyAuthor = t.authorId;
+      notes.push({ userId: t.authorId, type: "chat_reply", actorId: actor.id, url, data, groupKey: `chat_reply:${room.id}` });
+    }
+  }
+  const names = extractMentions(body);
+  if (names.length) {
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(inArray(sql`lower(${users.username})`, names), isNull(users.bannedAt)));
+    for (const r of rows) {
+      if (r.id !== actor.id && r.id !== replyAuthor) {
+        notes.push({ userId: r.id, type: "chat_mention", actorId: actor.id, url, data, groupKey: `chat_mention:${room.id}` });
+      }
+    }
+  }
+  if (notes.length) await notify(notes);
 }
 
 // ─── Aksi pada pesan ────────────────────────────────────────────────────────

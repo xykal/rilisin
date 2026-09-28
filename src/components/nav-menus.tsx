@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BookOpenCheck, ChevronDown, Flame, Gift, KeyRound, Library, LogIn, Menu, MessagesSquare, ReceiptText, Rocket, ScrollText, Search, ShieldCheck, Smartphone, Sparkles, Store, Tag, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, Bell, BookOpenCheck, ChevronDown, Flame, Gift, KeyRound, Library, LogIn, Menu, MessageCircleQuestion, MessagesSquare, ReceiptText, Rocket, ScrollText, Search, ShieldCheck, Smartphone, Sparkles, Store, Tag, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -12,6 +12,7 @@ export type NavData = {
   platforms: { slug: string; label: string }[];
   featured: { slug: string; title: string; summary: string; iconUrl: string | null; price: string }[];
   rooms: { slug: string; name: string; emoji: string; description: string }[];
+  forum: { slug: string; name: string; emoji: string; description: string }[];
 };
 
 type MenuId = "jelajahi" | "komunitas" | "panduan";
@@ -242,10 +243,10 @@ export function DesktopNav({ data }: { data: NavData }) {
             )}
 
             {open === "komunitas" && (
-              <div className="mx-auto grid grid-cols-1 max-w-7xl gap-8 px-6 py-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+              <div className="mx-auto grid grid-cols-1 max-w-7xl gap-8 px-6 py-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,0.8fr)]">
                 <div className="min-w-0">
-                  <Heading>Ruang obrolan</Heading>
-                  <div className="grid grid-cols-2 gap-1 xl:grid-cols-3">
+                  <Heading>Ruang obrolan (chat)</Heading>
+                  <div className="grid grid-cols-2 gap-1">
                     {data.rooms.map((r) => (
                       <Link
                         key={r.slug}
@@ -263,23 +264,34 @@ export function DesktopNav({ data }: { data: NavData }) {
                     ))}
                   </div>
                 </div>
-                <div className="min-w-0 rounded-3xl bg-gradient-to-br from-brand-600 to-violet-600 p-6 text-white max-lg:hidden">
+                <div className="min-w-0">
+                  <Heading>Forum</Heading>
+                  <div className="space-y-0.5">
+                    {data.forum.map((c) => (
+                      <Link key={c.slug} href={`/forum/${c.slug}`} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-brand-50/70">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-base">{c.emoji}</span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-ink">{c.name}</span>
+                          <span className="block truncate text-xs text-slate-500">{c.description}</span>
+                        </span>
+                      </Link>
+                    ))}
+                    <Link href="/forum" className="mt-1 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-50/70">
+                      Semua thread <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+                <div className="min-w-0 rounded-3xl bg-gradient-to-br from-brand-600 to-violet-600 p-6 text-white max-xl:hidden">
                   <MessagesSquare className="h-8 w-8 text-white/90" />
-                  <p className="mt-3 text-lg font-extrabold">Ngobrol realtime bareng kreator</p>
+                  <p className="mt-3 text-lg font-extrabold">Chat untuk ngobrol, forum untuk arsip</p>
                   <p className="mt-1 text-sm text-white/80">
-                    Balas, reaksi emoji, edit &amp; hapus pesan — dengan filter anti spam &amp; judol.
+                    Tanya jawab di forum tersimpan & bisa dicari lagi — tandai jawaban terbaik. Obrolan cepat di chat, dengan filter anti spam &amp; judol.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Link
-                      href="/komunitas"
-                      className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-50"
-                    >
-                      Buka komunitas
+                    <Link href="/forum/baru" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-50">
+                      Buat thread
                     </Link>
-                    <Link
-                      href="/komunitas/aturan"
-                      className="rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/25"
-                    >
+                    <Link href="/komunitas/aturan" className="rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/25">
                       Aturan
                     </Link>
                   </div>
@@ -324,7 +336,7 @@ export function MobileNav({
   user,
 }: {
   data: NavData;
-  user: { displayName: string; username: string; isSeller: boolean; isStaff: boolean; pending: number } | null;
+  user: { displayName: string; username: string; isSeller: boolean; isStaff: boolean; pending: number; unread: number } | null;
 }) {
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -442,6 +454,9 @@ export function MobileNav({
                   <Link href="/komunitas" className={cn(item, "text-brand-700")}>
                     <MessagesSquare className="h-5 w-5" /> Semua ruang obrolan
                   </Link>
+                  <Link href="/forum" className={item}>
+                    <MessageCircleQuestion className="h-5 w-5 text-slate-500" /> Forum — tanya jawab &amp; diskusi
+                  </Link>
                 </div>
 
                 <div className="mt-5">
@@ -457,6 +472,10 @@ export function MobileNav({
                   {user ? (
                     <>
                       <Heading>Akun @{user.username}</Heading>
+                      <Link href="/notifikasi" className={item}>
+                        <Bell className="h-5 w-5 text-slate-500" /> Notifikasi
+                        {user.unread > 0 && <span className="ml-auto rounded-full bg-red-500 px-2 text-xs font-bold text-white">{user.unread}</span>}
+                      </Link>
                       <Link href="/library" className={item}>
                         <Library className="h-5 w-5 text-slate-500" /> Library saya
                       </Link>

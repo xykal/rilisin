@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth-forms";
 import { LogoMark } from "@/components/logo";
-import { Card } from "@/components/ui";
+import { Alert, Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { safeNextPath } from "@/lib/slug";
 
@@ -16,7 +16,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {
-  const { next } = await searchParams;
+  const { next, reset } = await searchParams;
   const nextPath = safeNextPath(next, "/");
   if (await getCurrentUser()) redirect(nextPath);
 
@@ -27,11 +27,17 @@ export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {
         <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">Masuk ke akunmu</h1>
         <p className="mt-1 text-sm text-slate-500">Download karya, pantau update, dan kelola tokomu.</p>
       </div>
+      {reset === "1" && (
+        <Alert tone="success" className="mb-4" title="Password berhasil diganti">
+          Semua perangkat sudah dikeluarkan. Silakan masuk dengan password baru.
+        </Alert>
+      )}
       <Card className="p-6 sm:p-8">
         <LoginForm next={nextPath} />
       </Card>
       <div className="mt-6 rounded-2xl border border-dashed border-brand-300 bg-brand-50/60 p-4 text-sm">
-        <p className="font-semibold text-brand-800">Akun demo (password: rilisin123)</p>
+        {/* Staging memakai password demo lain (SEED_DEMO_PASSWORD) — jangan tampilkan rilisin123 di sana */}
+        <p className="font-semibold text-brand-800">Akun demo (password: {process.env.DEMO_PASSWORD_HINT || "rilisin123"})</p>
         <ul className="mt-2 space-y-1 text-brand-900/80">
           {DEMO_ACCOUNTS.map((a) => (
             <li key={a.email} className="flex justify-between gap-3">

@@ -5,10 +5,11 @@
  * Menguji: header keamanan, halaman publik, login, download (signed URL), library, alur seller
  * (buat produk → upload gambar & file → kirim review), approve admin, komunitas chat
  * (kirim/balas/edit/hapus/reaksi/lapor/bisukan/realtime SSE/gambar), dan keamanan akun
- * (anti-bot, password policy, 2FA + kode cadangan, kunci akun, ganti password).
+ * (anti-bot, password policy, 2FA + kode cadangan, kunci akun, ganti password), pembayaran (Fase 2), serta
+ * forum, ulasan, notifikasi & reset password (Fase 3).
  * PERHATIAN: menambah data ke database. Jalankan `npm run db:seed` untuk reset.
  */
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import sharp from "sharp";
 import { strToU8, zipSync } from "fflate";
 
@@ -77,8 +78,11 @@ class Session {
     const res = await this.req(path);
     return { res, text: clean(await res.text()) };
   }
-  /** Kirim <form> server action seperti browser tanpa JS (progressive enhancement). */
-  async submitForm(pagePath, html, marker, fields = {}) {
+  /**
+   * Kirim <form> server action seperti browser tanpa JS (progressive enhancement).
+   * opts.override: field yang namanya sama dengan input hidden MENGGANTI nilainya (uji kiriman "paksa").
+   */
+  async submitForm(pagePath, html, marker, fields = {}, opts = {}) {
     const chunks = html.split("<form").slice(1).map((c) => c.split("</form>")[0]);
     const form = chunks.find((c) => c.includes(marker));
     if (!form) throw new Error(`Form dengan penanda "${marker}" tidak ditemukan di ${pagePath}`);
@@ -87,6 +91,7 @@ class Session {
       if (!/type="hidden"/.test(tag)) continue;
       const name = tag.match(/name="([^"]*)"/)?.[1];
       if (!name) continue;
+      if (opts.override && Object.hasOwn(fields, decode(name))) continue;
       fd.append(decode(name), decode(tag.match(/value="([^"]*)"/)?.[1] ?? ""));
     }
     for (const [k, v] of Object.entries(fields)) {
@@ -654,6 +659,237 @@ async function register(s, username, password, extra = {}) {
   const pw2 = await user.html("/beli/tebak-kata-daerah");
   const claim = await user.submitForm("/beli/tebak-kata-daerah", pw2.text, 'name="productId"', { method: "qris", amount: "0" });
   ok(claim.status === 303 && (claim.headers.get("location") ?? "").includes("/p/tebak-kata-daerah?diambil=1") && (await user.html("/library")).text.includes("Tebak Kata Daerah"), "Bayar seikhlasnya Rp0 → langsung masuk Library");
+}
+
+// ─── 8. Fase 3: forum, ulasan, notifikasi, reset password ───────────────────
+{
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const as = async (email) => {
+    const s = new Session();
+    await s.login(email);
+    return s;
+  };
+  const [rina, sel, maya, oki, rizky, mod3, adm3, pixel] = await Promise.all([
+    as("user@rilisin.test"),
+    as("seller@rilisin.test"),
+    as("maya23@contoh.test"),
+    as("oki38@contoh.test"),
+    as("rizky14@contoh.test"),
+    as("dimas24@contoh.test"),
+    as("admin@rilisin.test"),
+    as("pixelrantau@rilisin.test"),
+  ]);
+  ok([rina, sel, maya, oki, rizky, mod3, adm3, pixel].every((s) => s.hasSession()), "Fase 3: semua akun uji berhasil masuk");
+  const unread = async (s) => (await s.api("/api/notifications/unread")).data.unread;
+  const notifs = async (s) => (await s.api("/api/notifications?limit=20")).data.items ?? [];
+
+  // Forum publik
+  const home = await guest.html("/forum");
+  ok(home.res.status === 200 && home.text.includes("Tanya Jawab") && home.text.includes("KasirKu Offline bisa cetak struk"), "Forum: beranda menampilkan kategori & thread");
+  ok((await guest.html("/forum?q=flutter")).text.includes("APK Flutter release"), "Forum: pencarian menemukan thread");
+  const unanswered = (await guest.html("/forum?urut=belum-terjawab")).text;
+  ok(unanswered.includes("Webhook payment gateway") && !unanswered.includes("APK Flutter release"), "Forum: filter belum terjawab");
+  const qaHref = home.text.match(/href="(\/forum\/t\/[0-9a-f-]{36})"[^>]*>KasirKu Offline bisa cetak struk/)?.[1];
+  const qa = await guest.html(qaHref);
+  ok(qa.res.status === 200 && qa.text.includes("Jawaban terbaik") && qa.text.includes("ESC/POS") && qa.text.includes(">Pembuat<") && qa.text.includes('href="/@nusantaralabs"'), "Thread: jawaban terbaik, badge Pembuat & link mention tampil");
+  ok(qa.text.includes(`/masuk?next=${encodeURIComponent(qaHref)}`) && !qa.text.includes('data-form="reply"'), "Thread: tamu diminta masuk untuk upvote/membalas");
+
+  // Buat thread
+  const guestNew = await guest.req("/forum/baru");
+  ok(guestNew.status === 307 && (guestNew.headers.get("location") ?? "").includes("/masuk"), "Buat thread: tamu diarahkan ke halaman masuk");
+  const nf = await rina.html("/forum/baru?kategori=tanya-jawab");
+  const catId = nf.text.match(/<option value="([0-9a-f-]{36})"[^>]*>🙋/)?.[1];
+  ok(nf.text.includes('data-form="new-thread"') && Boolean(catId), "Buat thread: form tampil dengan kategori terpilih");
+  const newThread = (fields) => rina.submitForm("/forum/baru", nf.text, 'data-form="new-thread"', { categoryId: catId, ...fields });
+  const fast = await newThread({ title: "Judul yang cukup panjang sekali", body: "Isi thread yang cukup panjang untuk lolos." });
+  ok(clean(await fast.text()).includes("terlalu cepat"), "Buat thread: kiriman instan (bot) ditolak");
+  await sleep(3200);
+  ok(clean(await (await newThread({ title: "Halo", body: "Isi thread yang cukup panjang untuk lolos validasi." })).text()).includes("Judul minimal 8"), "Buat thread: judul terlalu pendek ditolak");
+  ok(clean(await (await newThread({ title: "Info slot gacor maxwin hari ini", body: "Daftar sekarang bonus new member 100%, wd lancar." })).text()).includes("judi online"), "Buat thread: promosi judol diblokir");
+  const title = `Uji smoke ${Date.now().toString(36)}: printer struk 58 mm`;
+  const created = await newThread({
+    title,
+    body: "Halo @nusantaralabs, ini uji otomatis.\n\n<script>alert('xss')</script>\n\n[klik saya](javascript:alert(1)) dan **tebal**.\n\n```js\nconsole.log('kode')\n```",
+  });
+  const threadUrl = created.headers.get("location") ?? "";
+  const threadId = threadUrl.split("/").pop();
+  ok(created.status === 303 && /^\/forum\/t\/[0-9a-f-]{36}$/.test(threadUrl), "Buat thread: tersimpan & diarahkan ke halaman thread");
+  const th = await guest.html(threadUrl);
+  ok(th.text.includes(title) && !th.text.includes("<script>alert") && !th.text.includes('href="javascript:') && th.text.includes("<strong>tebal</strong>") && th.text.includes('href="/@nusantaralabs"'), "Thread: HTML & link javascript: tidak dirender, Markdown & mention jalan");
+  ok((await notifs(sel)).some((n) => n.type === "forum_mention" && n.title.includes(title.slice(0, 20))), "Notifikasi: user yang di-mention dapat notifikasi");
+  ok(clean(await (await newThread({ title, body: "Isi lain yang cukup panjang ya teman-teman." })).text()).includes("judul yang sama"), "Buat thread: judul kembar di hari yang sama ditolak");
+
+  // Balasan + notifikasi
+  const before = await unread(rina);
+  const tp = await sel.html(threadUrl);
+  const rep = await sel.submitForm(threadUrl, tp.text, 'data-form="reply"', { body: "Coba pairing ulang printernya ya, @rina." });
+  const repLoc = rep.headers.get("location") ?? "";
+  const replyId = repLoc.match(/balasan=([0-9a-f-]{36})/)?.[1];
+  ok(rep.status === 303 && Boolean(replyId) && repLoc.includes(`#b-${replyId}`), "Balas: tersimpan & diarahkan ke balasannya");
+  ok((await unread(rina)) === before + 1, "Notifikasi: penulis thread dapat 1 notifikasi (balasan + mention tidak dobel)");
+  ok(clean(await (await sel.submitForm(threadUrl, tp.text, 'data-form="reply"', { body: "Balasan kedua yang terlalu cepat." })).text()).includes("Pelan-pelan"), "Balas: jeda anti-spam antar balasan");
+  const n1 = (await notifs(rina)).find((n) => n.type === "forum_reply" && !n.read);
+  const opened = await rina.req(n1?.href ?? "/x");
+  ok(opened.status === 303 && (opened.headers.get("location") ?? "").includes(`balasan=${replyId}`) && (await unread(rina)) === before, "Notifikasi: diklik → ditandai dibaca & diarahkan ke balasan");
+  ok((await rina.html(repLoc.split("#")[0])).text.includes(`id="b-${replyId}"`), "Thread: link ?balasan= membuka halaman berisi balasan itu");
+
+  // Upvote
+  const voteMarker = `name="targetId" value="${threadId}"`;
+  const mp = await maya.html(threadUrl);
+  await maya.submitForm(threadUrl, mp.text, voteMarker, {});
+  ok((await maya.html(threadUrl)).text.includes('aria-label="Batalkan upvote (1)"'), "Upvote: skor thread naik & tombol aktif");
+  await maya.submitForm(threadUrl, (await maya.html(threadUrl)).text, voteMarker, {});
+  ok((await maya.html(threadUrl)).text.includes('aria-label="Upvote (0)"'), "Upvote: klik lagi = batal");
+  await rina.submitForm(threadUrl, mp.text, voteMarker, {});
+  ok((await guest.html(threadUrl)).text.includes("Upvote (0) — masuk dulu"), "Upvote: postingan sendiri tidak bisa di-upvote (walau dikirim paksa)");
+
+  // Jawaban terbaik
+  const rinaPage = await rina.html(threadUrl);
+  ok(rinaPage.text.includes("Tandai jawaban terbaik"), "Jawaban terbaik: tombol tampil untuk penanya");
+  await maya.submitForm(threadUrl, rinaPage.text, `name="replyId" value="${replyId}"`, {});
+  ok(!(await guest.html(threadUrl)).text.includes("Terjawab"), "Jawaban terbaik: selain penanya tidak bisa menandai");
+  await rina.submitForm(threadUrl, rinaPage.text, `name="replyId" value="${replyId}"`, {});
+  const accepted = await guest.html(threadUrl);
+  ok(accepted.text.includes("Terjawab") && accepted.text.includes("Jawaban terbaik — dari Nusantara Labs"), "Jawaban terbaik: ditandai penanya → tampil di atas");
+  ok((await notifs(sel)).some((n) => n.type === "forum_accepted"), "Notifikasi: penjawab dapat notifikasi jawaban terbaik");
+
+  // Ubah & hapus balasan
+  const edit = await sel.html(`/forum/balasan/${replyId}/ubah`);
+  const edited = await sel.submitForm(`/forum/balasan/${replyId}/ubah`, edit.text, 'data-form="edit-reply"', { body: "Coba pairing ulang printernya, lalu pilih PC437 ya @rina." });
+  ok(edited.status === 303 && (await guest.html(threadUrl)).text.includes("pilih PC437"), "Ubah balasan: isi baru tersimpan");
+  ok((await maya.req(`/forum/balasan/${replyId}/ubah`)).status === 404, "Ubah balasan: orang lain dapat 404");
+  const mrep = await maya.submitForm(threadUrl, (await maya.html(threadUrl)).text, 'data-form="reply"', { body: "Saya juga pakai printer yang sama, lancar kok." });
+  const mid = (mrep.headers.get("location") ?? "").match(/balasan=([0-9a-f-]{36})/)?.[1];
+  await maya.submitForm(threadUrl, (await maya.html(threadUrl)).text, `name="replyId" value="${mid}"`, {});
+  const afterDel = await guest.html(threadUrl);
+  ok(Boolean(mid) && afterDel.text.includes("Balasan ini dihapus penulisnya") && !afterDel.text.includes("printer yang sama"), "Hapus balasan: diganti keterangan, isinya hilang dari publik");
+
+  // Thread terkunci
+  const lockedHref = home.text.match(/href="(\/forum\/t\/[0-9a-f-]{36})"[^>]*>Mulai 30 September 2026/)?.[1];
+  const lockedPage = await rina.html(lockedHref);
+  ok(lockedPage.text.includes("dikunci moderator") && !lockedPage.text.includes('data-form="reply"'), "Thread terkunci: form balasan tidak tampil");
+  const forced = await rina.submitForm(threadUrl, rinaPage.text, 'data-form="reply"', { threadId: lockedHref.split("/").pop(), body: "Mencoba membalas thread terkunci." }, { override: true });
+  ok(clean(await forced.text()).includes("Thread dikunci"), "Thread terkunci: balasan paksa ditolak server");
+
+  // Moderator menyembunyikan & memulihkan balasan
+  const modHide = `name="replyId" value="${replyId}"/><input type="hidden" name="action" value="hide"`;
+  await mod3.submitForm(threadUrl, (await mod3.html(threadUrl)).text, modHide, { reason: "Uji moderasi" });
+  const pubHidden = await guest.html(threadUrl);
+  ok(pubHidden.text.includes("Balasan ini disembunyikan moderator") && !pubHidden.text.includes("pilih PC437"), "Moderator: menyembunyikan balasan (publik melihat keterangan)");
+  await mod3.submitForm(threadUrl, (await mod3.html(threadUrl)).text, `name="replyId" value="${replyId}"/><input type="hidden" name="action" value="restore"`, {});
+  ok((await guest.html(threadUrl)).text.includes("pilih PC437"), "Moderator: memulihkan balasan");
+
+  // Laporan: tidak bisa lapor diri sendiri, 3 pelapor → disembunyikan otomatis → dipulihkan admin
+  const selfRep = await sel.submitForm(threadUrl, (await sel.html(threadUrl)).text, 'value="forum_thread"/><input type="hidden" name="targetId"', { targetType: "forum_reply", targetId: replyId, reason: "spam" }, { override: true });
+  ok(clean(await selfRep.text()).includes("Tidak bisa melaporkan postingan sendiri"), "Lapor: tidak bisa melaporkan postingan sendiri");
+  const repMarker = `value="forum_reply"/><input type="hidden" name="targetId" value="${replyId}"`;
+  let lastReport = "";
+  for (const s of [maya, oki, rizky]) {
+    lastReport = clean(await (await s.submitForm(threadUrl, (await s.html(threadUrl)).text, repMarker, { reason: "spam" })).text());
+  }
+  ok(lastReport.includes("disembunyikan sementara") && (await guest.html(threadUrl)).text.includes("sedang ditinjau moderator"), "Lapor: 3 pelapor berbeda → balasan disembunyikan otomatis");
+  const queue = await adm3.html("/admin/laporan/konten");
+  ok(queue.text.includes("Laporan forum &amp; ulasan") && queue.text.includes("pilih PC437"), "Moderasi: laporan muncul di antrean forum & ulasan");
+  await adm3.submitForm("/admin/laporan/konten", queue.text, "Pulihkan &amp; tolak laporan", {});
+  ok((await guest.html(threadUrl)).text.includes("pilih PC437"), "Moderasi: pulihkan & tolak laporan → balasan tampil lagi");
+
+  // Ulasan
+  const kp = await guest.html("/p/kasirku-offline");
+  ok(kp.text.includes("Masuk untuk mengulas") && kp.text.includes("4,4") && kp.text.includes("(7 ulasan)"), "Ulasan: ringkasan rating & ajakan masuk untuk tamu");
+  ok((await sel.html("/p/kasirku-offline")).text.includes("Ini karyamu"), "Ulasan: seller tidak bisa mengulas karyanya sendiri");
+  const KANCIL = "/p/petualangan-si-kancil";
+  const kc = await rina.html(KANCIL);
+  ok(kc.text.includes('data-form="review"') && kc.text.includes("(6 ulasan)"), "Ulasan: pemilik yang belum mengulas melihat form");
+  const review = (html, fields, opts) => rina.submitForm(KANCIL, html, 'data-form="review"', fields, opts);
+  ok(clean(await (await review(kc.text, { rating: "2", body: "" })).text()).includes("wajib disertai alasan"), "Ulasan: 1–2 bintang wajib ada alasan");
+  ok(clean(await (await review(kc.text, { rating: "4", body: "Seru! Lihat juga www.contoh-game.xyz ya" })).text()).includes("Link tidak diizinkan"), "Ulasan: link ditolak (anti-spam)");
+  await review(kc.text, { rating: "4", body: "Seru dan edukatif, anak saya suka level hutan bakau." });
+  const kAfter = await guest.html(KANCIL);
+  ok(kAfter.text.includes("anak saya suka level hutan bakau") && kAfter.text.includes("(7 ulasan)") && kAfter.text.includes(">Pemilik<"), "Ulasan: tayang dengan badge Pemilik & rating dihitung ulang");
+  ok((await notifs(pixel)).some((n) => n.type === "review_new" && n.title.includes("Petualangan Si Kancil")), "Notifikasi: seller dapat notifikasi ulasan baru");
+  const kc2 = await rina.html(KANCIL);
+  ok(clean(await (await review(kc2.text, { rating: "5", body: "Seru dan edukatif, anak saya suka level hutan bakau. Bug level 8 sudah beres!" })).text()).includes("Ulasan diperbarui"), "Ulasan: bisa diubah pemiliknya");
+  const proId = (await rina.html("/beli/kasirku-pro")).text.match(/name="productId" value="([0-9a-f-]{36})"/)?.[1];
+  ok((await rina.html("/p/kasirku-pro")).text.includes("Hanya pemilik yang bisa memberi ulasan"), "Ulasan: bukan pemilik tidak melihat form");
+  const forcedReview = await review(kc2.text, { productId: proId, rating: "5", body: "Ulasan palsu dari bukan pembeli" }, { override: true });
+  ok(Boolean(proId) && clean(await forcedReview.text()).includes("Hanya yang sudah mengunduh / membeli"), "Ulasan: kiriman paksa dari bukan pemilik ditolak server");
+  const pk = await pixel.html(`${KANCIL}/ulasan`);
+  const rid = [...pk.text.slice(0, pk.text.indexOf("Bug level 8 sudah beres")).matchAll(/id="ulasan-([0-9a-f-]{36})"/g)].pop()?.[1];
+  const sr = await pixel.submitForm(`${KANCIL}/ulasan`, pk.text, `name="reviewId" value="${rid}"`, { reply: "Terima kasih Mbak Rina! Level baru segera hadir." });
+  ok(clean(await sr.text()).includes("Balasan tersimpan") && (await guest.html(`${KANCIL}/ulasan`)).text.includes("Level baru segera hadir"), "Ulasan: seller membalas ulasan");
+  ok((await notifs(rina)).some((n) => n.type === "review_reply" && n.title.includes("Petualangan Si Kancil")), "Notifikasi: pengulas dapat notifikasi balasan seller");
+  for (const s of [maya, oki, rizky]) {
+    await s.submitForm(`${KANCIL}/ulasan`, (await s.html(`${KANCIL}/ulasan`)).text, `value="review"/><input type="hidden" name="targetId" value="${rid}"`, { reason: "palsu" });
+  }
+  ok((await guest.html(KANCIL)).text.includes("(6 ulasan)"), "Ulasan dilaporkan 3 orang: disembunyikan & rating dihitung ulang (trigger)");
+  await mod3.submitForm(`${KANCIL}/ulasan`, (await mod3.html(`${KANCIL}/ulasan`)).text, `name="reviewId" value="${rid}"/><input type="hidden" name="action" value="restore"`, {});
+  ok((await guest.html(KANCIL)).text.includes("(7 ulasan)"), "Moderator: pulihkan ulasan → rating kembali");
+  await rina.submitForm(KANCIL, (await rina.html(KANCIL)).text, "Hapus ulasan", {});
+  ok((await guest.html(KANCIL)).text.includes("(6 ulasan)"), "Ulasan: dihapus pemiliknya → rating dihitung ulang");
+  ok((await guest.html("/jelajahi?sort=rating")).text.includes("Rating tertinggi"), "Jelajahi: urutan rating tertinggi tersedia");
+
+  // Notifikasi: keamanan, halaman, preferensi, berhenti berlangganan
+  ok((await guest.api("/api/notifications")).status === 401, "API notifikasi: tanpa login → 401");
+  const csrf = await rina.req("/api/notifications/read", { method: "POST", headers: { "content-type": "application/json", origin: "https://situs-jahat.example" }, body: JSON.stringify({ all: true }) });
+  ok(csrf.status === 403, "API notifikasi: tandai dibaca dari origin asing ditolak (CSRF)");
+  const selN = (await notifs(sel)).find((n) => !n.read);
+  const foreign = await rina.req(selN?.href ?? "/notifikasi/buka/1");
+  ok(foreign.status === 303 && foreign.headers.get("location") === "/notifikasi" && (await notifs(sel)).find((n) => n.id === selN?.id)?.read === false, "Notifikasi milik orang lain tidak bisa dibuka / ditandai");
+  ok((await rina.html("/")).text.includes('aria-label="Notifikasi'), "Header: lonceng notifikasi tampil untuk anggota");
+  const np = await rina.html("/notifikasi");
+  ok(np.res.status === 200 && np.text.includes("data-notification"), "Halaman notifikasi menampilkan daftar");
+  await rina.submitForm("/notifikasi", np.text, "Tandai semua dibaca", {});
+  ok((await unread(rina)) === 0, "Tandai semua dibaca → 0 belum dibaca");
+  const pref = await rina.html("/akun/notifikasi");
+  const savedPref = await rina.submitForm("/akun/notifikasi", pref.text, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on" });
+  const pref2 = (await rina.html("/akun/notifikasi")).text;
+  ok(clean(await savedPref.text()).includes("Pengaturan notifikasi tersimpan") && /name="email_transaksi"[^>]*checked/.test(pref2) && !/name="email_komunitas"[^>]*checked/.test(pref2), "Preferensi email notifikasi tersimpan");
+  await rina.submitForm("/akun/notifikasi", pref2, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on", email_komunitas: "on" });
+  const badUnsub = await guest.req("/api/notifications/unsubscribe?t=palsu", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" });
+  ok(badUnsub.status === 400 && (await guest.html("/notifikasi/berhenti?t=palsu")).text.includes("Link tidak valid"), "Berhenti berlangganan: token palsu ditolak");
+
+  // Lupa password
+  ok((await guest.html("/masuk")).text.includes('href="/lupa-password"'), "Masuk: ada link Lupa password");
+  const askReset = async (email) => {
+    const s = new Session();
+    const page = await s.html("/lupa-password");
+    await sleep(1600);
+    return clean(await (await s.submitForm("/lupa-password", page.text, 'data-form="forgot-password"', { email })).text());
+  };
+  const [r1, r2] = await Promise.all([askReset("user@rilisin.test"), askReset("tidak-terdaftar-xyz@contoh.test")]);
+  ok(r1.includes("Kalau user@rilisin.test terdaftar") && r2.includes("Kalau tidak-terdaftar-xyz@contoh.test terdaftar"), "Lupa password: jawaban sama untuk email terdaftar & tidak (anti enumerasi)");
+  const badTok = await guest.req(`/atur-ulang-password/buka?token=${"x".repeat(43)}`);
+  ok(badTok.status === 303 && (badTok.headers.get("location") ?? "").includes("/lupa-password?kedaluwarsa=1"), "Reset password: token palsu ditolak");
+  ok((await guest.html("/atur-ulang-password")).text.includes("Link tidak berlaku"), "Reset password: tanpa token tidak bisa ganti password");
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl && ["localhost", "127.0.0.1", "postgres"].includes(new URL(dbUrl).hostname)) {
+    const { default: postgres } = await import("postgres");
+    const sql = postgres(dbUrl, { max: 1, onnotice: () => {} });
+    try {
+      const token = randomBytes(32).toString("base64url");
+      const [u] = await sql`select id from users where email = 'kartika34@contoh.test'`;
+      await sql`insert into password_resets (id, user_id, expires_at) values (${createHash("sha256").update(token).digest("hex")}, ${u.id}, now() + interval '30 minutes')`;
+      const victim = await as("kartika34@contoh.test");
+      const opener = new Session();
+      const open = await opener.req(`/atur-ulang-password/buka?token=${token}`);
+      ok(open.status === 303 && open.headers.get("location") === "/atur-ulang-password" && [...opener.cookies.keys()].some((k) => k.includes("rilisin_reset")), "Reset password: link email → token pindah ke cookie, URL bersih");
+      const rf = await opener.html("/atur-ulang-password");
+      ok(rf.text.includes("@kartika34") && rf.text.includes('data-form="reset-password"'), "Reset password: form password baru tampil");
+      ok(clean(await (await opener.submitForm("/atur-ulang-password", rf.text, 'data-form="reset-password"', { password: "password123", confirm: "password123" })).text()).includes("terlalu umum"), "Reset password: password lemah ditolak");
+      const newPw = `Baru-${Date.now().toString(36)}-aman!`;
+      const done = await opener.submitForm("/atur-ulang-password", rf.text, 'data-form="reset-password"', { password: newPw, confirm: newPw });
+      ok(done.status === 303 && (done.headers.get("location") ?? "").includes("/masuk?reset=1"), "Reset password: password baru tersimpan");
+      ok((await victim.req("/library")).status === 307, "Reset password: semua sesi lama dikeluarkan");
+      const fresh = new Session();
+      await fresh.login("kartika34@contoh.test", newPw);
+      ok(fresh.hasSession(), "Reset password: bisa masuk dengan password baru");
+      ok(((await new Session().req(`/atur-ulang-password/buka?token=${token}`)).headers.get("location") ?? "").includes("kedaluwarsa"), "Reset password: link hanya sekali pakai");
+    } finally {
+      await sql.end();
+    }
+  } else {
+    console.log("  (uji reset password penuh dilewati — butuh akses database lokal)");
+  }
 }
 
 console.log(`\nSemua ${passed} pengecekan lulus.`);

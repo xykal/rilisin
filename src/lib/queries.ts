@@ -25,6 +25,8 @@ const cardSelect = {
   iconKey: products.iconKey,
   coverKey: products.coverKey,
   downloadCount: products.downloadCount,
+  ratingCount: products.ratingCount,
+  ratingSum: products.ratingSum,
   publishedAt: products.publishedAt,
   isFeatured: products.isFeatured,
   sellerUsername: users.username,
@@ -44,6 +46,8 @@ export type ProductCardData = {
   iconKey: string | null;
   coverKey: string | null;
   downloadCount: number;
+  ratingCount: number;
+  ratingSum: number;
   publishedAt: Date | null;
   isFeatured: boolean;
   sellerUsername: string;
@@ -97,8 +101,11 @@ export async function listCatalog(f: CatalogFilters, pageSize = 24) {
     );
   }
   const whereSql = and(...where);
+  const bayesRating = sql`(${products.ratingSum} + 3.5 * 5) / (${products.ratingCount} + 5.0)`;
   const orderBy =
-    f.sort === "baru"
+    f.sort === "rating"
+      ? [desc(bayesRating), desc(products.ratingCount), desc(products.downloadCount)]
+      : f.sort === "baru"
       ? [desc(products.publishedAt)]
       : f.sort === "populer"
         ? [desc(products.downloadCount), desc(products.publishedAt)]

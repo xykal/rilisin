@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { blockedHashes, moderationActions, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";
+import { notifyAndEmail } from "@/lib/notifications/server";
 import { storage } from "@/lib/storage";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
@@ -63,6 +64,7 @@ export async function approveProductAction(formData: FormData) {
       .where(sql`${releaseFiles.releaseId} in (select id from ${releases} where product_id = ${productId})`);
   });
   await log(staff.id, "product", productId, "approve", str(formData, "note") || (checkAndroid ? "Bukti verifikasi Android dicek" : null));
+  await notifyAndEmail({ userId: product.sellerId, type: "product_approved", actorId: staff.id, url: `/p/${product.slug}`, data: { productTitle: product.title } });
   revalidatePath("/", "layout");
   redirect("/admin/review?hasil=disetujui");
 }
@@ -92,6 +94,13 @@ export async function rejectProductAction(formData: FormData) {
     await db.update(releases).set({ status: "draft" }).where(inArray(releases.id, releaseIds));
   }
   await log(staff.id, "product", productId, block ? "reject_and_block" : "reject", `${reason}${blocked ? ` (${blocked} file diblokir)` : ""}`);
+  await notifyAndEmail({
+    userId: product.sellerId,
+    type: "product_rejected",
+    actorId: staff.id,
+    url: `/seller/produk/${productId}`,
+    data: { productTitle: product.title, reason: reason.slice(0, 300) },
+  });
   revalidatePath("/", "layout");
   redirect("/admin/review?hasil=ditolak");
 }
