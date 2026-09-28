@@ -33,7 +33,7 @@ export function ReportDialog({
         {state?.success ? (
           <Alert tone="success">{state.success}</Alert>
         ) : (
-          <form action={action} className="space-y-3" data-form="report">
+          <form action={action} className="space-y-3" data-form="report" data-target={targetType}>
             <input type="hidden" name="targetType" value={targetType} />
             <input type="hidden" name="targetId" value={targetId} />
             <p className="text-sm font-semibold text-ink">Kenapa dilaporkan?</p>

@@ -956,7 +956,8 @@ async function register(s, username, password, extra = {}) {
   ok((await notifs(rina)).some((n) => n.type === "product_devlog" && n.title.includes(devTitle.slice(0, 20))), "Devlog baru → pengikut produk dapat notifikasi");
 
   // Lapor produk & akun
-  const PROD = 'value="product"/><input type="hidden" name="targetId"';
+  // Form lapor punya data-target (form "Ikuti update" juga memuat input targetType=product + targetId)
+  const PROD = 'data-form="report" data-target="product"';
   const ik = await maya.html("/p/ikon-kuliner-nusantara");
   const ikId = ik.text.match(/value="product"\/><input type="hidden" name="targetId" value="([0-9a-f-]{36})"/)?.[1];
   ok(clean(await (await maya.submitForm("/p/ikon-kuliner-nusantara", ik.text, PROD, { reason: "palsu" })).text()).includes("Alasan laporan tidak cocok"), "Lapor produk: alasan yang tidak relevan ditolak server");
@@ -965,7 +966,7 @@ async function register(s, username, password, extra = {}) {
   ok(clean(await (await sel.submitForm("/p/petualangan-si-kancil", kcS.text, PROD, { targetId: kasirkuId, reason: "spam" }, { override: true })).text()).includes("Tidak bisa melaporkan karya sendiri"), "Lapor produk: seller tidak bisa melaporkan karyanya sendiri");
   const ag = await maya.html("/@agus18");
   const agusId = ag.text.match(/value="user"\/><input type="hidden" name="targetId" value="([0-9a-f-]{36})"/)?.[1];
-  ok(clean(await (await maya.submitForm("/u/agus18", ag.text, 'value="user"/><input type="hidden" name="targetId"', { reason: "spam" })).text()).includes("laporan terkirim"), "Lapor akun: laporan terkirim");
+  ok(clean(await (await maya.submitForm("/u/agus18", ag.text, 'data-form="report" data-target="user"', { reason: "spam" })).text()).includes("laporan terkirim"), "Lapor akun: laporan terkirim");
   const q = await adm.html("/admin/laporan/konten");
   ok(q.text.includes("Tangguhkan produk") && q.text.includes("Ikon Kuliner Nusantara") && q.text.includes("@agus18"), "Moderasi: laporan produk & akun masuk antrean");
   await adm.submitForm("/admin/laporan/konten", q.text, `name="targetId" value="${ikId}"/><label`, { reason: "Uji smoke: dugaan bajakan" });
