@@ -5,6 +5,7 @@ import { HideOnRoutes } from "@/components/route-visibility";
 import { SiteHeader } from "@/components/site-header";
 import { isSimulationMode } from "@/lib/payments/provider";
 import { SITE } from "@/lib/config";
+import { BRAND } from "@/config/brand";
 import "./globals.css";
 
 // Semua halaman membaca session (cookie) & data terbaru dari database.
@@ -20,6 +21,9 @@ export const metadata: Metadata = {
   title: { default: `${SITE.name} — ${SITE.tagline}`, template: `%s · ${SITE.name}` },
   description: SITE.description,
   applicationName: SITE.name,
+  authors: [{ name: `${BRAND.author} — ${BRAND.company}`, url: "https://github.com/xykal" }],
+  creator: `${BRAND.author} — ${BRAND.company}`,
+  publisher: BRAND.company,
 };
 
 export const viewport: Viewport = {

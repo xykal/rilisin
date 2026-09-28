@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CATEGORIES, SITE } from "@/lib/config";
+import { BRAND } from "@/config/brand";
 import { Logo } from "./logo";
 
 export function SiteFooter() {
@@ -46,6 +47,8 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-slate-100 py-5 text-center text-xs text-slate-400">
         © {new Date().getFullYear()} {SITE.name} — dibuat untuk developer Indonesia.
+        <br />
+        Ditenagai oleh {BRAND.company}.
       </div>
     </footer>
   );
