@@ -6,6 +6,7 @@ import type { CurrentUser } from "@/lib/auth/current-user";
 import { db } from "@/lib/db";
 import { entitlements, ledgerEntries, orders, paymentEvents, products, sellerProfiles, users, type Order } from "@/lib/db/schema";
 import { escapeHtml, sendEmail } from "@/lib/email";
+import { notifyAndEmail } from "@/lib/notifications/server";
 import { formatDateTime, formatRupiah } from "@/lib/format";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
@@ -301,6 +302,23 @@ export async function applyPaymentCompleted(evt: PaymentEventInput) {
 
   await logPaymentEvent({ provider: evt.provider, source: evt.source, orderCode: evt.orderCode, orderId: order?.id ?? null, result, payload: { txnId: evt.txnId, amount: evt.amount, isSandbox: evt.isSandbox, ...(evt.payload ?? {}) } });
   if (order && result.startsWith("paid")) {
+    const [p] = await db.select({ slug: products.slug }).from(products).where(eq(products.id, order.productId)).limit(1);
+    await notifyAndEmail([
+      {
+        userId: order.buyerId,
+        type: "order_paid",
+        url: `/pesanan/${order.code}`,
+        data: { orderCode: order.code, productTitle: order.productTitle },
+      },
+      {
+        userId: order.sellerId,
+        type: "sale",
+        actorId: order.buyerId,
+        url: "/seller/penjualan",
+        data: { productTitle: order.productTitle, earning: order.sellerEarningIdr, holdDays: PAYMENT_CONFIG.holdDays(), productSlug: p?.slug ?? null },
+        groupKey: `sale:${order.sellerId}`,
+      },
+    ]).catch((err) => console.error("[notif] gagal membuat notifikasi pesanan", err));
     const send = () => sendReceipt(order).catch(() => {});
     try {
       after(send);

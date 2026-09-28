@@ -1,14 +1,16 @@
-import { ChevronDown, KeyRound, Library, LogOut, ReceiptText, Search, ShieldCheck, Store, UserRound } from "lucide-react";
+import { Bell, ChevronDown, KeyRound, Library, LogOut, ReceiptText, Search, ShieldCheck, Store, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
 import { getModerationCounts } from "@/lib/moderation";
 import { getNavData } from "@/lib/nav";
+import { getUnreadCount } from "@/lib/notifications/server";
 import { Avatar } from "./bits";
 import { Dropdown } from "./dropdown";
 import { Logo } from "./logo";
 import { DesktopNav, MobileNav } from "./nav-menus";
+import { NotificationBell } from "./notification-bell";
 import { buttonStyles, cn } from "./ui";
 
 const menuItem =
@@ -17,7 +19,11 @@ const menuItem =
 export async function SiteHeader() {
   const user = await getCurrentUser();
   const staff = isStaff(user);
-  const [nav, counts] = await Promise.all([getNavData(), staff ? getModerationCounts() : Promise.resolve(null)]);
+  const [nav, counts, unread] = await Promise.all([
+    getNavData(),
+    staff ? getModerationCounts() : Promise.resolve(null),
+    user ? getUnreadCount(user.id) : Promise.resolve(0),
+  ]);
   const pending = counts?.total ?? 0;
 
   return (
@@ -63,6 +69,8 @@ export async function SiteHeader() {
                 <Library className="h-4 w-4" />
                 Library
               </Link>
+              {/* Layar < 360px: lonceng pindah ke laci menu (ruang header terlalu sempit) */}
+              <NotificationBell initialUnread={unread} className="max-[359px]:hidden" />
               <Suspense>
                 <Dropdown
                   label="Menu akun"
@@ -81,6 +89,10 @@ export async function SiteHeader() {
                     <p className="truncate text-xs text-slate-500">@{user.username}</p>
                   </div>
                   <div className="py-1">
+                    <Link href="/notifikasi" className={menuItem}>
+                      <Bell className="h-4 w-4" /> Notifikasi
+                      {unread > 0 && <span className="ml-auto rounded-full bg-red-100 px-2 text-xs font-bold text-red-700">{unread}</span>}
+                    </Link>
                     <Link href="/library" className={menuItem}>
                       <Library className="h-4 w-4" /> Library saya
                     </Link>
@@ -129,7 +141,7 @@ export async function SiteHeader() {
             data={nav}
             user={
               user
-                ? { displayName: user.displayName, username: user.username, isSeller: !!user.seller, isStaff: staff, pending }
+                ? { displayName: user.displayName, username: user.username, isSeller: !!user.seller, isStaff: staff, pending, unread }
                 : null
             }
           />

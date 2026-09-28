@@ -7,7 +7,7 @@ import { SubmitButton } from "./submit-button";
 import { Alert, Field, inputStyles } from "./ui";
 
 /** Input jebakan bot: tidak terlihat manusia, tapi sering diisi bot otomatis. */
-function Honeypot() {
+export function Honeypot() {
   return (
     <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
       <label>
@@ -39,6 +39,11 @@ export function LoginForm({ next }: { next: string }) {
       <Field label="Password" htmlFor="password">
         <input id="password" name="password" type="password" autoComplete="current-password" required className={inputStyles} />
       </Field>
+      <p className="-mt-2 text-right text-sm">
+        <Link href="/lupa-password" className="font-medium text-brand-700 hover:underline">
+          Lupa password?
+        </Link>
+      </p>
       <SubmitButton className="w-full !py-3" pendingText="Memeriksa…">
         Masuk
       </SubmitButton>

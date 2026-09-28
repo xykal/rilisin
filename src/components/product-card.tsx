@@ -6,6 +6,7 @@ import type { ProductCardData } from "@/lib/queries";
 import { mediaUrl } from "@/lib/storage";
 import { PriceTag, ProductIcon } from "./bits";
 import { PlatformIcon } from "./icons";
+import { RatingPill } from "./stars";
 
 export function ProductCard({ product }: { product: ProductCardData }) {
   const cover = mediaUrl(product.coverKey);
@@ -49,10 +50,14 @@ export function ProductCard({ product }: { product: ProductCardData }) {
                 <PlatformIcon key={p} platform={p} className="h-3.5 w-3.5" />
               ))}
             </span>
-            <span className="flex items-center gap-1 text-xs font-medium text-slate-500">
-              <Download className="h-3.5 w-3.5" />
-              {formatCompact(product.downloadCount)}
-            </span>
+            {product.ratingCount > 0 ? (
+              <RatingPill sum={product.ratingSum} count={product.ratingCount} />
+            ) : (
+              <span className="flex items-center gap-1 text-xs font-medium text-slate-500">
+                <Download className="h-3.5 w-3.5" />
+                {formatCompact(product.downloadCount)}
+              </span>
+            )}
           </div>
         </div>
       </div>

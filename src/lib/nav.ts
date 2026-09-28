@@ -3,13 +3,13 @@ import { and, asc, count, desc, eq } from "drizzle-orm";
 import type { NavData } from "@/components/nav-menus";
 import { CATEGORIES, PLATFORMS } from "@/lib/config";
 import { db } from "@/lib/db";
-import { chatRooms, products } from "@/lib/db/schema";
+import { chatRooms, forumCategories, products } from "@/lib/db/schema";
 import { formatRupiah } from "@/lib/format";
 import { mediaUrl } from "@/lib/storage";
 
-/** Data untuk mega menu header (kategori + jumlah karya, pilihan editor, ruang komunitas). */
+/** Data untuk mega menu header (kategori + jumlah karya, pilihan editor, ruang chat, kategori forum). */
 export async function getNavData(): Promise<NavData> {
-  const [counts, featured, rooms] = await Promise.all([
+  const [counts, featured, rooms, forum] = await Promise.all([
     db
       .select({ category: products.category, n: count() })
       .from(products)
@@ -33,6 +33,11 @@ export async function getNavData(): Promise<NavData> {
       .from(chatRooms)
       .orderBy(asc(chatRooms.sort))
       .limit(9),
+    db
+      .select({ slug: forumCategories.slug, name: forumCategories.name, emoji: forumCategories.emoji, description: forumCategories.description })
+      .from(forumCategories)
+      .orderBy(asc(forumCategories.sort))
+      .limit(8),
   ]);
   const byCat = new Map(counts.map((c) => [c.category, c.n]));
   return {
@@ -46,5 +51,6 @@ export async function getNavData(): Promise<NavData> {
       price: f.pricingModel === "free" ? "Gratis" : f.pricingModel === "pwyw" ? "Seikhlasnya" : formatRupiah(f.priceIdr),
     })),
     rooms,
+    forum,
   };
 }

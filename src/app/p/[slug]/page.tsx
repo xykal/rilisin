@@ -7,6 +7,8 @@ import {
   Eye,
   FileArchive,
   Lock,
+  MessagesSquare,
+  Plus,
   Scale,
   ShoppingCart,
   Smartphone,
@@ -20,11 +22,16 @@ import { cache } from "react";
 import { AndroidBadge, Avatar, PriceTag, ProductIcon, ProductStatusBadge } from "@/components/bits";
 import { PlatformIcon } from "@/components/icons";
 import { Markdown } from "@/components/markdown";
+import { ThreadList } from "@/components/forum/thread-list";
 import { ProductCard } from "@/components/product-card";
+import { ReviewsSection } from "@/components/reviews-section";
+import { Stars } from "@/components/stars";
 import { Alert, Badge, ButtonLink, Card, buttonStyles, cn } from "@/components/ui";
 import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
+import { formatRating } from "@/lib/community/shared";
 import { categoryLabel, platformLabel } from "@/lib/config";
 import { formatBytes, formatCompact, formatDate, formatRupiah, timeAgo } from "@/lib/format";
+import { listThreads } from "@/lib/forum";
 import { getMoreFromSeller, getProductBySlug, getSellerStats, hasEntitlement } from "@/lib/queries";
 import { mediaUrl } from "@/lib/storage";
 
@@ -47,10 +54,11 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const staff = isStaff(user);
   if (product.status !== "published" && !isOwner && !staff) notFound();
 
-  const [sellerStats, moreFromSeller, owned] = await Promise.all([
+  const [sellerStats, moreFromSeller, owned, discussions] = await Promise.all([
     getSellerStats(product.sellerId),
     getMoreFromSeller(product.sellerId, product.id),
     user ? hasEntitlement(user.id, product.id) : Promise.resolve(false),
+    product.status === "published" ? listThreads({ productId: product.id, sort: "aktif", pageSize: 3 }) : Promise.resolve({ items: [], total: 0 }),
   ]);
 
   const latest = product.releases[0];
@@ -98,6 +106,13 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
               <div className="min-w-0 flex-1">
                 <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{product.title}</h1>
                 <p className="mt-1 text-slate-600">{product.summary}</p>
+                {product.ratingCount > 0 && (
+                  <a href="#ulasan" className="mt-2 inline-flex items-center gap-2 text-sm text-slate-600 hover:text-ink">
+                    <Stars value={product.ratingSum / product.ratingCount} size={16} />
+                    <span className="font-bold text-ink">{formatRating(product.ratingSum, product.ratingCount)}</span>
+                    <span>({product.ratingCount} ulasan)</span>
+                  </a>
+                )}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Link href={`/@${product.seller.username}`} className="-my-1 flex min-w-0 items-center gap-2 py-1 text-sm font-semibold text-brand-700 hover:underline">
                     <Avatar name={sellerName} avatarKey={product.seller.avatarKey} size={22} />
@@ -226,14 +241,41 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           </Card>
 
           {/* Ulasan */}
-          <Card className="p-6 sm:p-8">
-            <h2 className="mb-2 flex items-center gap-2 text-lg font-bold text-ink">
-              <Star className="h-5 w-5 text-amber-500" /> Ulasan
-            </h2>
-            <p className="text-sm text-slate-500">
-              Rating &amp; ulasan hadir di fase berikutnya. Hanya pengguna yang benar-benar mengunduh / membeli yang bisa memberi ulasan, supaya tidak ada ulasan palsu.
-            </p>
-          </Card>
+          {product.status === "published" && (
+            <ReviewsSection
+              product={{ id: product.id, slug: product.slug, title: product.title, sellerId: product.sellerId, status: product.status, ratingCount: product.ratingCount, ratingSum: product.ratingSum }}
+              user={user}
+              sellerName={sellerName}
+            />
+          )}
+
+          {/* Diskusi (thread forum yang ditautkan ke produk ini) */}
+          {product.status === "published" && (
+            <Card className="overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-6 pb-4 sm:px-8">
+                <h2 id="diskusi" className="flex scroll-mt-24 items-center gap-2 text-lg font-bold text-ink">
+                  <MessagesSquare className="h-5 w-5 text-brand-600" /> Diskusi
+                  {discussions.total > 0 && <span className="text-sm font-medium text-slate-500">({discussions.total})</span>}
+                </h2>
+                <ButtonLink href={`/forum/baru?produk=${product.slug}`} variant="secondary" className={buttonStyles.small}>
+                  <Plus className="h-3.5 w-3.5" /> Mulai diskusi
+                </ButtonLink>
+              </div>
+              <div className="border-t border-slate-100">
+                <ThreadList
+                  items={discussions.items}
+                  empty={<>Belum ada diskusi. Punya pertanyaan, ide fitur, atau laporan bug untuk {product.title}? Mulai thread pertama.</>}
+                />
+              </div>
+              {discussions.total > discussions.items.length && (
+                <div className="border-t border-slate-100 p-4 text-center">
+                  <Link href={`/forum?produk=${product.slug}`} className="text-sm font-semibold text-brand-700 hover:underline">
+                    Lihat semua {discussions.total} diskusi
+                  </Link>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
 
         {/* ─── Sidebar ─────────────────────────────────── */}
@@ -313,6 +355,14 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             )}
 
             <dl className="mt-5 space-y-2.5 border-t border-slate-100 pt-4 text-sm">
+              {product.ratingCount > 0 && (
+                <div className="flex justify-between gap-3">
+                  <dt className="flex items-center gap-2 text-slate-500"><Star className="h-4 w-4" /> Rating</dt>
+                  <dd className="font-semibold text-ink">
+                    <a href="#ulasan" className="hover:underline">{formatRating(product.ratingSum, product.ratingCount)} / 5 ({product.ratingCount})</a>
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between gap-3">
                 <dt className="flex items-center gap-2 text-slate-500"><Download className="h-4 w-4" /> Unduhan</dt>
                 <dd className="font-semibold text-ink">{formatCompact(product.downloadCount)}</dd>

@@ -8,6 +8,7 @@ import { ledgerEntries, payoutAccounts, payouts, users } from "@/lib/db/schema";
 import { formatRupiah } from "@/lib/format";
 import { rateLimit } from "@/lib/rate-limit";
 import { decryptString, encryptString } from "@/lib/security/crypto";
+import { notifyAndEmail } from "@/lib/notifications/server";
 import { logSecurityEvent } from "@/lib/security/events";
 import { PAYOUT_PROVIDERS } from "./methods";
 import { PAYMENT_CONFIG } from "./provider";
@@ -223,6 +224,7 @@ export async function markPayoutPaid(payoutId: string, admin: Pick<CurrentUser, 
   if (ref.length < 4 || ref.length > 80) throw new PayoutError("Isi nomor referensi transfer (4–80 karakter).", "transferRef");
   const p = await closePayout(payoutId, admin, "paid", { transferRef: ref });
   await logSecurityEvent("payout_paid", { userId: admin.id, meta: { payoutId, sellerId: p.sellerId, amount: p.amountIdr } });
+  await notifyAndEmail({ userId: p.sellerId, type: "payout_paid", url: "/seller/saldo", data: { amount: p.amountIdr, transferRef: ref } });
 }
 
 export async function rejectPayout(payoutId: string, admin: Pick<CurrentUser, "id">, reason: string) {
@@ -230,6 +232,7 @@ export async function rejectPayout(payoutId: string, admin: Pick<CurrentUser, "i
   if (r.length < 5) throw new PayoutError("Tulis alasan penolakan (min. 5 karakter).", "reason");
   const p = await closePayout(payoutId, admin, "rejected", { reason: r.slice(0, 300) });
   await logSecurityEvent("payout_rejected", { userId: admin.id, meta: { payoutId, sellerId: p.sellerId, amount: p.amountIdr } });
+  await notifyAndEmail({ userId: p.sellerId, type: "payout_rejected", url: "/seller/saldo", data: { amount: p.amountIdr, reason: r.slice(0, 300) } });
 }
 
 export async function cancelOwnPayout(payoutId: string, seller: Pick<CurrentUser, "id">) {

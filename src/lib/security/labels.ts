@@ -33,6 +33,13 @@ export const SECURITY_EVENT_LABELS = {
   payout_canceled: { label: "Pencairan dibatalkan seller", tone: "slate" },
   order_refunded: { label: "Admin me-refund pesanan", tone: "red" },
   payment_webhook_rejected: { label: "Webhook pembayaran ditolak", tone: "red" },
+  password_reset_requested: { label: "Meminta link reset password", tone: "amber" },
+  password_reset: { label: "Password direset lewat email", tone: "blue" },
+  content_blocked: { label: "Postingan forum/ulasan diblokir filter", tone: "red" },
+  content_report: { label: "Melaporkan postingan / ulasan", tone: "slate" },
+  content_auto_hidden: { label: "Postingan disembunyikan otomatis (banyak laporan)", tone: "amber" },
+  admin_hide_content: { label: "Moderator menyembunyikan postingan / ulasan", tone: "amber" },
+  admin_restore_content: { label: "Moderator memulihkan postingan / ulasan", tone: "green" },
 } as const;
 
 export type SecurityEventType = keyof typeof SECURITY_EVENT_LABELS;

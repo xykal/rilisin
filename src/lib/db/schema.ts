@@ -4,9 +4,13 @@
  *  - Fase 1.5: keamanan akun (2FA, log keamanan, sesi) + komunitas chat grup + laporan.
  *  - Fase 2: uang — pesanan, log event pembayaran, buku besar saldo seller (append-only), rekening & pencairan.
  *    Aturan emas: rupiah selalu BIGINT (tanpa desimal), saldo = SUM(ledger), ledger tidak pernah di-UPDATE/DELETE.
+ *  - Fase 3: komunitas — ulasan & rating (khusus pemilik), forum (thread/balasan/upvote/jawaban terbaik),
+ *    notifikasi in-app + email, reset password lewat email.
+ *    Penghitung (rating produk, jumlah balasan, skor vote) dijaga trigger database, bukan kode aplikasi.
  */
 import { relations, sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   bigserial,
   boolean,
@@ -18,6 +22,7 @@ import {
   pgTable,
   text,
   primaryKey,
+  smallint,
   timestamp,
   uniqueIndex,
   uuid,
@@ -64,6 +69,13 @@ export const orderStatus = pgEnum("order_status", ["pending", "paid", "expired",
 export const ledgerKind = pgEnum("ledger_kind", ["sale", "refund", "payout", "payout_reversal", "adjustment"]);
 export const payoutStatus = pgEnum("payout_status", ["requested", "paid", "rejected", "canceled"]);
 export const reportStatus = pgEnum("report_status", ["open", "resolved", "dismissed"]);
+/** discussion = diskusi biasa · qa = tanya jawab (ada jawaban terbaik) · announcement = hanya staf yang bisa membuat thread. */
+export const forumCategoryKind = pgEnum("forum_category_kind", ["discussion", "qa", "announcement"]);
+
+/** Preferensi notifikasi: email per kategori (lihat NOTIFICATION_CATEGORIES). Kunci yang tidak ada = pakai default. */
+export type NotifyPrefs = { email?: Record<string, boolean> };
+/** Data tampilan notifikasi (judul thread, nama produk, cuplikan, dll). Selalu dirender sebagai teks biasa. */
+export type NotificationData = Record<string, string | number | null>;
 
 // ─── Akun ────────────────────────────────────────────────────────────────────
 export const users = pgTable(
@@ -88,6 +100,7 @@ export const users = pgTable(
     totpEnabledAt: tsz("totp_enabled_at"),
     /** Time-step TOTP terakhir yang dipakai — kode yang sama tidak bisa dipakai 2x (anti replay). */
     totpLastStep: bigint("totp_last_step", { mode: "number" }),
+    notifyPrefs: jsonb("notify_prefs").$type<NotifyPrefs>().notNull().default(sql`'{}'::jsonb`),
   },
   (t) => [
     uniqueIndex("users_email_lower_idx").on(sql`lower(${t.email})`),
@@ -212,6 +225,9 @@ export const products = pgTable(
     isFeatured: boolean("is_featured").notNull().default(false),
     /** Jumlah pemilik unik (orang yang pernah download / beli). */
     downloadCount: integer("download_count").notNull().default(0),
+    /** Dijaga trigger `product_reviews_sync_rating`: hanya ulasan yang tampil (tidak disembunyikan). */
+    ratingCount: integer("rating_count").notNull().default(0),
+    ratingSum: integer("rating_sum").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: tsz("updated_at").notNull().defaultNow(),
     submittedAt: tsz("submitted_at"),
@@ -532,6 +548,198 @@ export const reports = pgTable(
   ],
 );
 
+// ─── Komunitas: ulasan & rating (Fase 3) ────────────────────────────────────
+/**
+ * Satu ulasan per orang per produk. Hanya pemilik (punya entitlement: download gratis / beli) yang boleh menulis —
+ * dicek di aplikasi. Seller tidak bisa menghapus ulasan, hanya membalas atau melapor.
+ */
+export const productReviews = pgTable(
+  "product_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    rating: smallint("rating").notNull(),
+    body: text("body").notNull().default(""),
+    /** Versi terbaru saat ulasan ditulis (konteks: ulasan untuk versi lama). */
+    version: text("version"),
+    sellerReply: text("seller_reply"),
+    sellerRepliedAt: tsz("seller_replied_at"),
+    hiddenAt: tsz("hidden_at"),
+    hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
+    hiddenReason: text("hidden_reason"),
+    /** Disembunyikan otomatis karena dilaporkan banyak anggota (menunggu moderator). */
+    reportHiddenAt: tsz("report_hidden_at"),
+    createdAt: createdAt(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+    editedAt: tsz("edited_at"),
+  },
+  (t) => [
+    uniqueIndex("product_reviews_product_user_idx").on(t.productId, t.userId),
+    index("product_reviews_product_time_idx").on(t.productId, t.createdAt),
+    index("product_reviews_user_idx").on(t.userId),
+    check("product_reviews_rating_check", sql`rating between 1 and 5`),
+    check("product_reviews_body_check", sql`char_length(body) <= 2000`),
+  ],
+);
+
+// ─── Komunitas: forum (Fase 3) ──────────────────────────────────────────────
+export const forumCategories = pgTable("forum_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  emoji: text("emoji").notNull(),
+  description: text("description").notNull().default(""),
+  kind: forumCategoryKind("kind").notNull().default("discussion"),
+  sort: integer("sort").notNull().default(0),
+  createdAt: createdAt(),
+});
+
+export const forumThreads = pgTable(
+  "forum_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => forumCategories.id, { onDelete: "restrict" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Thread diskusi milik sebuah produk (tab Diskusi di halaman produk). */
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    /** Dijaga trigger dari forum_votes. */
+    score: integer("score").notNull().default(0),
+    /** Dijaga trigger dari forum_replies (hanya balasan yang tampil). */
+    replyCount: integer("reply_count").notNull().default(0),
+    lastReplyAt: tsz("last_reply_at"),
+    lastReplyBy: uuid("last_reply_by").references(() => users.id, { onDelete: "set null" }),
+    /** Urutan "aktif": naik saat thread dibuat / ada balasan baru. */
+    lastActivityAt: tsz("last_activity_at").notNull().defaultNow(),
+    acceptedReplyId: uuid("accepted_reply_id").references((): AnyPgColumn => forumReplies.id, { onDelete: "set null" }),
+    pinnedAt: tsz("pinned_at"),
+    lockedAt: tsz("locked_at"),
+    hiddenAt: tsz("hidden_at"),
+    hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
+    hiddenReason: text("hidden_reason"),
+    reportHiddenAt: tsz("report_hidden_at"),
+    /** Dihapus penulis (soft delete): hilang dari daftar, balasan tetap tersimpan untuk moderator. */
+    deletedAt: tsz("deleted_at"),
+    editedAt: tsz("edited_at"),
+    createdAt: createdAt(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("forum_threads_category_activity_idx").on(t.categoryId, t.lastActivityAt),
+    index("forum_threads_activity_idx").on(t.lastActivityAt),
+    index("forum_threads_product_idx").on(t.productId, t.lastActivityAt).where(sql`product_id is not null`),
+    index("forum_threads_author_idx").on(t.authorId, t.createdAt),
+    index("forum_threads_search_idx").using("gin", sql`to_tsvector('simple', ${t.title} || ' ' || ${t.body})`),
+    check("forum_threads_title_check", sql`char_length(title) between 1 and 200`),
+    check("forum_threads_body_check", sql`char_length(body) <= 20000`),
+  ],
+);
+
+export const forumReplies = pgTable(
+  "forum_replies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => forumThreads.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    score: integer("score").notNull().default(0),
+    hiddenAt: tsz("hidden_at"),
+    hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
+    hiddenReason: text("hidden_reason"),
+    reportHiddenAt: tsz("report_hidden_at"),
+    deletedAt: tsz("deleted_at"),
+    editedAt: tsz("edited_at"),
+    createdAt: createdAt(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("forum_replies_thread_time_idx").on(t.threadId, t.createdAt),
+    index("forum_replies_author_idx").on(t.authorId, t.createdAt),
+    check("forum_replies_body_check", sql`char_length(body) <= 10000`),
+  ],
+);
+
+/** Upvote saja (tanpa downvote) — satu per orang per postingan. Skor dijaga trigger. */
+export const forumVotes = pgTable(
+  "forum_votes",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetType: text("target_type").notNull(), // thread | reply
+    targetId: uuid("target_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.targetType, t.targetId] }),
+    index("forum_votes_target_idx").on(t.targetType, t.targetId),
+    check("forum_votes_type_check", sql`target_type in ('thread', 'reply')`),
+  ],
+);
+
+// ─── Notifikasi (Fase 3) ────────────────────────────────────────────────────
+/**
+ * Notifikasi in-app. Kejadian sejenis yang belum dibaca digabung lewat group_key
+ * (mis. 5 balasan di thread yang sama = 1 notifikasi dengan count 5), jadi lonceng tidak banjir.
+ * `url` wajib path internal (dicek constraint) — tidak bisa dipakai untuk open redirect.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    url: text("url").notNull(),
+    data: jsonb("data").$type<NotificationData>().notNull().default(sql`'{}'::jsonb`),
+    groupKey: text("group_key"),
+    count: integer("count").notNull().default(1),
+    readAt: tsz("read_at"),
+    /** Email untuk grup ini sudah dikirim — balasan berikutnya tidak memicu email lagi sampai dibaca. */
+    emailedAt: tsz("emailed_at"),
+    createdAt: createdAt(),
+    updatedAt: tsz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("notifications_user_time_idx").on(t.userId, t.updatedAt),
+    index("notifications_unread_idx").on(t.userId).where(sql`read_at is null`),
+    uniqueIndex("notifications_group_unread_idx").on(t.userId, t.groupKey).where(sql`read_at is null and group_key is not null`),
+    check("notifications_url_check", sql`url like '/%' and url not like '//%'`),
+  ],
+);
+
+/** Token reset password (sekali pakai, 30 menit). `id` = SHA-256 token; token asli hanya ada di email. */
+export const passwordResets = pgTable(
+  "password_resets",
+  {
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: tsz("expires_at").notNull(),
+    usedAt: tsz("used_at"),
+    ipHash: text("ip_hash"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("password_resets_user_idx").on(t.userId, t.createdAt)],
+);
+
 // ─── Relasi (untuk query bertingkat) ────────────────────────────────────────
 export const usersRelations = relations(users, ({ one, many }) => ({
   sellerProfile: one(sellerProfiles, {
@@ -728,3 +936,8 @@ export type Release = typeof releases.$inferSelect;
 export type ReleaseFile = typeof releaseFiles.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Payout = typeof payouts.$inferSelect;
+export type ProductReview = typeof productReviews.$inferSelect;
+export type ForumCategory = typeof forumCategories.$inferSelect;
+export type ForumThread = typeof forumThreads.$inferSelect;
+export type ForumReply = typeof forumReplies.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;

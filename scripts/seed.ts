@@ -14,6 +14,7 @@ import { hashPassword } from "../src/lib/auth/password";
 import * as schema from "../src/lib/db/schema";
 import { makeApk, makeCover, makeIcon, makePdf, makeScreenshot, makeZip, type ScreenSpec, type Visual } from "./seed-assets";
 import { seedChat } from "./seed-chat";
+import { seedCommunity } from "./seed-community";
 import { seedPayments } from "./seed-payments";
 
 config({ path: ".env.local", quiet: true });
@@ -851,9 +852,12 @@ async function main() {
   console.log("» Membuat transaksi, saldo & pencairan demo…");
   const pay = await seedPayments(db, { userIds, productIds, now });
 
+  console.log("» Membuat forum, ulasan & notifikasi demo…");
+  const community = await seedCommunity(db, { userIds, productIds, now });
+
   await client.end();
   console.log(
-    `✓ Seed selesai dalam ${((Date.now() - t0) / 1000).toFixed(1)} dtk — ${PRODUCTS.length} produk, ${fileCount} file, ${logs.length} log unduhan, ${chat.rooms} ruang chat, ${chat.messages} pesan, ${pay.orders} pesanan.`,
+    `✓ Seed selesai dalam ${((Date.now() - t0) / 1000).toFixed(1)} dtk — ${PRODUCTS.length} produk, ${fileCount} file, ${logs.length} log unduhan, ${chat.rooms} ruang chat, ${chat.messages} pesan, ${pay.orders} pesanan, ${community.threads} thread forum (${community.replies} balasan), ${community.reviews} ulasan, ${community.notifications} notifikasi.`,
   );
   console.log(`  Akun demo (password: ${process.env.SEED_DEMO_PASSWORD ? "dari SEED_DEMO_PASSWORD" : "rilisin123"}): admin@rilisin.test · seller@rilisin.test · user@rilisin.test · moderator: dimas24@contoh.test`);
 }

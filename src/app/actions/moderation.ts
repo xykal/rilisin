@@ -7,6 +7,8 @@ import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { actorFrom } from "@/lib/chat/api-helpers";
 import { ChatError, deleteForEveryone, muteUser, resolveReportsFor, restoreReportedMessage } from "@/lib/chat/server";
 import { MUTE_OPTIONS } from "@/lib/chat/shared";
+import { dismissContentReports, hideContent, loadTarget, restoreContent } from "@/lib/community/reports";
+import { CONTENT_TARGET_TYPES } from "@/lib/community/shared";
 import { db } from "@/lib/db";
 import { chatMessages, moderationActions, sessions, users } from "@/lib/db/schema";
 import { logSecurityEvent } from "@/lib/security/events";
@@ -88,5 +90,50 @@ export async function unbanUserAction(formData: FormData) {
   await db.update(users).set({ bannedAt: null, banReason: null }).where(eq(users.id, userId));
   await db.insert(moderationActions).values({ moderatorId: admin.id, targetType: "user", targetId: userId, action: "unban" });
   await logSecurityEvent("admin_unban", { userId: admin.id, meta: { target: userId } });
+  done();
+}
+
+// ─── Laporan forum & ulasan ─────────────────────────────────────────────────
+const contentTarget = z.object({ targetType: z.enum(CONTENT_TARGET_TYPES), targetId: z.string().uuid() });
+
+function readTarget(formData: FormData) {
+  return contentTarget.parse({ targetType: formData.get("targetType"), targetId: formData.get("targetId") });
+}
+
+export async function hideContentAction(formData: FormData) {
+  const staff = await requireStaff("/admin/laporan/konten");
+  const t = readTarget(formData);
+  await hideContent(staff.id, t.targetType, t.targetId, String(formData.get("reason") ?? ""));
+  done();
+}
+
+export async function restoreContentAction(formData: FormData) {
+  const staff = await requireStaff("/admin/laporan/konten");
+  const t = readTarget(formData);
+  await restoreContent(staff.id, t.targetType, t.targetId);
+  done();
+}
+
+export async function dismissContentReportsAction(formData: FormData) {
+  const staff = await requireStaff("/admin/laporan/konten");
+  const t = readTarget(formData);
+  await dismissContentReports(staff.id, t.targetType, t.targetId);
+  done();
+}
+
+/** Blokir penulis konten yang dilaporkan + sembunyikan kontennya. Khusus admin. */
+export async function banContentAuthorAction(formData: FormData) {
+  const admin = await requireAdmin("/admin/laporan/konten");
+  const t = readTarget(formData);
+  const target = await loadTarget(t.targetType, t.targetId);
+  if (!target || target.authorId === admin.id) return;
+  const [author] = await db.select({ role: users.role }).from(users).where(eq(users.id, target.authorId));
+  if (!author || author.role !== "user") return;
+  const reason = String(formData.get("reason") ?? "").slice(0, 200) || "Pelanggaran aturan komunitas";
+  await db.update(users).set({ bannedAt: new Date(), banReason: reason }).where(eq(users.id, target.authorId));
+  await db.delete(sessions).where(eq(sessions.userId, target.authorId));
+  await db.insert(moderationActions).values({ moderatorId: admin.id, targetType: "user", targetId: target.authorId, action: "ban", note: reason });
+  await logSecurityEvent("admin_ban", { userId: admin.id, meta: { target: target.authorId, reason, from: t.targetType } });
+  await hideContent(admin.id, t.targetType, t.targetId, reason);
   done();
 }
