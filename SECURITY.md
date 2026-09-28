@@ -53,7 +53,7 @@ Status: **prototype, belum diaudit pihak ketiga**. Wajib ada review keamanan/pen
 | `PAKASIR_ALLOW_SANDBOX` | `0` setelah go live |
 | `APP_URL` | URL publik (untuk link di email struk) |
 
-Lainnya: ganti kontak di `public/.well-known/security.txt`, aktifkan backup database harian, simpan secret di environment hosting (bukan di repo), aktifkan 2FA untuk akun GitHub/Vercel/Supabase/Cloudflare/Xendit milik tim.
+Lainnya: ganti kontak di `public/.well-known/security.txt`, aktifkan backup database harian, simpan secret di environment hosting (bukan di repo), aktifkan 2FA/passkey untuk akun GitHub/Vercel/Neon/Cloudflare/Pakasir milik tim. Token deploy CI hanya disimpan sebagai secret environment `staging` di GitHub (dibatasi ke branch `main`, tidak terbaca oleh PR/Dependabot); job test tidak memakai secret sama sekali.
 
 ## 4. Yang belum ada (rencana)
 

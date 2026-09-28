@@ -257,6 +257,9 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
 - **Stack:** Vercel Hobby (region `sin1`) + Neon Free (Postgres 18, Singapura, via Vercel Marketplace) + Vercel Blob (`rilisin-media` publik, `rilisin-files` privat). DNS: CNAME di Cloudflare.
 - **Dikunci Basic Auth** (`SITE_LOCK_USER` / `SITE_LOCK_PASSWORD`). Yang tetap terbuka: webhook pembayaran, `/.well-known/`, `robots.txt`. Pembayaran **mode simulasi** (`PAYMENT_PROVIDER=mock`).
 - **Hobby = non-komersial.** Jangan terima uang sungguhan di sini; produksi pakai Vercel Pro.
+- **Deploy otomatis:** tiap push ke `main` yang lulus CI, job `deploy` di GitHub Actions menjalankan `vercel deploy --prod` (build di Vercel). Deploy ulang manual: tab **Actions → CI → Run workflow** (branch `main`).
+  - Token: GitHub → Settings → Environments → `staging` → secret `VERCEL_TOKEN` (hanya branch `main`). Kalau token Vercel dirotasi, ganti secret ini juga.
+  - Tidak memakai integrasi Git Vercel: deploy hanya terjadi kalau tes lulus, dan aplikasi Vercel tidak perlu akses ke akun GitHub.
 - **Seed ulang** (MENGHAPUS semua data staging, termasuk file di Blob):
   ```bash
   vercel env pull .env.staging --environment=production   # JANGAN ke .env.local
