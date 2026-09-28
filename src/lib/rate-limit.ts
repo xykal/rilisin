@@ -60,3 +60,46 @@ export async function sharedLimit(key: string, limit: number, windowMs: number) 
     return rateLimit(`fallback:${key}`, limit, windowMs);
   }
 }
+
+/**
+ * Baca counter TANPA menambah — untuk limit yang hanya menghitung percobaan GAGAL (login per IP/akun).
+ * Pengguna sah di IP bersama (NAT operator seluler, kantor, kampus) tidak boleh dihukum karena orang
+ * lain satu jaringan; brute force selalu menghasilkan kegagalan, jadi kegagalanlah yang dihitung.
+ * Pasangan: `consumeSharedLimit` dipanggil setelah percobaan gagal.
+ */
+export async function peekSharedLimit(key: string, limit: number, windowMs: number) {
+  const windowSec = Math.max(1, Math.round(windowMs / 1000));
+  const nowSec = Math.floor(Date.now() / 1000);
+  const bucket = Math.floor(nowSec / windowSec);
+  try {
+    const rows = await db.execute<{ count: number }>(sql`
+      select count from rate_limits where key = ${hashKey(key)} and bucket = ${bucket}
+    `);
+    const count = Number(rows[0]?.count ?? 0);
+    if (count >= limit) return { ok: false, retryAfterSec: Math.max(1, (bucket + 1) * windowSec - nowSec) };
+    return { ok: true, retryAfterSec: 0 };
+  } catch (err) {
+    console.error("[rate-limit] database gagal (peek), pakai limit memori", (err as Error).message);
+    const mem = store.get(key);
+    if (mem && mem.resetAt > Date.now() && mem.count >= limit) return { ok: false, retryAfterSec: Math.ceil((mem.resetAt - Date.now()) / 1000) };
+    return { ok: true, retryAfterSec: 0 };
+  }
+}
+
+/** Tambah counter tanpa cek (dipanggil setelah percobaan gagal). Tidak pernah melempar. */
+export async function consumeSharedLimit(key: string, windowMs: number) {
+  const windowSec = Math.max(1, Math.round(windowMs / 1000));
+  const nowSec = Math.floor(Date.now() / 1000);
+  const bucket = Math.floor(nowSec / windowSec);
+  try {
+    await db.execute(sql`
+      insert into rate_limits (key, bucket, count, expires_at)
+      values (${hashKey(key)}, ${bucket}, 1, to_timestamp(${(bucket + 1) * windowSec}))
+      on conflict (key, bucket) do update set count = rate_limits.count + 1
+    `);
+  } catch {
+    const mem = store.get(key);
+    if (mem && mem.resetAt > Date.now()) mem.count++;
+    else store.set(key, { count: 1, resetAt: Date.now() + windowMs });
+  }
+}

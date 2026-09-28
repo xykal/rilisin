@@ -11,7 +11,7 @@ import { RESERVED_USERNAMES } from "@/lib/config";
 import { db } from "@/lib/db";
 import { authChallenges, users } from "@/lib/db/schema";
 import { getClientIp } from "@/lib/http";
-import { sharedLimit } from "@/lib/rate-limit";
+import { consumeSharedLimit, peekSharedLimit, sharedLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
 import { checkFormGuard } from "@/lib/security/form-guard";
 import { loginNeedsChallenge, verifyTurnstile } from "@/lib/security/turnstile";
@@ -98,8 +98,11 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
   }
 
   const ip = await getClientIp();
-  const rlIp = await sharedLimit(`login-ip:${ip}`, 30, 10 * 60 * 1000);
-  const rlId = await sharedLimit(`login-id:${identifier}`, 10, 10 * 60 * 1000);
+  // Hanya menghitung percobaan GAGAL (lihat consumeSharedLimit di bawah): banyak pengguna sah berbagi satu IP
+  // (NAT operator seluler, WiFi kantor/kampus). Kalau semua percobaan dihitung, satu orang brute force bisa
+  // mengunci login seluruh jaringan. Brute force selalu gagal, jadi kegagalanlah yang dihitung.
+  const rlIp = await peekSharedLimit(`login-ip:${ip}`, 30, 10 * 60 * 1000);
+  const rlId = await peekSharedLimit(`login-id:${identifier}`, 10, 10 * 60 * 1000);
   if (!rlIp.ok || !rlId.ok) {
     return { error: "Terlalu banyak percobaan masuk. Tunggu beberapa menit lalu coba lagi.", values };
   }
@@ -130,6 +133,8 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
 
   const valid = user?.passwordHash ? await verifyPassword(password, user.passwordHash) : await fakePasswordCheck();
   if (!user || !valid) {
+    // Percobaan gagal → baru dihitung ke limit IP & identifier (pasangan peekSharedLimit di atas)
+    await Promise.all([consumeSharedLimit(`login-ip:${ip}`, 10 * 60 * 1000), consumeSharedLimit(`login-id:${identifier}`, 10 * 60 * 1000)]);
     if (user) {
       await logSecurityEvent("login_failed", { userId: user.id });
       const lock = await getAccountLock(user.id);
