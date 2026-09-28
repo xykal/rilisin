@@ -109,3 +109,12 @@ Lanjutan (kall: "gas" lagi) — login sungguhan: Google OAuth + verifikasi email
 - Kredensial Google produksi TIDAK masuk repo: hanya env (GOOGLE_CLIENT_ID/SECRET). Redirect
   URI https://rilisin.xyverse.my.id/api/auth/google/callback masih harus didaftarkan kall di
   Google Cloud Console sebelum login Google bisa dipakai di staging/produksi.
+
+Verifikasi (commit 735c2ff): CI hijau 3 job https://github.com/xykal/rilisin/actions/runs/36499733841
+(Build & test, Security scan dependency, Deploy staging) + CodeQL
+https://github.com/xykal/rilisin/actions/runs/36499733844. Semua tes login Google lolos:
+PKCE S256, cookie tiket HttpOnly + SameSite=Lax + Max-Age 600, state palsu ditolak tanpa
+session, alur penuh membuat session, email_verified=false ditolak, pra-pendaftaran ditolak,
+identitas yang sama bisa dipakai ulang, tiket sekali pakai, kelima halaman hukum 200.
+Commit perbaikan tes: 6b8847c (fitur) → 8caf8b6 (BASE import) → 92c6689 (nama cookie) →
+604d04c (tunggu form guard) → 735c2ff (status halaman verifikasi).

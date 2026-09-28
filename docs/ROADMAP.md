@@ -23,7 +23,7 @@ Estimates are working-day counts from the start date 2026-09-27.
 | 2026-09-28 | Job audit dependency di CI | selesai, CI hijau |
 | 2026-09-28 | docs/PRD.md + docs/ROADMAP.md | selesai |
 | 2026-09-28 | Proving test keamanan (tests/security/) + step CI | selesai, CI hijau |
-| 2026-09-28 | Login Google (OAuth + PKCE), verifikasi email, halaman hukum publik | selesai (menunggu CI), butuh env + redirect URI Google dari kall |
+| 2026-09-28 | Login Google (OAuth + PKCE), verifikasi email, halaman hukum publik | selesai, CI hijau (36499733841), butuh env + redirect URI Google dari kall |
 
 ## Berikutnya (target, bisa geser)
 
