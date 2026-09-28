@@ -1,0 +1,42 @@
+# SAST CodeQL untuk TypeScript/JavaScript (termasuk file .mjs di tests/ & scripts/).
+# Tidak memblokir deploy: hasil masuk ke tab Security sebagai alert yang ditriage,
+# plus scan mingguan (cron) supaya query baru tetap ketahuan walau kode tidak berubah.
+# Semua action di-pin ke commit SHA asli (bukan tag yang bisa dipindah).
+name: CodeQL (SAST)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**/*.md"]
+  schedule:
+    - cron: "24 3 * * 1" # Senin 03:24 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # TypeScript = bahasa interpreted → build-mode none (tidak perlu build Next.js)
+      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        with:
+          category: "/language:${{ matrix.language }}"
