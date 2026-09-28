@@ -1,6 +1,6 @@
-# Rilisin — prototype (Fase 1 + Fase 2 Pembayaran + Komunitas & Keamanan)
+# Rilisin — prototype (Fase 1 + Fase 2 Pembayaran + Fase 3 Komunitas + Keamanan)
 
-> "Rumah karya developer Indonesia". Tempat share gratis & jual aplikasi, game, source code, template, aset desain, dan e-book — plus komunitas chat grup.
+> "Rumah karya developer Indonesia". Tempat share gratis & jual aplikasi, game, source code, template, aset desain, dan e-book — plus komunitas (chat grup + forum) dan ulasan dari pemilik asli.
 > **Rilisin** masih nama kerja: domain & merek belum dicek. Ganti nama cukup di `src/lib/config.ts`.
 
 Blueprint lengkap ada di `../blueprint-store-komunitas.md`. Yang sudah jadi:
@@ -10,6 +10,7 @@ Blueprint lengkap ada di `../blueprint-store-komunitas.md`. Yang sudah jadi:
 - **Keamanan (sebagian Fase 4 ditarik maju)** — 2FA, CSP, anti brute force, log keamanan, moderasi chat.
 
 - **Fase 2 (uang)** — checkout QRIS / Virtual Account (Pakasir API v2 + mode simulasi), pesanan, buku besar saldo seller, masa tahan 7 hari, pencairan dana, refund, panel keuangan admin.
+- **Fase 3 (komunitas)** — forum (tanya jawab dengan jawaban terbaik, diskusi per produk), ulasan & rating khusus pemilik, notifikasi in-app + email, lupa password lewat email.
 
 Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 
@@ -32,7 +33,11 @@ Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 | **Tahan pesan (ala WhatsApp iPhone)** | Tahan ±0,4 dtk (atau klik kanan / tombol ▾ di desktop / Enter di keyboard) → latar **blur**, pesan terangkat, **bar reaksi emoji** di atas, **menu** di bawah: Balas · Salin · Edit · Sematkan* · Laporkan · Bisukan* · Hapus → *sheet* **Hapus untuk saya / Hapus untuk semua orang**. Geser pesan ke kanan = balas cepat. (*khusus moderator) |
 | Aturan chat | Edit ≤ 15 menit (label "diedit"), hapus untuk semua ≤ 48 jam (moderator kapan saja), 1 reaksi per orang per pesan, pesan tersemat, ruang pengumuman (hanya staf), mode lambat per ruang |
 | **Keamanan akun** | Halaman `/akun/keamanan`: **2FA (TOTP)** + 10 kode cadangan, ganti password (perangkat lain otomatis keluar), daftar perangkat + keluarkan, riwayat aktivitas keamanan |
-| Moderasi | Review karya & rilis · **Laporan chat** (hapus, pulihkan, tolak, bisukan, blokir akun) · **Log keamanan** (login gagal, akun terkunci, bot, judol diblokir, aksi moderator) |
+| Moderasi | Review karya & rilis · **Laporan chat** (hapus, pulihkan, tolak, bisukan, blokir akun) · **Laporan forum & ulasan** (sembunyikan, pulihkan, tolak, blokir penulis; otomatis tersembunyi setelah 3 pelapor) · sematkan / kunci / sembunyikan thread langsung di halaman thread · **Log keamanan** |
+| **Forum (Fase 3)** | `/forum`: 8 kategori (Pengumuman · Tanya Jawab · Pamer Karya · Devlog · Request · Cari Tim · Masukan · Warung Kopi), urutan Aktif / Terbaru / Teratas / **Belum terjawab**, pencarian full-text. Thread & balasan **Markdown aman** (kode, daftar, link `nofollow ugc`, `@mention` → notifikasi), **upvote**, **jawaban terbaik** (kategori Tanya Jawab, dipilih penanya), ubah/hapus postingan sendiri. **Diskusi per produk**: thread bisa ditautkan ke produk, muncul di halaman produk dengan badge **Pembuat** / **Pemilik** |
+| **Ulasan & rating (Fase 3)** | Hanya **pemilik** (sudah mengunduh / membeli) yang bisa mengulas, 1 ulasan per orang, bisa diubah/dihapus. Rating 1–2 wajib ada alasan, tanpa link. **Seller membalas** (tidak bisa menghapus). Ringkasan & distribusi bintang, halaman semua ulasan (urut & filter bintang), rating di kartu produk, urutan **Rating tertinggi** di Jelajahi |
+| **Notifikasi (Fase 3)** | **Lonceng** di header (jumlah belum dibaca, panel 8 terbaru, tandai dibaca) + halaman `/notifikasi`. Pemicu: balasan & mention forum, jawaban terbaik, ulasan baru, balasan seller, penjualan, pencairan diproses/ditolak, karya disetujui/ditolak, balasan & mention di chat. Kejadian sejenis **digabung** ("3 balasan baru di …"). **Email** via Resend per kategori (`/akun/notifikasi`), maks. 1 email per grup sampai dibuka, link **berhenti berlangganan** + one-click (RFC 8058) |
+| **Lupa password (Fase 3)** | `/lupa-password` → link sekali pakai 30 menit ke email → password baru → semua perangkat dikeluarkan + email pemberitahuan. Jawaban selalu sama (tidak membocorkan email terdaftar) |
 | Halaman info | `/keamanan` (Pusat Keamanan), `/komunitas/aturan`, `/panduan/android`, `/.well-known/security.txt` |
 
 ## Akun demo
@@ -257,6 +262,7 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
 - **Stack:** Vercel Hobby (region `sin1`) + Neon Free (Postgres 18, Singapura, via Vercel Marketplace) + Vercel Blob (`rilisin-media` publik, `rilisin-files` privat). DNS: CNAME di Cloudflare.
 - **Dikunci Basic Auth** (`SITE_LOCK_USER` / `SITE_LOCK_PASSWORD`). Yang tetap terbuka: webhook pembayaran, `/.well-known/`, `robots.txt`. Pembayaran **mode simulasi** (`PAYMENT_PROVIDER=mock`).
 - **Hobby = non-komersial.** Jangan terima uang sungguhan di sini; produksi pakai Vercel Pro.
+- **Email staging:** Resend (akun `stok_ke_2`, terpisah dari domain proyek lain), pengirim `notifikasi@rilisin.xyverse.my.id` (DKIM + SPF + DMARC `p=none` di Cloudflare). Kuota gratis Resend ±100 email/hari. Akun demo memakai domain `.test` → emailnya **tidak pernah dikirim**; untuk mencoba, daftar pakai email asli lalu buka `/akun/notifikasi` → **Kirim email uji**.
 - **Deploy otomatis:** tiap push ke `main` yang lulus CI, job `deploy` di GitHub Actions menjalankan `vercel deploy --prod` (build di Vercel). Deploy ulang manual: tab **Actions → CI → Run workflow** (branch `main`).
   - Token: GitHub → Settings → Environments → `staging` → secret `VERCEL_TOKEN` (hanya branch `main`). Kalau token Vercel dirotasi, ganti secret ini juga.
   - Tidak memakai integrasi Git Vercel: deploy hanya terjadi kalau tes lulus, dan aplikasi Vercel tidak perlu akses ke akun GitHub.
