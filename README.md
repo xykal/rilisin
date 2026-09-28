@@ -18,6 +18,40 @@ Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 
 ---
 
+## English summary
+
+**Rilisin** (working name) is a marketplace for work by Indonesian developers: share
+for free or sell apps, games, source code, templates, design assets, and e-books —
+plus a community (group chat + forum) and reviews from verified owners only.
+
+- **Status:** prototype / pre-launch. Name and domain not final. No real payments in
+  staging (`PAYMENT_PROVIDER=mock`).
+- **Stack:** Next.js 16 (App Router, React 19), TypeScript strict, Tailwind CSS 4,
+  Drizzle ORM + Postgres (Neon), Vercel Blob, Zod, sharp. Node >= 20.9.
+- **Working today:** catalog, safe uploads with signed 10-minute download URLs,
+  ClamAV malware scanning (infected files blocked), checkout QRIS/Virtual Account
+  via Pakasir (webhook re-confirmed against the gateway API), seller balance ledger,
+  payouts and refunds, admin finance panel, realtime chat, forum, owner-only reviews,
+  follows and devlogs, in-app + email notifications, 2FA/TOTP, password reset.
+- **Security:** nonce CSP with `strict-dynamic`, Origin + Content-Type checks on
+  every mutating endpoint, shared (Postgres) rate limits, honeypot + form tokens,
+  Cloudflare Turnstile on bot-prone forms, per-object authorization, hashed IPs
+  (Indonesian PDP law), encrypted database backups.
+- **Tests in CI:** lint → typecheck → seed → backup/restore → build → 143-check
+  end-to-end smoke test → security proving tests (429 after threshold, injection,
+  traversal, XSS, IDOR, CSRF) → `npm audit` (high/critical) → deploy staging.
+  CodeQL (SAST) runs on every push plus a weekly scan. All GitHub Actions are
+  pinned to commit SHAs.
+- **Docs:** [`docs/PRD.md`](docs/PRD.md) (product & business),
+  [`docs/ROADMAP.md`](docs/ROADMAP.md), [`docs/AUDIT-2026-09-28.md`](docs/AUDIT-2026-09-28.md),
+  [`docs/DESIGN.md`](docs/DESIGN.md), [`SECURITY.md`](SECURITY.md).
+- **Legal:** public Terms/Privacy/Cookie/AUP documents are not written yet — they
+  are a launch gate. `LICENSE` is proprietary (DRAFT, pending counsel review).
+- Bahasa Indonesia is the product language; the detailed documentation below is in
+  Indonesian.
+
+---
+
 ## Yang sudah jalan
 
 | Area | Fitur |
@@ -317,3 +351,8 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
    - ganti kontak di `public/.well-known/security.txt`.
 5. **Upstash Redis:** rate limit & presence lintas server.
 6. **Pakasir (pembayaran):** buat proyek baru "rilisin" (otomatis mode sandbox) → isi Webhook URL `https://DOMAIN/api/payments/pakasir/webhook` → isi env `PAYMENT_PROVIDER=pakasir`, `PAKASIR_SLUG`, `PAKASIR_API_KEY`, `PAKASIR_WEBHOOK_SECRET`. Go live: KYC akun + KYC proyek di Pakasir, lalu `PAKASIR_ALLOW_SANDBOX=0`.
+
+---
+
+Built by xykal — XyVerse Technology Global.
+Dibuat oleh xykal — XyVerse Technology Global.

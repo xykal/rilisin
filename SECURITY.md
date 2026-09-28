@@ -66,9 +66,7 @@ Lainnya: ganti kontak di `public/.well-known/security.txt`, aktifkan backup data
 
 ## 4. Yang belum ada (rencana)
 
-- Verifikasi email, reset password via email, login Google (saat deploy).
-- Cloudflare **Turnstile** di form daftar/login (Fase 4) — adapter tinggal ditambah di `form-guard.ts`.
-- **ClamAV**/pemindai malware otomatis untuk file rilis (Fase 4).
+- Verifikasi email & login Google (saat deploy).
 - Rate limit & presence di **Redis** untuk multi-instance.
 - Deteksi otomatis gambar tidak pantas di chat.
 - Job terjadwal: hapus salinan pesan terhapus > 30 hari, gambar chat tak terpakai, event keamanan > 1 tahun.
@@ -79,6 +77,16 @@ Lainnya: ganti kontak di `public/.well-known/security.txt`, aktifkan backup data
 - Allowlist IP webhook kalau Pakasir mempublikasikan daftar IP pengirim.
 - Batas & pola anti-fraud pembelian (banyak pesanan gagal beruntun, kartu/akun baru dengan nominal besar).
 
-## 5. Melaporkan celah
+Sudah jalan (dulu masuk daftar ini): Cloudflare Turnstile di form daftar/login, scan malware ClamAV untuk file rilis, reset password via email, rate limit bersama antar instance lewat Postgres.
+
+## 5. SAST & tes keamanan di CI
+
+- **CodeQL (SAST)** jalan di tiap push + mingguan (`.github/workflows/codeql.yml`, action di-pin commit SHA). Alert muncul di tab **Security → Code scanning**; tidak memblokir deploy, tapi harus ditriage.
+- **Proving test** (`tests/security/proving-tests.mjs`, `npm run test:security`) membuktikan tiap run: rate limit membalas 429 setelah ambang (chat 30/menit, upload 60/10 menit, notifikasi 60/menit), payload injeksi/traversal/XSS ditolak atau dinetralkan, IDOR per-objek (akun B tidak bisa edit/hapus/pin pesan akun A), CSRF (Origin asing 403, Content-Type salah 415), endpoint mutasi wajib login, flag cookie session. Kontrol tanpa tes bukti dianggap tidak ada.
+- **Triage alert (2026-09-28)** — dua alert CodeQL ditutup sebagai *false positive* dengan alasan tercatat di GitHub:
+  - `js/insufficient-password-hash` (crypto-core.ts): `sha256Hex` hanya dipakai untuk hash token acak MFA challenge (mfa.ts:20,30), bukan password. Password memakai **scrypt N=16384/r=8/p=1** (password.ts:15) — memory-hard, tanpa dependency tambahan.
+  - `js/xss-through-dom` (composer.tsx:194): `image.url` adalah blob URL lokal atau URL publik dari server setelah upload — bukan teks buatan user; `<img src>` juga tidak bisa menjalankan script.
+
+## 6. Melaporkan celah
 
 Lihat `/.well-known/security.txt`. Mohon jangan dipublikasikan sebelum diperbaiki.
