@@ -30,3 +30,11 @@ Next:
 - Proposal [MED]: pindahkan blueprint ke docs/PRD.md + docs/ROADMAP.md.
 - Proposal [MED]: job security di CI (osv-scanner, semgrep, trivy).
 - Proposal [MED]: draft Terms/Privacy/Cookie/AUP sebelum launch publik.
+
+Lanjutan hari yang sama (kall: "bebas"):
+- docs/PRD.md (problem, model bisnis berlabel ASSUMPTION, threat model, free-tier
+  plan, milestone tanggal nyata) + docs/ROADMAP.md (target sampai gerbang launch).
+- Job `security` di ci.yml: `npm audit --audit-level=high` dari lockfile (tanpa
+  install), deploy sekarang butuh test + security. Catatan: osv-scanner TIDAK
+  tersedia sebagai paket npm resmi (registry 404) — npm audit dipilih agar tidak
+  menambah pihak ketiga baru di CI.
