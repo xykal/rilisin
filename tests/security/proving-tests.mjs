@@ -14,9 +14,40 @@
  * PERHATIAN: menambah data (pesan chat) ke database — aman dijalankan berulang.
  * Butuh seed demo: user@rilisin.test & seller@rilisin.test (password SEED_DEMO_PASSWORD).
  */
-import { Session, ok, uuid } from "./lib.mjs";
+import { Session, ok, uuid, DEMO_PW, clean } from "./lib.mjs";
 
 const ROOM = "nongkrong";
+
+/**
+ * Login demo + diagnosa jujur kalau gagal: status, lokasi redirect, isi form,
+ * dan pesan server dicetak ke log CI supaya penyebabnya kelihatan (bukan tebakan).
+ */
+async function loginDemo(label, session, identifier = "user@rilisin.test") {
+  const page = await session.html("/masuk");
+  const form = page.text
+    .split("<form")
+    .slice(1)
+    .map((c) => c.split("</form>")[0])
+    .find((c) => c.includes('name="identifier"'));
+  const res = await session.submitForm("/masuk", page.text, 'name="identifier"', {
+    identifier,
+    password: DEMO_PW,
+    next: "/",
+  });
+  if (res.status !== 303 || !session.hasSession()) {
+    const openTag = form ? `<form${form.split(">")[0]}>` : "(form tidak ditemukan)";
+    const hidden = [...(form?.matchAll(/<input[^>]*>/g) ?? [])]
+      .map((m) => m[0])
+      .filter((t) => /type="hidden"/.test(t))
+      .map((t) => t.replace(/\s+/g, " ").slice(0, 200));
+    const body = res.status === 303 ? "(tanpa body — redirect)" : clean(await res.text()).replace(/\s+/g, " ").slice(0, 400);
+    console.error(`DEBUG login "${label}": status=${res.status} location=${res.headers.get("location")} session=${session.hasSession()}`);
+    console.error(`DEBUG tag pembuka form: ${openTag}`);
+    console.error(`DEBUG hidden inputs form login: ${JSON.stringify(hidden, null, 1)}`);
+    console.error(`DEBUG respons server: ${body}`);
+  }
+  return res;
+}
 
 // ─── 1. Header keamanan ─────────────────────────────────────────────────────
 {
@@ -54,7 +85,7 @@ const ROOM = "nongkrong";
 // ─── 3. CSRF: origin asing & content-type salah ditolak ─────────────────────
 {
   const user = new Session();
-  const login = await user.login("user@rilisin.test");
+  const login = await loginDemo("csrf", user);
   ok(login.status === 303 && user.hasSession(), "Login user demo untuk tes CSRF/IDOR");
 
   const evil = await user.api(
@@ -131,13 +162,13 @@ const ROOM = "nongkrong";
 // ─── 6. IDOR: akun B tidak bisa menyentuh objek akun A ──────────────────────
 {
   const a = new Session();
-  await a.login("user@rilisin.test");
+  await loginDemo("idor-a", a);
   const sent = await a.api(`/api/chat/rooms/${ROOM}/messages`, { body: "pesan uji IDOR", clientId: `idor-${Date.now().toString(36)}` });
   ok(sent.status === 201 && sent.data.message?.id, "Akun A kirim pesan (201)");
   const msgId = sent.data.message.id;
 
   const b = new Session();
-  await b.login("seller@rilisin.test");
+  await loginDemo("idor-b", b, "seller@rilisin.test");
   const edit = await b.api(`/api/chat/messages/${msgId}`, { action: "edit", body: "dialekalkan" });
   ok(edit.status === 403, "Akun B edit pesan akun A → 403");
   const del = await b.api(`/api/chat/messages/${msgId}`, { action: "delete", scope: "everyone" });
@@ -158,7 +189,7 @@ const ROOM = "nongkrong";
 // ─── 7. Flag cookie session ─────────────────────────────────────────────────
 {
   const s = new Session();
-  const res = await s.login("user@rilisin.test");
+  const res = await loginDemo("cookie", s);
   const cookie = (res.headers.getSetCookie?.() ?? []).find((c) => /rilisin_session/.test(c)) ?? "";
   ok(/HttpOnly/i.test(cookie), "Cookie session HttpOnly");
   ok(/SameSite=Lax/i.test(cookie), "Cookie session SameSite=Lax di lingkungan non-HTTPS");
@@ -168,7 +199,7 @@ const ROOM = "nongkrong";
 // Dilakukan TERAKHIR: tes ini menghabiskan kuota user demo dalam window-nya.
 {
   const user = new Session();
-  await user.login("user@rilisin.test");
+  await loginDemo("limit", user);
 
   // Chat: batas 30 pesan/menit per user (sharedLimit)
   let chatBlocked = 0;
