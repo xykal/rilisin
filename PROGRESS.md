@@ -38,3 +38,17 @@ Lanjutan hari yang sama (kall: "bebas"):
   install), deploy sekarang butuh test + security. Catatan: osv-scanner TIDAK
   tersedia sebagai paket npm resmi (registry 404) — npm audit dipilih agar tidak
   menambah pihak ketiga baru di CI.
+
+Lanjutan (kall: "gas") — proving test keamanan:
+- tests/security/lib.mjs + tests/security/proving-tests.mjs (npm run test:security,
+  jalan di CI setelah server menyala): header keamanan, batas auth (401 tanpa login),
+  CSRF (origin asing 403, content-type salah 415, Sec-Fetch-Site cross-site 403),
+  traversal token & injeksi SQLi/XSS (400/403/escape, data tidak berubah), validasi
+  body & parameter, IDOR chat (edit/hapus/pin pesan orang lain 403, pesan sendiri
+  tidak bisa dilaporkan), flag cookie session, dan rate limit: chat 30/menit,
+  upload-init 60/10 menit, notifikasi 60/menit — semuanya dibuktikan membalas 429.
+- Bug yang ketemu waktu bikin tes: nilai atribut HTML ter-escape (&quot;) WAJIB
+  di-decode sebelum di-POST ulang, kalau tidak deskriptor Server Action rusak dan
+  server membalas 500. Sudah diperbaiki di tests/security/lib.mjs.
+- CI hijau (3 job) di https://github.com/xykal/rilisin/actions/runs/36491062365 —
+  deploy staging ikut jalan.

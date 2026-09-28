@@ -20,15 +20,16 @@ Estimates are working-day counts from the start date 2026-09-27.
 | 2026-09-28 | Audit repo + docs/AUDIT-2026-09-28.md | selesai |
 | 2026-09-28 | Pin actions ke commit SHA (supply chain) | selesai, CI hijau |
 | 2026-09-28 | Atribusi XyVerse + LICENSE + THIRD_PARTY_NOTICES | selesai, CI hijau |
-| 2026-09-28 | Job audit dependency di CI | selesai, menunggu CI |
+| 2026-09-28 | Job audit dependency di CI | selesai, CI hijau |
 | 2026-09-28 | docs/PRD.md + docs/ROADMAP.md | selesai |
+| 2026-09-28 | Proving test keamanan (tests/security/) + step CI | selesai, CI hijau |
 
 ## Berikutnya (target, bisa geser)
 
 | Target | Item | Kenapa | Effort |
 |---|---|---|---|
 | 2026-09-30 | Job CodeQL/SAST + ZAP baseline di CI | celah umum & XSS regresi ketahuan sebelum deploy | M |
-| 2026-10-03 | `tests/security/`: proving test 429, injeksi 400/403, IDOR, header | kontrol tanpa tes bukti dianggap tidak ada | M |
+| 2026-10-03 | ~~`tests/security/`: proving test 429, injeksi 400/403, IDOR, header~~ | **SELESAI 2026-09-28** (lihat tests/security/) | — |
 | 2026-10-05 | Legal DRAFT: Terms, Privacy (UU PDP), Cookie, AUP, Refund | syarat launch publik & gateway | M |
 | 2026-10-05 | docs/DESIGN.md: tipografi, palet, spacing, motion, aturan ikon | identitas asli sebelum tampilan publik | M |
 | 2026-10-10 | README dual-language (ID + EN) + bagian English ringkas | kontributor & seller luar negeri | S |

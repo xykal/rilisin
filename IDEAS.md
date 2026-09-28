@@ -14,9 +14,9 @@ Format: ide — kenapa penting buat user nyata — effort (S/M/L).
   baca tanpa translate — S
 - `ALLOWED_ORIGINS` via env, buang hardcode `*.e2b.app` sebelum produksi —
   origin sandbox tidak boleh lolos di domain asli — S
-- Struktur `tests/security/` untuk proving test (429 setelah threshold, payload
-  injeksi dapat 400/403, header assertions, IDOR) — kontrol tanpa tes bukti
-  dianggap tidak ada — M
+- Struktur `tests/security/` untuk proving test — **SELESAI 2026-09-28**:
+  tests/security/proving-tests.mjs (429 setelah ambang, injeksi/traversal/XSS,
+  IDOR, CSRF, batas auth, flag cookie) jalan tiap CI
 
 ## Produk & pertumbuhan
 
