@@ -17,7 +17,7 @@ import {
   users,
   type ChatRoom,
 } from "@/lib/db/schema";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, sharedLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
 import { mediaUrl, storage } from "@/lib/storage";
 import { detectGamblingPromo, duplicateKey } from "./filter";
@@ -389,7 +389,7 @@ export async function sendMessage(
   if (existing) return (await getMessageDTO(existing.id))!;
 
   const burst = rateLimit(`chat:burst:${actor.id}`, 6, 10_000);
-  const perMin = rateLimit(`chat:min:${actor.id}`, 30, 60_000);
+  const perMin = await sharedLimit(`chat:min:${actor.id}`, 30, 60_000);
   if (!burst.ok || !perMin.ok) {
     throw new ChatError(429, "Pelan-pelan dulu ya, kamu mengirim terlalu cepat.", "rate", Math.max(burst.retryAfterSec, perMin.retryAfterSec));
   }
@@ -617,7 +617,7 @@ export async function toggleReaction(actor: ChatActor, id: string, emoji: string
 }
 
 export async function reportMessage(actor: ChatActor, id: string, reason: ReportReason, note: string | undefined, req?: Request) {
-  const rl = rateLimit(`chat:report:${actor.id}`, 10, 60 * 60_000);
+  const rl = await sharedLimit(`chat:report:${actor.id}`, 10, 60 * 60_000);
   if (!rl.ok) throw new ChatError(429, "Kamu sudah banyak melapor dalam 1 jam terakhir. Coba lagi nanti.", "rate", rl.retryAfterSec);
   const m = await loadRaw(id);
   if (m.authorId === actor.id) throw new ChatError(400, "Tidak bisa melaporkan pesan sendiri.");

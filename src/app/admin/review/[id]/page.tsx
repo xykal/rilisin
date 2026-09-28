@@ -63,6 +63,11 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
       </div>
 
       {error === "alasan" && <Alert tone="danger" className="mb-6">Alasan penolakan wajib diisi (min. 10 karakter) supaya seller tahu apa yang harus diperbaiki.</Alert>}
+      {error === "malware" && (
+        <Alert tone="danger" className="mb-6" title="Tidak bisa disetujui">
+          Ada file yang terdeteksi malware oleh antivirus. File sudah dihapus & hash-nya diblokir — tolak rilis ini.
+        </Alert>
+      )}
       {duplicates.length > 0 && (
         <Alert tone="danger" className="mb-6" title={<span className="flex items-center gap-2"><TriangleAlert className="h-4 w-4" /> File identik ditemukan di karya seller lain</span>}>
           <ul className="mt-1 list-disc pl-5">
@@ -136,7 +141,10 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
                           <span className="truncate font-semibold text-ink">{f.filename}</span>
                           <span className="ml-auto shrink-0 text-xs text-slate-500">{formatBytes(f.sizeBytes)}</span>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">Terdeteksi: {f.detectedType} · scan: {f.scanStatus}</p>
+                        <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                          Terdeteksi: {f.detectedType}
+                          <ScanBadge status={f.scanStatus} engine={f.scanEngine} signature={f.scanSignature} scannedAt={f.scannedAt} />
+                        </p>
                         <p className="mt-1 break-all font-mono text-[11px] text-slate-400">SHA-256 {f.sha256}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <form action={`/api/download/${f.id}`} method="post">
@@ -270,4 +278,17 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
       </div>
     </div>
   );
+}
+
+function ScanBadge({ status, engine, signature, scannedAt }: { status: string; engine: string | null; signature: string | null; scannedAt: Date | null }) {
+  if (status === "clean") {
+    return (
+      <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700 ring-1 ring-emerald-200" title={engine ?? undefined}>
+        Antivirus: bersih{scannedAt ? ` · ${timeAgo(scannedAt)}` : ""}
+      </span>
+    );
+  }
+  if (status === "infected") return <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700 ring-1 ring-red-200">MALWARE: {signature ?? "terdeteksi"}</span>;
+  if (status === "error") return <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600" title={signature ?? undefined}>Antivirus: gagal memindai</span>;
+  return <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800 ring-1 ring-amber-200">Antivirus: belum dipindai</span>;
 }

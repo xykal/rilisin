@@ -9,7 +9,7 @@ import { escapeHtml, sendEmail } from "@/lib/email";
 import { autoFollowProduct } from "@/lib/follows";
 import { notifyAndEmail } from "@/lib/notifications/server";
 import { formatDateTime, formatRupiah } from "@/lib/format";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
 import { SITE } from "@/lib/config";
 import { methodAllowed, paymentMethod, PRICE_LIMITS, type PaymentMethodId } from "./methods";
@@ -161,7 +161,7 @@ export async function createOrder(
   if (!m) throw new OrderError("Pilih metode pembayaran.");
   if (!methodAllowed(method, amount)) throw new OrderError(`${m.label} hanya untuk nominal ${formatRupiah(m.min)}–${formatRupiah(m.max)}.`);
 
-  if (!rateLimit(`checkout:${buyer.id}`, 12, 10 * 60_000).ok) {
+  if (!(await sharedLimit(`checkout:${buyer.id}`, 12, 10 * 60_000)).ok) {
     throw new OrderError("Terlalu banyak membuat pesanan. Tunggu beberapa menit.", "rate");
   }
 

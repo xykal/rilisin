@@ -11,7 +11,7 @@ import { CATEGORIES, LICENSES, PLATFORMS, RESERVED_USERNAMES } from "@/lib/confi
 import { db } from "@/lib/db";
 import { moderationActions, productMedia, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";
 import { ANDROID_PACKAGE_RE } from "@/lib/files";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { slugify } from "@/lib/slug";
 import { storage } from "@/lib/storage";
 import { fieldErrorsFrom, type FormState } from "./form-state";
@@ -117,7 +117,7 @@ async function uniqueSlug(title: string) {
 
 export async function createProductAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireSeller();
-  const rl = rateLimit(`create-product:${user.id}`, 20, 24 * 60 * 60 * 1000);
+  const rl = await sharedLimit(`create-product:${user.id}`, 20, 24 * 60 * 60 * 1000);
   if (!rl.ok) return { error: "Batas membuat produk hari ini tercapai. Coba lagi besok." };
 
   const { values, parsed } = readProductForm(formData);

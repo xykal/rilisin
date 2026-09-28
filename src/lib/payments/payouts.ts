@@ -6,7 +6,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import { ledgerEntries, payoutAccounts, payouts, users } from "@/lib/db/schema";
 import { formatRupiah } from "@/lib/format";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { decryptString, encryptString } from "@/lib/security/crypto";
 import { notifyAndEmail } from "@/lib/notifications/server";
 import { logSecurityEvent } from "@/lib/security/events";
@@ -91,7 +91,7 @@ export async function listSellerPayouts(sellerId: string, limit = 20) {
 
 /** Konfirmasi ulang identitas untuk aksi uang: password (+ kode 2FA kalau aktif). */
 async function stepUp(user: Pick<CurrentUser, "id">, password: string, code: string | undefined, action: string) {
-  if (!rateLimit(`stepup:${user.id}`, 8, 15 * 60_000).ok) throw new PayoutError("Terlalu banyak percobaan. Coba lagi 15 menit lagi.", "password");
+  if (!(await sharedLimit(`stepup:${user.id}`, 8, 15 * 60_000)).ok) throw new PayoutError("Terlalu banyak percobaan. Coba lagi 15 menit lagi.", "password");
   const [u] = await db.select({ passwordHash: users.passwordHash, totpEnabledAt: users.totpEnabledAt }).from(users).where(eq(users.id, user.id)).limit(1);
   if (!u || !(await verifyPassword(password, u.passwordHash))) {
     await logSecurityEvent("payout_step_up_failed", { userId: user.id, meta: { action, reason: "password" } });

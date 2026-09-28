@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { emailConfigured, isUndeliverableAddress, renderEmail, sendEmail, appUrl } from "@/lib/email";
 import { markAllRead, readUnsubscribeToken, setEmailPrefs } from "@/lib/notifications/server";
 import { NOTIFICATION_CATEGORIES } from "@/lib/notifications/shared";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import type { FormState } from "./form-state";
 
 export async function saveNotificationPrefsAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -38,7 +38,7 @@ export async function sendTestEmailAction(): Promise<FormState> {
   if (!user) return { error: "Masuk dulu." };
   if (!emailConfigured()) return { error: "Pengiriman email belum diaktifkan di server ini." };
   if (isUndeliverableAddress(user.email)) return { error: `${user.email} adalah alamat uji/demo — email tidak dikirim ke domain seperti itu. Pakai akun dengan email asli.` };
-  const rl = rateLimit(`email:test:${user.id}`, 3, 60 * 60_000);
+  const rl = await sharedLimit(`email:test:${user.id}`, 3, 60 * 60_000);
   if (!rl.ok) return { error: "Maksimal 3 email uji per jam." };
   const { html, text } = renderEmail({
     heading: "Email uji dari Rilisin",

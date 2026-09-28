@@ -9,7 +9,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { revokeOtherSessions } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { recoveryCodes, sessions, users } from "@/lib/db/schema";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { decryptString, encryptString } from "@/lib/security/crypto";
 import { logSecurityEvent } from "@/lib/security/events";
 import { checkNewPassword } from "@/lib/security/password-policy";
@@ -18,7 +18,7 @@ import type { FormState } from "./form-state";
 
 /** Re-autentikasi: aksi sensitif wajib memasukkan password saat ini. */
 async function checkCurrentPassword(userId: string, password: string) {
-  const rl = rateLimit(`reauth:${userId}`, 8, 15 * 60 * 1000);
+  const rl = await sharedLimit(`reauth:${userId}`, 8, 15 * 60 * 1000);
   if (!rl.ok) return "Terlalu banyak percobaan. Tunggu beberapa menit.";
   const [u] = await db.select({ hash: users.passwordHash }).from(users).where(eq(users.id, userId));
   if (!u || !(await verifyPassword(password, u.hash))) return "Password saat ini salah.";
@@ -80,7 +80,7 @@ export type RecoveryState = (NonNullable<FormState> & { codes?: string[] }) | un
 
 export async function confirmTotpSetupAction(_prev: RecoveryState, formData: FormData): Promise<RecoveryState> {
   const user = await requireUser("/akun/keamanan");
-  if (!rateLimit(`totp-setup:${user.id}`, 10, 10 * 60 * 1000).ok) return { error: "Terlalu banyak percobaan. Tunggu sebentar." };
+  if (!(await sharedLimit(`totp-setup:${user.id}`, 10, 10 * 60 * 1000)).ok) return { error: "Terlalu banyak percobaan. Tunggu sebentar." };
   const [u] = await db.select({ pending: users.totpPendingEnc, enabled: users.totpEnabledAt }).from(users).where(eq(users.id, user.id));
   if (u?.enabled) return { error: "2FA sudah aktif." };
   const secret = decryptString(u?.pending, TOTP_PURPOSE);

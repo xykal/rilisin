@@ -42,6 +42,9 @@ jobs:
       REQUIRE_STAFF_2FA: "0"
       APP_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: "1"
+      # Kunci UJI resmi Cloudflare Turnstile (publik, selalu lolos dengan token dummy) — mode ketat
+      TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -50,17 +53,24 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci --no-audit --no-fund
-      - name: APP_SECRET acak (khusus run ini)
+      - name: Rahasia acak (khusus run ini)
         run: |
-          s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
-          echo "::add-mask::$s"
-          echo "APP_SECRET=$s" >> "$GITHUB_ENV"
+          for name in APP_SECRET CRON_SECRET SCAN_WORKER_TOKEN; do
+            s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+            echo "::add-mask::$s"
+            echo "$name=$s" >> "$GITHUB_ENV"
+          done
+          # Kunci publik backup (kunci privat run ini dibuang — uji restore memakai pasangan kuncinya sendiri)
+          pub=$(node -e "const {generateKeyPairSync}=require('crypto');console.log(generateKeyPairSync('x25519').publicKey.export({format:'der',type:'spki'}).toString('base64'))")
+          echo "BACKUP_PUBLIC_KEY=$pub" >> "$GITHUB_ENV"
       - name: Lint
         run: npm run lint
       - name: Typecheck
         run: npx next typegen && npx tsc --noEmit
       - name: Migrasi + data demo
         run: npx tsx scripts/seed.ts
+      - name: Uji backup & restore (enkripsi, pulih, cocokkan data)
+        run: npx tsx scripts/test-backup.ts
       - name: Build
         run: npm run build
       - name: Jalankan server

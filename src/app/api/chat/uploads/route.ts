@@ -7,7 +7,7 @@ import { CHAT_LIMITS } from "@/lib/chat/shared";
 import { db } from "@/lib/db";
 import { chatUploads } from "@/lib/db/schema";
 import { detectImageType } from "@/lib/files";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { mediaUrl, storage } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError(401, "Silakan masuk dulu.");
 
-  const rl = rateLimit(`chat:upload:${user.id}`, 10, 10 * 60_000);
+  const rl = await sharedLimit(`chat:upload:${user.id}`, 10, 10 * 60_000);
   if (!rl.ok) return apiError(429, "Terlalu banyak upload gambar. Coba lagi nanti.", { retryAfter: rl.retryAfterSec });
   const [{ n } = { n: 0 }] = await db
     .select({ n: count() })

@@ -138,6 +138,19 @@ export async function presignGet(key: string, ttlSec: number) {
   return presignedUrl;
 }
 
+/** Daftar blob di bawah awalan key (store dipilih dari awalannya). */
+export async function blobList(prefix: string) {
+  const s = storeForKey(prefix);
+  const out: { key: string; size: number; uploadedAt: Date }[] = [];
+  let cursor: string | undefined;
+  do {
+    const r = await list({ token: s.token, prefix, cursor, limit: 1000 });
+    for (const b of r.blobs) out.push({ key: b.pathname, size: b.size, uploadedAt: new Date(b.uploadedAt) });
+    cursor = r.hasMore ? r.cursor : undefined;
+  } while (cursor);
+  return out;
+}
+
 /** Kosongkan kedua store (dipakai seed staging). */
 export async function blobWipe() {
   const { media, files } = blobStores();

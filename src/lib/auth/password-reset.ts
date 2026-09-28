@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { passwordResets, sessions, users } from "@/lib/db/schema";
 import { appUrl, renderEmail, sendEmail } from "@/lib/email";
 import { hashIp } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
 import { checkNewPassword } from "@/lib/security/password-policy";
 
@@ -34,7 +34,7 @@ function runLater(fn: () => Promise<unknown>) {
  */
 export async function requestPasswordReset(rawEmail: string, ip: string) {
   const email = rawEmail.trim().toLowerCase().slice(0, 200);
-  const ipLimit = rateLimit(`reset:ip:${ip}`, 5, 15 * 60_000);
+  const ipLimit = await sharedLimit(`reset:ip:${ip}`, 5, 15 * 60_000);
   if (!ipLimit.ok) return { limited: true };
   if (!email.includes("@")) return { limited: false };
 

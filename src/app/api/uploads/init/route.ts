@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { isSameOrigin } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { UploadError, initUpload } from "@/lib/uploads";
 
 export async function POST(req: Request) {
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Silakan masuk dulu" }, { status: 401 });
 
-  const rl = rateLimit(`upload-init:${user.id}`, 60, 10 * 60 * 1000);
+  const rl = await sharedLimit(`upload-init:${user.id}`, 60, 10 * 60 * 1000);
   if (!rl.ok) return Response.json({ error: "Terlalu banyak upload. Coba lagi sebentar." }, { status: 429 });
 
   let body: Record<string, unknown>;

@@ -118,4 +118,19 @@ export const localDriver: StorageDriver = {
     const token = signToken("dl", { k: key, f: filename, u: userId }, ttlSec);
     return `/api/storage/file?token=${encodeURIComponent(token)}`;
   },
+
+  async list(prefix) {
+    if (!/^(tmp|public|private)\/[a-zA-Z0-9/_.-]*$/.test(prefix) || prefix.includes("..")) throw new StorageError("INVALID_KEY");
+    const dir = path.resolve(LOCAL_ROOT, prefix);
+    if (!dir.startsWith(LOCAL_ROOT)) throw new StorageError("INVALID_KEY");
+    const entries = await fs.readdir(dir, { recursive: true, withFileTypes: true }).catch(() => []);
+    const out: { key: string; size: number; uploadedAt: Date }[] = [];
+    for (const e of entries) {
+      if (!e.isFile()) continue;
+      const full = path.join(e.parentPath, e.name);
+      const info = await fs.stat(full);
+      out.push({ key: path.relative(LOCAL_ROOT, full).split(path.sep).join("/"), size: info.size, uploadedAt: info.mtime });
+    }
+    return out;
+  },
 };

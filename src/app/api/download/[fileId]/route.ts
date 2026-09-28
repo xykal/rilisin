@@ -1,10 +1,11 @@
+import { requireCleanScan } from "@/lib/scan";
 import { autoFollowProduct } from "@/lib/follows";
 import { eq, sql } from "drizzle-orm";
 import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
 import { db } from "@/lib/db";
 import { downloadLogs, entitlements, products, releaseFiles, releases } from "@/lib/db/schema";
 import { clientIpFrom, hashIp, isSameOrigin } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { storage } from "@/lib/storage";
 
 function seeOther(location: string) {
@@ -26,6 +27,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/download/[fileI
       id: releaseFiles.id,
       filename: releaseFiles.filename,
       storageKey: releaseFiles.storageKey,
+      scanStatus: releaseFiles.scanStatus,
       releaseStatus: releases.status,
       productId: products.id,
       productSlug: products.slug,
@@ -43,12 +45,18 @@ export async function POST(req: Request, ctx: RouteContext<"/api/download/[fileI
   const user = await getCurrentUser();
   if (!user) return seeOther(`/masuk?next=${encodeURIComponent(`/p/${file.productSlug}`)}`);
 
+  // File terinfeksi tidak pernah bisa diunduh siapa pun (file-nya juga sudah dihapus dari penyimpanan)
+  if (file.scanStatus === "infected") return new Response("File diblokir: terdeteksi malware oleh antivirus.", { status: 451 });
   const privileged = user.id === file.sellerId || isStaff(user);
+  // Mode ketat (setelah worker antivirus jalan): publik hanya boleh mengunduh file yang sudah dipindai bersih
+  if (!privileged && requireCleanScan() && file.scanStatus !== "clean") {
+    return new Response("File masih dalam pemindaian antivirus. Coba lagi beberapa menit lagi.", { status: 409 });
+  }
   if (!privileged) {
     if (file.productStatus !== "published" || file.releaseStatus !== "published") {
       return new Response("File tidak ditemukan", { status: 404 });
     }
-    const rl = rateLimit(`download:${user.id}`, 40, 10 * 60 * 1000);
+    const rl = await sharedLimit(`download:${user.id}`, 40, 10 * 60 * 1000);
     if (!rl.ok) return new Response("Terlalu banyak unduhan. Coba lagi beberapa menit lagi.", { status: 429 });
 
     if (file.pricingModel === "free") {

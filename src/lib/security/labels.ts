@@ -40,6 +40,8 @@ export const SECURITY_EVENT_LABELS = {
   content_auto_hidden: { label: "Postingan disembunyikan otomatis (banyak laporan)", tone: "amber" },
   admin_hide_content: { label: "Moderator menyembunyikan postingan / ulasan", tone: "amber" },
   admin_restore_content: { label: "Moderator memulihkan postingan / ulasan", tone: "green" },
+  malware_detected: { label: "Antivirus mendeteksi malware di file rilis", tone: "red" },
+  admin_maintenance: { label: "Admin menjalankan pemeliharaan manual", tone: "slate" },
 } as const;
 
 export type SecurityEventType = keyof typeof SECURITY_EVENT_LABELS;

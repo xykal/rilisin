@@ -17,7 +17,7 @@ import { db } from "@/lib/db";
 import { entitlements, forumCategories, forumReplies, forumThreads, forumVotes, moderationActions, products, users } from "@/lib/db/schema";
 import { announceDevlog } from "@/lib/follows";
 import { notifyAndEmail, type NotifyInput } from "@/lib/notifications/server";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, sharedLimit } from "@/lib/rate-limit";
 
 type Viewer = Pick<CurrentUser, "id" | "role"> | null;
 
@@ -549,7 +549,7 @@ export async function deleteReply(actor: CurrentUser, id: string) {
 
 // ─── Vote & jawaban terbaik ─────────────────────────────────────────────────
 export async function toggleVote(actor: CurrentUser, targetType: "thread" | "reply", targetId: string) {
-  const rl = rateLimit(`forum:vote:${actor.id}`, 60, 60_000);
+  const rl = await sharedLimit(`forum:vote:${actor.id}`, 60, 60_000);
   if (!rl.ok) throw new ContentError("Terlalu banyak vote, tunggu sebentar.");
   let threadId: string;
   if (targetType === "thread") {

@@ -15,8 +15,12 @@
     "setup": "bash scripts/dev-db.sh && tsx scripts/seed.ts",
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:pakasir": "tsx --conditions=react-server scripts/test-pakasir.ts",
+    "test:backup": "tsx scripts/test-backup.ts",
+    "test:scanner": "tsx scripts/test-scanner.ts",
     "test:responsive": "node scripts/qa/responsive-audit.mjs",
-    "test:ui": "node scripts/qa/interactive-check.mjs"
+    "test:ui": "node scripts/qa/interactive-check.mjs",
+    "backup:keygen": "tsx scripts/backup-keygen.ts",
+    "backup:restore": "tsx scripts/backup-restore.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",

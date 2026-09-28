@@ -7,6 +7,8 @@ export type FormState =
       success?: string;
       fieldErrors?: Record<string, string>;
       values?: Record<string, string>;
+      /** Login: tampilkan verifikasi Turnstile (terlalu banyak percobaan gagal dari jaringan ini). */
+      challenge?: boolean;
     }
   | undefined;
 

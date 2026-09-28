@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth-forms";
+import { TurnstileScript } from "@/components/turnstile-script";
 import { LogoMark } from "@/components/logo";
 import { Alert, Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { getClientIp } from "@/lib/http";
+import { loginNeedsChallenge, turnstilePublic } from "@/lib/security/turnstile";
 import { safeNextPath } from "@/lib/slug";
 
 export const metadata: Metadata = { title: "Masuk" };
@@ -19,6 +22,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {
   const { next, reset } = await searchParams;
   const nextPath = safeNextPath(next, "/");
   if (await getCurrentUser()) redirect(nextPath);
+  const turnstile = turnstilePublic();
+  const challenge = turnstile ? await loginNeedsChallenge(await getClientIp()) : false;
 
   return (
     <div className="mx-auto max-w-md px-4 py-14">
@@ -33,7 +38,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {
         </Alert>
       )}
       <Card className="p-6 sm:p-8">
-        <LoginForm next={nextPath} />
+        {/* Script dimuat walau belum perlu: tantangan bisa muncul setelah beberapa kali salah */}
+        {turnstile && <TurnstileScript />}
+        <LoginForm next={nextPath} turnstile={turnstile} challenge={challenge} />
       </Card>
       <div className="mt-6 rounded-2xl border border-dashed border-brand-300 bg-brand-50/60 p-4 text-sm">
         {/* Staging memakai password demo lain (SEED_DEMO_PASSWORD) — jangan tampilkan rilisin123 di sana */}

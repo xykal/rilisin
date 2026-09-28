@@ -1,0 +1,20 @@
+# Jalankan worker antivirus di server mana pun yang ada Docker (VPS 2 GB, NAS, PC rumah):
+#   SCAN_WORKER_TOKEN=... RILISIN_URL=https://domainmu docker compose up -d
+# ClamAV butuh ±1,5 GB RAM untuk database signature. Hanya koneksi keluar yang dipakai (tanpa port masuk).
+services:
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    volumes:
+      - clamav-db:/var/lib/clamav # signature disimpan, tidak diunduh ulang tiap restart
+  worker:
+    build: .
+    restart: unless-stopped
+    depends_on: [clamav]
+    environment:
+      RILISIN_URL: ${RILISIN_URL:?isi RILISIN_URL}
+      SCAN_WORKER_TOKEN: ${SCAN_WORKER_TOKEN:?isi SCAN_WORKER_TOKEN}
+      CLAMD_HOST: clamav
+      WORKER_NAME: ${WORKER_NAME:-docker-worker}
+volumes:
+  clamav-db:

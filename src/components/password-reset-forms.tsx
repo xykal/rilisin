@@ -5,9 +5,10 @@ import { useActionState } from "react";
 import { requestResetAction, resetPasswordAction } from "@/app/actions/password-reset";
 import { Honeypot } from "./auth-forms";
 import { SubmitButton } from "./submit-button";
+import { TurnstileWidget } from "./turnstile-widget";
 import { Alert, Field, inputStyles } from "./ui";
 
-export function ForgotPasswordForm({ formToken }: { formToken: string }) {
+export function ForgotPasswordForm({ formToken, turnstile = null }: { formToken: string; turnstile?: { siteKey: string } | null }) {
   const [state, action] = useActionState(requestResetAction, undefined);
   if (state?.success) {
     return (
@@ -31,6 +32,7 @@ export function ForgotPasswordForm({ formToken }: { formToken: string }) {
       <Field label="Email akun" htmlFor="email" error={state?.fieldErrors?.email}>
         <input id="email" name="email" type="email" autoComplete="email" required defaultValue={state?.values?.email} className={inputStyles} placeholder="nama@email.com" />
       </Field>
+      {turnstile && <TurnstileWidget siteKey={turnstile.siteKey} action="lupa-password" resetKey={state} />}
       <SubmitButton className="w-full !py-3" pendingText="Mengirim…">
         Kirim link reset
       </SubmitButton>

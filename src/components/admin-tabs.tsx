@@ -1,6 +1,6 @@
 "use client";
 
-import { Flag, Inbox, MessagesSquare, ShieldCheck, Wallet } from "lucide-react";
+import { Flag, Inbox, MessagesSquare, Server, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "./ui";
@@ -13,6 +13,7 @@ export function AdminTabs({ reviews, reports, contentReports, finance }: { revie
     { href: "/admin/laporan/konten", label: "Laporan konten", icon: MessagesSquare, count: contentReports },
     ...(finance !== null ? [{ href: "/admin/keuangan", label: "Keuangan", icon: Wallet, count: finance }] : []),
     { href: "/admin/keamanan", label: "Keamanan", icon: ShieldCheck, count: 0 },
+    ...(finance !== null ? [{ href: "/admin/sistem", label: "Sistem", icon: Server, count: 0 }] : []),
   ];
   return (
     <div className="sticky top-16 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur">

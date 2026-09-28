@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { loginAction, registerAction } from "@/app/actions/auth";
 import { SubmitButton } from "./submit-button";
+import { TurnstileWidget } from "./turnstile-widget";
 import { Alert, Field, inputStyles } from "./ui";
 
 /** Input jebakan bot: tidak terlihat manusia, tapi sering diisi bot otomatis. */
@@ -18,8 +19,11 @@ export function Honeypot() {
   );
 }
 
-export function LoginForm({ next }: { next: string }) {
+export type TurnstileProps = { siteKey: string } | null;
+
+export function LoginForm({ next, turnstile = null, challenge = false }: { next: string; turnstile?: TurnstileProps; challenge?: boolean }) {
   const [state, action] = useActionState(loginAction, undefined);
+  const showChallenge = Boolean(turnstile) && (challenge || state?.challenge);
   return (
     <form action={action} className="relative space-y-4">
       <input type="hidden" name="next" value={next} />
@@ -44,6 +48,12 @@ export function LoginForm({ next }: { next: string }) {
           Lupa password?
         </Link>
       </p>
+      {showChallenge && turnstile && (
+        <div>
+          <p className="mb-2 text-xs text-slate-500">Terlalu banyak percobaan gagal dari jaringan ini — selesaikan verifikasi dulu.</p>
+          <TurnstileWidget siteKey={turnstile.siteKey} action="masuk" resetKey={state} />
+        </div>
+      )}
       <SubmitButton className="w-full !py-3" pendingText="Memeriksa…">
         Masuk
       </SubmitButton>
@@ -57,7 +67,7 @@ export function LoginForm({ next }: { next: string }) {
   );
 }
 
-export function RegisterForm({ next, formToken }: { next: string; formToken: string }) {
+export function RegisterForm({ next, formToken, turnstile = null }: { next: string; formToken: string; turnstile?: TurnstileProps }) {
   const [state, action] = useActionState(registerAction, undefined);
   const fe = state?.fieldErrors ?? {};
   return (
@@ -90,6 +100,7 @@ export function RegisterForm({ next, formToken }: { next: string; formToken: str
       <Field label="Password" htmlFor="password" error={fe.password} hint="Minimal 10 karakter, jangan pakai password yang sama dengan akun lain">
         <input id="password" name="password" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputStyles} />
       </Field>
+      {turnstile && <TurnstileWidget siteKey={turnstile.siteKey} action="daftar" resetKey={state} />}
       <SubmitButton className="w-full !py-3" pendingText="Membuat akun…">
         Buat akun
       </SubmitButton>

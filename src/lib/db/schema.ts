@@ -8,6 +8,7 @@
  *    notifikasi in-app + email, reset password lewat email.
  *    Penghitung (rating produk, jumlah balasan, skor vote) dijaga trigger database, bukan kode aplikasi.
  *  - Fase 3b: ikuti seller/produk (notifikasi karya baru, versi baru, devlog), lapor produk & profil.
+ *  - Fase 4: rate limit bersama (Postgres), riwayat tugas terjadwal, hasil scan antivirus per file.
  */
 import { relations, sql } from "drizzle-orm";
 import {
@@ -296,13 +297,22 @@ export const releaseFiles = pgTable(
     sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
     sha256: text("sha256").notNull(),
     detectedType: text("detected_type").notNull(),
-    /** Fase 4: diisi worker scan malware (ClamAV). Sekarang: "pending" + review manual. */
+    /** Diisi worker antivirus (ClamAV) lewat /api/internal/scan. pending = belum dipindai. */
     scanStatus: scanStatus("scan_status").notNull().default("pending"),
+    scannedAt: tsz("scanned_at"),
+    /** Mesin & versi database signature saat dipindai, mis. "ClamAV 1.4.3/27412". */
+    scanEngine: text("scan_engine"),
+    /** Nama signature kalau terinfeksi / pesan error kalau gagal. */
+    scanSignature: text("scan_signature"),
+    /** Sewa worker: file yang sedang dipindai tidak diambil worker lain selama 15 menit. */
+    scanClaimedAt: tsz("scan_claimed_at"),
+    scanAttempts: integer("scan_attempts").notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [
     index("release_files_release_idx").on(t.releaseId),
     index("release_files_sha256_idx").on(t.sha256),
+    index("release_files_scan_idx").on(t.scanStatus, t.scanClaimedAt),
   ],
 );
 
@@ -713,6 +723,43 @@ export const follows = pgTable(
     check("follows_type_check", sql`target_type in ('seller', 'product')`),
   ],
 );
+
+// ─── Sistem (Fase 4) ────────────────────────────────────────────────────────
+/**
+ * Rate limit bersama antar server (Vercel bisa menjalankan banyak instance sekaligus — hitungan di memori
+ * masing-masing instance mudah diakali). Tabel UNLOGGED (tanpa WAL, cepat); kunci sudah di-hash (tanpa IP/email mentah).
+ */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    key: text("key").notNull(),
+    bucket: bigint("bucket", { mode: "number" }).notNull(),
+    count: integer("count").notNull().default(0),
+    expiresAt: tsz("expires_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.bucket] }), index("rate_limits_expires_idx").on(t.expiresAt)],
+);
+
+/** Riwayat tugas terjadwal (pemeliharaan harian, backup, worker antivirus) untuk halaman Sistem admin. */
+export const jobRuns = pgTable(
+  "job_runs",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    job: text("job").notNull(),
+    startedAt: tsz("started_at").notNull().defaultNow(),
+    finishedAt: tsz("finished_at"),
+    ok: boolean("ok"),
+    details: jsonb("details").$type<Record<string, unknown>>(),
+  },
+  (t) => [index("job_runs_job_time_idx").on(t.job, t.startedAt)],
+);
+
+/** Status sistem kecil (mis. detak jantung worker antivirus). */
+export const systemKv = pgTable("system_kv", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<Record<string, unknown>>().notNull(),
+  updatedAt: tsz("updated_at").notNull().defaultNow(),
+});
 
 // ─── Notifikasi (Fase 3) ────────────────────────────────────────────────────
 /**
