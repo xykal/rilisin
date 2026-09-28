@@ -1,3 +1,4 @@
+import { autoFollowProduct } from "@/lib/follows";
 import { eq, sql } from "drizzle-orm";
 import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
 import { db } from "@/lib/db";
@@ -62,6 +63,8 @@ export async function POST(req: Request, ctx: RouteContext<"/api/download/[fileI
           .update(products)
           .set({ downloadCount: sql`${products.downloadCount} + 1` })
           .where(eq(products.id, file.productId));
+        // Pemilik baru otomatis mengikuti update produk (bisa berhenti di halaman produk / Diikuti)
+        await autoFollowProduct(db, user.id, file.productId);
       }
     } else {
       const [owned] = await db

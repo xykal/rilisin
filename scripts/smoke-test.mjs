@@ -6,7 +6,7 @@
  * (buat produk → upload gambar & file → kirim review), approve admin, komunitas chat
  * (kirim/balas/edit/hapus/reaksi/lapor/bisukan/realtime SSE/gambar), dan keamanan akun
  * (anti-bot, password policy, 2FA + kode cadangan, kunci akun, ganti password), pembayaran (Fase 2), serta
- * forum, ulasan, notifikasi & reset password (Fase 3).
+ * forum, ulasan, notifikasi & reset password (Fase 3), serta ikuti, devlog, lapor produk/akun & profil (Fase 3b).
  * PERHATIAN: menambah data ke database. Jalankan `npm run db:seed` untuk reset.
  */
 import { createHash, createHmac, randomBytes } from "node:crypto";
@@ -791,7 +791,7 @@ async function register(s, username, password, extra = {}) {
   }
   ok(lastReport.includes("disembunyikan sementara") && (await guest.html(threadUrl)).text.includes("sedang ditinjau moderator"), "Lapor: 3 pelapor berbeda → balasan disembunyikan otomatis");
   const queue = await adm3.html("/admin/laporan/konten");
-  ok(queue.text.includes("Laporan forum &amp; ulasan") && queue.text.includes("pilih PC437"), "Moderasi: laporan muncul di antrean forum & ulasan");
+  ok(queue.text.includes("Laporan konten") && queue.text.includes("pilih PC437"), "Moderasi: laporan muncul di antrean forum & ulasan");
   await adm3.submitForm("/admin/laporan/konten", queue.text, "Pulihkan &amp; tolak laporan", {});
   ok((await guest.html(threadUrl)).text.includes("pilih PC437"), "Moderasi: pulihkan & tolak laporan → balasan tampil lagi");
 
@@ -892,6 +892,98 @@ async function register(s, username, password, extra = {}) {
   } else {
     console.log("  (uji reset password penuh dilewati — butuh akses database lokal)");
   }
+}
+
+// ─── 9. Fase 3b: ikuti, devlog, lapor produk & akun, profil anggota, chat layar penuh ─
+{
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const as = async (email) => {
+    const s = new Session();
+    await s.login(email);
+    return s;
+  };
+  const [rina, sel, maya, adm] = await Promise.all([as("user@rilisin.test"), as("seller@rilisin.test"), as("maya23@contoh.test"), as("admin@rilisin.test")]);
+  const notifs = async (s) => (await s.api("/api/notifications?limit=30")).data.items ?? [];
+  const countOf = (html) => Number(html.match(/([\d.]+) pengikut<\/span>/)?.[1]?.replace(/\./g, "") ?? -1);
+
+  ok((await guest.html("/komunitas")).text.includes('class="chat-shell'), "Chat komunitas: tata letak layar penuh (tanpa kartu)");
+
+  // Profil anggota & seller
+  const pr = await guest.html("/@rina");
+  ok(pr.res.status === 200 && pr.text.includes("Rina Pratiwi") && pr.text.includes("postingan forum") && pr.text.includes("Ulasan yang ditulis") && pr.text.includes("KasirKu Offline"), "Profil anggota: statistik forum & ulasan yang ditulis");
+  const ps = await guest.html("/@nusantaralabs");
+  ok(ps.text.includes("Karya dari Nusantara Labs") && ps.text.includes(" pengikut</span>") && ps.text.includes(`/masuk?next=${encodeURIComponent("/@nusantaralabs")}`), "Profil seller: karya & jumlah pengikut, tamu diajak masuk untuk mengikuti");
+  ok((await guest.req("/@akun-yang-tidak-ada-xyz")).status === 404, "Profil yang tidak ada → 404");
+  ok(!(await sel.html("/@nusantaralabs")).text.includes('data-follow="seller"'), "Profil: tidak bisa mengikuti diri sendiri");
+
+  // Ikuti seller → notifikasi pengikut baru
+  const mp = await maya.html("/@nusantaralabs");
+  const before = countOf(mp.text);
+  await maya.submitForm("/u/nusantaralabs", mp.text, 'data-follow="seller"', {});
+  const mp2 = await maya.html("/@nusantaralabs");
+  ok(mp2.text.includes("Mengikuti") && countOf(mp2.text) === before + 1, "Ikuti seller: tombol berubah & jumlah pengikut naik");
+  ok((await notifs(sel)).some((n) => n.type === "new_follower" && n.actor?.username === "maya23"), "Notifikasi: seller dapat kabar pengikut baru");
+  await maya.submitForm("/u/nusantaralabs", mp2.text, 'data-follow="seller"', {});
+  ok(countOf((await maya.html("/@nusantaralabs")).text) === before, "Berhenti mengikuti seller: jumlah kembali");
+
+  // Ikuti update produk (toggle dua arah)
+  const kp = await maya.html("/p/kasirku-offline");
+  const kasirkuId = kp.text.match(/data-follow="product"[\s\S]*?name="targetId" value="([0-9a-f-]{36})"/)?.[1];
+  const was = kp.text.includes("Mengikuti update");
+  const c0 = countOf(kp.text);
+  await maya.submitForm("/p/kasirku-offline", kp.text, 'data-follow="product"', {});
+  const kp2 = await maya.html("/p/kasirku-offline");
+  ok(Boolean(kasirkuId) && kp2.text.includes(was ? "Ikuti update" : "Mengikuti update") && countOf(kp2.text) === c0 + (was ? -1 : 1), "Ikuti update produk: bisa diikuti / dihentikan");
+  if (!kp2.text.includes("Mengikuti update")) await maya.submitForm("/p/kasirku-offline", kp2.text, 'data-follow="product"', {});
+
+  // Karya baru (disetujui di bagian 4) & versi baru → pengikut dapat notifikasi
+  ok((await notifs(rina)).some((n) => n.type === "product_new" && n.title.includes("Aplikasi Uji Smoke Test")), "Karya baru tayang → pengikut seller dapat notifikasi");
+  const rv = await adm.html(`/admin/review/${kasirkuId}`);
+  const appr = await adm.submitForm(`/admin/review/${kasirkuId}`, rv.text, "Setujui rilis v2.1.0");
+  ok(appr.status === 303, "Admin menyetujui rilis KasirKu Offline v2.1.0");
+  const upd = (list) => list.some((n) => n.type === "product_update" && n.title.includes("v2.1.0"));
+  ok(upd(await notifs(maya)) && upd(await notifs(rina)), "Versi baru → semua pengikut dapat notifikasi (termasuk pemilik yang otomatis mengikuti)");
+
+  // Devlog seller → tampil di halaman produk & pengikut dapat kabar
+  const df = await sel.html("/forum/baru?kategori=devlog&produk=kasirku-offline");
+  const devCat = df.text.match(/<option value="([0-9a-f-]{36})" selected="">/)?.[1];
+  await sleep(3200);
+  const devTitle = `Devlog uji ${Date.now().toString(36)}: rencana v2.2`;
+  const dv = await sel.submitForm("/forum/baru", df.text, 'data-form="new-thread"', { categoryId: devCat, title: devTitle, body: "Catatan pengembangan KasirKu untuk pengikut: v2.2 fokus ke laporan pajak sederhana." });
+  ok(dv.status === 303 && Boolean(devCat), "Seller menulis devlog untuk produknya");
+  const kpage = await guest.html("/p/kasirku-offline");
+  ok(kpage.text.includes('id="devlog"') && kpage.text.includes(devTitle) && !(kpage.text.split('id="diskusi"')[1] ?? "").split("<script")[0].includes(devTitle), "Devlog tampil di bagian Devlog (bukan Diskusi) halaman produk");
+  ok((await notifs(rina)).some((n) => n.type === "product_devlog" && n.title.includes(devTitle.slice(0, 20))), "Devlog baru → pengikut produk dapat notifikasi");
+
+  // Lapor produk & akun
+  const PROD = 'value="product"/><input type="hidden" name="targetId"';
+  const ik = await maya.html("/p/ikon-kuliner-nusantara");
+  const ikId = ik.text.match(/value="product"\/><input type="hidden" name="targetId" value="([0-9a-f-]{36})"/)?.[1];
+  ok(clean(await (await maya.submitForm("/p/ikon-kuliner-nusantara", ik.text, PROD, { reason: "palsu" })).text()).includes("Alasan laporan tidak cocok"), "Lapor produk: alasan yang tidak relevan ditolak server");
+  ok(clean(await (await maya.submitForm("/p/ikon-kuliner-nusantara", ik.text, PROD, { reason: "bajakan", note: "Mirip paket ikon berbayar" })).text()).includes("laporan terkirim"), "Lapor produk: laporan terkirim");
+  const kcS = await sel.html("/p/petualangan-si-kancil");
+  ok(clean(await (await sel.submitForm("/p/petualangan-si-kancil", kcS.text, PROD, { targetId: kasirkuId, reason: "spam" }, { override: true })).text()).includes("Tidak bisa melaporkan karya sendiri"), "Lapor produk: seller tidak bisa melaporkan karyanya sendiri");
+  const ag = await maya.html("/@agus18");
+  const agusId = ag.text.match(/value="user"\/><input type="hidden" name="targetId" value="([0-9a-f-]{36})"/)?.[1];
+  ok(clean(await (await maya.submitForm("/u/agus18", ag.text, 'value="user"/><input type="hidden" name="targetId"', { reason: "spam" })).text()).includes("laporan terkirim"), "Lapor akun: laporan terkirim");
+  const q = await adm.html("/admin/laporan/konten");
+  ok(q.text.includes("Tangguhkan produk") && q.text.includes("Ikon Kuliner Nusantara") && q.text.includes("@agus18"), "Moderasi: laporan produk & akun masuk antrean");
+  await adm.submitForm("/admin/laporan/konten", q.text, `name="targetId" value="${ikId}"/><label`, { reason: "Uji smoke: dugaan bajakan" });
+  ok((await guest.req("/p/ikon-kuliner-nusantara")).status === 404, "Moderasi: produk yang dilaporkan bisa ditangguhkan (hilang dari publik)");
+  await adm.submitForm("/admin/laporan/konten", (await adm.html("/admin/laporan/konten")).text, `name="targetId" value="${agusId}"/><button`, {});
+  ok(Boolean(agusId) && !(await adm.html("/admin/laporan/konten")).text.includes(`value="${agusId}"`), "Moderasi: laporan akun bisa ditolak");
+
+  // Halaman Diikuti + otomatis mengikuti saat unduh pertama
+  const dk = await rina.html("/akun/diikuti");
+  ok(dk.text.includes("Nusantara Labs") && dk.text.includes("KasirKu Offline"), "Halaman Diikuti: seller & karya yang diikuti");
+  const sk = await rina.html("/p/starter-kit-next-js-bahasa-indonesia");
+  const skFile = sk.text.match(/action="\/api\/download\/([0-9a-f-]{36})"/)?.[1];
+  const skId = sk.text.match(/data-follow="product"[\s\S]*?name="targetId" value="([0-9a-f-]{36})"/)?.[1];
+  const dl = await rina.req(`/api/download/${skFile}`, { method: "POST" });
+  const dk2 = await rina.html("/akun/diikuti");
+  ok(dl.status === 303 && dk2.text.includes("Starter Kit Next.js Bahasa Indonesia"), "Unduh pertama kali → otomatis mengikuti update karya");
+  await rina.submitForm("/akun/diikuti", dk2.text, `name="targetId" value="${skId}"`, {});
+  ok(Boolean(skId) && !(await rina.html("/akun/diikuti")).text.includes("Starter Kit Next.js Bahasa Indonesia"), "Halaman Diikuti: bisa berhenti mengikuti");
 }
 
 console.log(`\nSemua ${passed} pengecekan lulus.`);

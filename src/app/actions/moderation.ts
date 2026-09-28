@@ -7,7 +7,7 @@ import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { actorFrom } from "@/lib/chat/api-helpers";
 import { ChatError, deleteForEveryone, muteUser, resolveReportsFor, restoreReportedMessage } from "@/lib/chat/server";
 import { MUTE_OPTIONS } from "@/lib/chat/shared";
-import { dismissContentReports, hideContent, loadTarget, restoreContent } from "@/lib/community/reports";
+import { dismissContentReports, hideContent, loadTarget, restoreContent, suspendReportedProduct } from "@/lib/community/reports";
 import { CONTENT_TARGET_TYPES } from "@/lib/community/shared";
 import { db } from "@/lib/db";
 import { chatMessages, moderationActions, sessions, users } from "@/lib/db/schema";
@@ -136,4 +136,12 @@ export async function banContentAuthorAction(formData: FormData) {
   await logSecurityEvent("admin_ban", { userId: admin.id, meta: { target: target.authorId, reason, from: t.targetType } });
   await hideContent(admin.id, t.targetType, t.targetId, reason);
   done();
+}
+
+export async function suspendReportedProductAction(formData: FormData) {
+  const staff = await requireStaff("/admin/laporan/konten");
+  const t = readTarget(formData);
+  if (t.targetType !== "product") return;
+  await suspendReportedProduct(staff.id, t.targetId, String(formData.get("reason") ?? ""));
+  revalidatePath("/", "layout");
 }

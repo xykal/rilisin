@@ -1,5 +1,6 @@
 "use server";
 
+import { announceProductPublished, announceReleasePublished } from "@/lib/follows";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -404,6 +405,7 @@ export async function submitProductAction(formData: FormData) {
     }
   });
 
+  if (trusted && !product.publishedAt) await announceProductPublished(product.id);
   revalidatePath("/", "layout");
   redirect(`/seller/produk/${product.id}?dikirim=${trusted ? "tayang" : "review"}`);
 }
@@ -431,6 +433,7 @@ export async function submitReleaseAction(formData: FormData) {
       action: "auto_publish_trusted",
       note: `v${release.version}`,
     });
+    await announceReleasePublished(release.id);
   }
   revalidatePath("/", "layout");
   redirect(`/seller/produk/${release.productId}?rilis=${trusted ? "tayang" : "review"}`);

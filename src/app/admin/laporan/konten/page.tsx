@@ -1,15 +1,15 @@
-import { Ban, CheckCircle2, EyeOff, Flag, MessageSquareX, RotateCcw, Star } from "lucide-react";
+import { Ban, CheckCircle2, EyeOff, Flag, MessageSquareX, PackageX, RotateCcw, Star } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { banContentAuthorAction, dismissContentReportsAction, hideContentAction, restoreContentAction } from "@/app/actions/moderation";
+import { banContentAuthorAction, dismissContentReportsAction, hideContentAction, restoreContentAction, suspendReportedProductAction } from "@/app/actions/moderation";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/guards";
 import { listContentReportGroups } from "@/lib/community/reports";
-import { CONTENT_TARGET_LABEL, contentReportReasonLabel } from "@/lib/community/shared";
+import { AUTO_HIDE_TARGETS, CONTENT_TARGET_LABEL, contentReportReasonLabel } from "@/lib/community/shared";
 import { formatDateTime, timeAgo } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Laporan forum & ulasan" };
+export const metadata: Metadata = { title: "Laporan konten" };
 
 export default async function ContentReportsPage() {
   const staff = await requireStaff("/admin/laporan/konten");
@@ -18,9 +18,10 @@ export default async function ContentReportsPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <p className="text-sm font-semibold text-brand-700">Moderasi</p>
-      <h1 className="text-3xl font-extrabold tracking-tight text-ink">Laporan forum &amp; ulasan</h1>
+      <h1 className="text-3xl font-extrabold tracking-tight text-ink">Laporan konten</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Thread, balasan, dan ulasan yang dilaporkan anggota. Isi yang tampil adalah salinan saat dilaporkan. Konten otomatis disembunyikan setelah 3 pelapor berbeda.
+        Thread, balasan, ulasan, produk, dan akun yang dilaporkan anggota. Isi yang tampil adalah salinan saat dilaporkan. Postingan & ulasan otomatis disembunyikan
+        setelah 3 pelapor berbeda; produk & akun selalu menunggu keputusan moderator.
       </p>
 
       <div className="mt-8 space-y-5">
@@ -96,7 +97,20 @@ export default async function ContentReportsPage() {
                   </ul>
                 </div>
                 <div className="space-y-2">
-                  {st && !st.deleted && !st.hidden && (
+                  {g.targetType === "product" && st && !st.hidden && (
+                    <form action={suspendReportedProductAction} className="space-y-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
+                      {fields}
+                      <label className="sr-only" htmlFor={`suspend-${g.targetId}`}>
+                        Alasan penangguhan
+                      </label>
+                      <input id={`suspend-${g.targetId}`} name="reason" placeholder="Alasan (ditampilkan ke seller)" className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm" />
+                      <SubmitButton variant="secondary" className="w-full" pendingText="…" confirm="Tangguhkan produk ini? Produk hilang dari katalog & tidak bisa diunduh.">
+                        <PackageX className="h-4 w-4" /> Tangguhkan produk
+                      </SubmitButton>
+                    </form>
+                  )}
+                  {g.targetType === "product" && st?.hidden && <p className="text-xs font-semibold text-amber-700">Produk sudah ditangguhkan.</p>}
+                  {AUTO_HIDE_TARGETS.includes(g.targetType) && st && !st.deleted && !st.hidden && (
                     <form action={hideContentAction} className="space-y-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
                       {fields}
                       <label className="sr-only" htmlFor={`reason-${g.targetId}`}>
@@ -108,7 +122,7 @@ export default async function ContentReportsPage() {
                       </SubmitButton>
                     </form>
                   )}
-                  {st && (st.autoHidden || st.hidden) ? (
+                  {AUTO_HIDE_TARGETS.includes(g.targetType) && st && (st.autoHidden || st.hidden) ? (
                     <form action={restoreContentAction}>
                       {fields}
                       <SubmitButton variant="secondary" className="w-full" pendingText="…">
@@ -123,7 +137,7 @@ export default async function ContentReportsPage() {
                       </SubmitButton>
                     </form>
                   )}
-                  {staff.role === "admin" && st && st.authorRole === "user" && !st.authorBanned && (
+                  {staff.role === "admin" && st && g.targetType !== "product" && st.authorRole === "user" && !st.authorBanned && (
                     <form action={banContentAuthorAction} className="rounded-xl border border-red-100 bg-red-50/50 p-3">
                       {fields}
                       <label className="sr-only" htmlFor={`ban-${g.targetId}`}>

@@ -10,7 +10,7 @@ export function AdminTabs({ reviews, reports, contentReports, finance }: { revie
   const tabs = [
     { href: "/admin/review", label: "Review karya", icon: Inbox, count: reviews },
     { href: "/admin/laporan", label: "Laporan chat", icon: Flag, count: reports },
-    { href: "/admin/laporan/konten", label: "Laporan forum & ulasan", icon: MessagesSquare, count: contentReports },
+    { href: "/admin/laporan/konten", label: "Laporan konten", icon: MessagesSquare, count: contentReports },
     ...(finance !== null ? [{ href: "/admin/keuangan", label: "Keuangan", icon: Wallet, count: finance }] : []),
     { href: "/admin/keamanan", label: "Keamanan", icon: ShieldCheck, count: 0 },
   ];

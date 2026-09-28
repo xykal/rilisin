@@ -8,6 +8,8 @@ import {
   FileArchive,
   Lock,
   MessagesSquare,
+  Newspaper,
+  PenLine,
   Plus,
   Scale,
   ShoppingCart,
@@ -22,7 +24,9 @@ import { cache } from "react";
 import { AndroidBadge, Avatar, PriceTag, ProductIcon, ProductStatusBadge } from "@/components/bits";
 import { PlatformIcon } from "@/components/icons";
 import { Markdown } from "@/components/markdown";
+import { FollowButton } from "@/components/follow-button";
 import { ThreadList } from "@/components/forum/thread-list";
+import { ReportDialog } from "@/components/report-dialog";
 import { ProductCard } from "@/components/product-card";
 import { ReviewsSection } from "@/components/reviews-section";
 import { Stars } from "@/components/stars";
@@ -31,7 +35,8 @@ import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
 import { formatRating } from "@/lib/community/shared";
 import { categoryLabel, platformLabel } from "@/lib/config";
 import { formatBytes, formatCompact, formatDate, formatRupiah, timeAgo } from "@/lib/format";
-import { listThreads } from "@/lib/forum";
+import { getFollowState } from "@/lib/follows";
+import { getCategoryBySlug, listThreads } from "@/lib/forum";
 import { getMoreFromSeller, getProductBySlug, getSellerStats, hasEntitlement } from "@/lib/queries";
 import { mediaUrl } from "@/lib/storage";
 
@@ -54,11 +59,16 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const staff = isStaff(user);
   if (product.status !== "published" && !isOwner && !staff) notFound();
 
-  const [sellerStats, moreFromSeller, owned, discussions] = await Promise.all([
+  const published = product.status === "published";
+  const devlogCat = published ? await getCategoryBySlug("devlog") : null;
+  const empty = { items: [], total: 0 };
+  const [sellerStats, moreFromSeller, owned, discussions, devlogs, follow] = await Promise.all([
     getSellerStats(product.sellerId),
     getMoreFromSeller(product.sellerId, product.id),
     user ? hasEntitlement(user.id, product.id) : Promise.resolve(false),
-    product.status === "published" ? listThreads({ productId: product.id, sort: "aktif", pageSize: 3 }) : Promise.resolve({ items: [], total: 0 }),
+    published ? listThreads({ productId: product.id, sort: "aktif", pageSize: 3, excludeCategoryId: devlogCat?.id ?? null }) : Promise.resolve(empty),
+    published && devlogCat ? listThreads({ productId: product.id, categoryId: devlogCat.id, authorId: product.sellerId, sort: "baru", pageSize: 3 }) : Promise.resolve(empty),
+    getFollowState(user?.id, "product", product.id),
   ]);
 
   const latest = product.releases[0];
@@ -240,6 +250,37 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             )}
           </Card>
 
+          {/* Devlog: thread kategori Devlog yang ditulis seller untuk produk ini */}
+          {published && (devlogs.total > 0 || isOwner) && (
+            <Card className="overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-6 pb-4 sm:px-8">
+                <h2 id="devlog" className="flex scroll-mt-24 items-center gap-2 text-lg font-bold text-ink">
+                  <Newspaper className="h-5 w-5 text-brand-600" /> Devlog
+                  {devlogs.total > 0 && <span className="text-sm font-medium text-slate-500">({devlogs.total})</span>}
+                </h2>
+                {isOwner && (
+                  <ButtonLink href={`/forum/baru?kategori=devlog&produk=${product.slug}`} variant="secondary" className={buttonStyles.small}>
+                    <PenLine className="h-3.5 w-3.5" /> Tulis devlog
+                  </ButtonLink>
+                )}
+              </div>
+              <div className="border-t border-slate-100">
+                <ThreadList
+                  items={devlogs.items}
+                  showCategory={false}
+                  empty={<>Belum ada devlog. Ceritakan proses pengembangan & rencana versi berikutnya — pengikut {product.title} dapat notifikasi.</>}
+                />
+              </div>
+              {devlogs.total > devlogs.items.length && (
+                <div className="border-t border-slate-100 p-4 text-center">
+                  <Link href={`/p/${product.slug}/devlog`} className="text-sm font-semibold text-brand-700 hover:underline">
+                    Lihat semua {devlogs.total} devlog
+                  </Link>
+                </div>
+              )}
+            </Card>
+          )}
+
           {/* Ulasan */}
           {product.status === "published" && (
             <ReviewsSection
@@ -384,6 +425,20 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                 <dd className="text-right font-semibold text-ink">{product.license}</dd>
               </div>
             </dl>
+            {published && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+                <FollowButton
+                  targetType="product"
+                  targetId={product.id}
+                  following={follow.following}
+                  count={follow.count}
+                  path={`/p/${product.slug}`}
+                  state={!user ? "guest" : isOwner ? "self" : "can"}
+                  compact
+                />
+                {user && !isOwner && <ReportDialog targetType="product" targetId={product.id} label="Laporkan produk" />}
+              </div>
+            )}
             {(product.websiteUrl || product.sourceUrl) && (
               <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                 {product.websiteUrl && (

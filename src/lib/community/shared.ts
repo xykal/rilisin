@@ -48,21 +48,39 @@ export function parseForumSort(v: unknown): ForumSort {
   return FORUM_SORTS.some((s) => s.id === v) ? (v as ForumSort) : "aktif";
 }
 
-/** Alasan laporan untuk forum & ulasan = alasan chat + "ulasan palsu". */
-export const CONTENT_REPORT_REASONS = [...REPORT_REASONS, { id: "palsu", label: "Ulasan palsu / tidak jujur" }] as const;
+/** Alasan laporan konten = alasan chat + alasan khusus ulasan, produk, dan akun. */
+export const CONTENT_REPORT_REASONS = [
+  ...REPORT_REASONS,
+  { id: "palsu", label: "Ulasan palsu / tidak jujur" },
+  { id: "malware", label: "Malware / aplikasi berbahaya" },
+  { id: "menyamar", label: "Akun palsu / menyamar" },
+] as const;
 export type ContentReportReason = (typeof CONTENT_REPORT_REASONS)[number]["id"];
 export const CONTENT_REPORT_REASON_IDS = CONTENT_REPORT_REASONS.map((r) => r.id) as [ContentReportReason, ...ContentReportReason[]];
 export function contentReportReasonLabel(id: string) {
   return CONTENT_REPORT_REASONS.find((r) => r.id === id)?.label ?? id;
 }
 
-export type ContentTargetType = "forum_thread" | "forum_reply" | "review";
-export const CONTENT_TARGET_TYPES = ["forum_thread", "forum_reply", "review"] as const;
+export type ContentTargetType = "forum_thread" | "forum_reply" | "review" | "product" | "user";
+export const CONTENT_TARGET_TYPES = ["forum_thread", "forum_reply", "review", "product", "user"] as const;
 export const CONTENT_TARGET_LABEL: Record<ContentTargetType, string> = {
   forum_thread: "Thread forum",
   forum_reply: "Balasan forum",
   review: "Ulasan",
+  product: "Produk",
+  user: "Akun",
 };
+const POST_REASONS: ContentReportReason[] = ["spam", "judol", "penipuan", "pelecehan", "sara", "dewasa", "bajakan", "lainnya"];
+/** Alasan yang relevan per jenis konten (form laporan hanya menampilkan ini; server menolak yang lain). */
+export const REASONS_BY_TARGET: Record<ContentTargetType, ContentReportReason[]> = {
+  forum_thread: POST_REASONS,
+  forum_reply: POST_REASONS,
+  review: [...POST_REASONS, "palsu"],
+  product: ["bajakan", "malware", "penipuan", "dewasa", "judol", "spam", "lainnya"],
+  user: ["menyamar", "spam", "penipuan", "pelecehan", "judol", "lainnya"],
+};
+/** Produk & akun tidak disembunyikan otomatis oleh laporan (mudah disalahgunakan pesaing) — selalu diputuskan moderator. */
+export const AUTO_HIDE_TARGETS: ContentTargetType[] = ["forum_thread", "forum_reply", "review"];
 
 // ─── Mention @username ──────────────────────────────────────────────────────
 /** Sama dengan pola yang dirender chat: huruf dulu, 3–20 karakter huruf/angka/underscore. */
