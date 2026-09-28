@@ -191,8 +191,15 @@ async function loginDemo(label, session, identifier = "user@rilisin.test") {
   const s = new Session();
   const res = await loginDemo("cookie", s);
   const cookie = (res.headers.getSetCookie?.() ?? []).find((c) => /rilisin_session/.test(c)) ?? "";
+  const secure = /(?:^|;\s*)Secure/i.test(cookie);
   ok(/HttpOnly/i.test(cookie), "Cookie session HttpOnly");
-  ok(/SameSite=Lax/i.test(cookie), "Cookie session SameSite=Lax di lingkungan non-HTTPS");
+  // Mode cookie mengikuti lingkungan (src/lib/auth/session.ts): HTTPS/produksi →
+  // Secure + SameSite=None + Partitioned (app bisa dibuka di iframe preview);
+  // non-HTTPS → SameSite=Lax. Proteksi CSRF tetap dari pengecekan Origin (bagian 3).
+  ok(
+    secure ? /SameSite=None/i.test(cookie) && /Partitioned/i.test(cookie) : /SameSite=Lax/i.test(cookie),
+    `Cookie session SameSite sesuai mode (${secure ? "Secure+None+Partitioned" : "Lax"})`,
+  );
 }
 
 // ─── 8. Rate limit benar-benar membalas 429 setelah ambang ──────────────────
