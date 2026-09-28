@@ -16,6 +16,25 @@ mengikat, Bahasa Inggris = terjemahan.
 | `AUP.md` | Aturan Pakai yang Dapat Diterima | launch publik |
 | `REFUND.md` | Kebijakan Refund | menerima pembayaran nyata |
 
+## Halaman publik (sumber teks yang dipakai situs)
+
+Dokumen di folder ini adalah **satu-satunya sumber kebenaran**. Halaman publik
+dibaca dari salinan hasil generate di `src/content/legal/*.ts`:
+
+| Route | Dokumen |
+|---|---|
+| `/ketentuan` | `TERMS.md` |
+| `/privasi` | `PRIVACY.md` |
+| `/kuki` | `COOKIES.md` |
+| `/aup` | `AUP.md` |
+| `/refund` | `REFUND.md` |
+
+Alur edit: ubah `.md` di folder ini → `npm run legal:sync` → commit keduanya.
+CI menjalankan `npm run legal:check` dan **gagal** kalau keduanya beda, jadi teks
+di situs tidak bisa diam-diam menyimpang dari dokumen yang direview pengacara.
+Selama masih ada placeholder, semua halaman memakai `robots: noindex` dan
+menampilkan banner "Masih draf" — jujur ke pengunjung bahwa dokumen belum final.
+
 ## Placeholder yang WAJIB diisi sebelum publish
 
 Semua tanda `[TEMPAT_KOSONG]` di dokumen. Minimal:

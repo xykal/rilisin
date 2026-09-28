@@ -87,7 +87,8 @@ export const users = pgTable(
     email: text("email").notNull(),
     username: text("username").notNull(),
     displayName: text("display_name").notNull(),
-    passwordHash: text("password_hash").notNull(),
+    /** null = akun tanpa password (daftar via Google) → login hanya lewat identitas sosial. */
+    passwordHash: text("password_hash"),
     role: userRole("role").notNull().default("user"),
     bio: text("bio"),
     avatarKey: text("avatar_key"),
@@ -95,6 +96,8 @@ export const users = pgTable(
     bannedAt: tsz("banned_at"),
     banReason: text("ban_reason"),
     passwordChangedAt: tsz("password_changed_at"),
+    /** Email sudah diverifikasi (lewat link email atau login Google dengan email terverifikasi). */
+    emailVerifiedAt: tsz("email_verified_at"),
     /** Secret TOTP (2FA) terenkripsi AES-256-GCM. null = 2FA belum aktif. */
     totpSecretEnc: text("totp_secret_enc"),
     /** Secret sementara saat proses aktivasi 2FA (belum dikonfirmasi). */
@@ -808,6 +811,47 @@ export const passwordResets = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("password_resets_user_idx").on(t.userId, t.createdAt)],
+);
+
+/** Token verifikasi email (sekali pakai, 24 jam). `id` = SHA-256 token; token asli hanya ada di email. */
+export const emailVerifications = pgTable(
+  "email_verifications",
+  {
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    expiresAt: tsz("expires_at").notNull(),
+    usedAt: tsz("used_at"),
+    ipHash: text("ip_hash"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("email_verifications_user_idx").on(t.userId, t.createdAt)],
+);
+
+/**
+ * Identitas login sosial (Google). Satu akun boleh punya beberapa identitas;
+ * satu identitas Google hanya boleh menempel di satu akun (unique index di bawah).
+ */
+export const oauthAccounts = pgTable(
+  "oauth_accounts",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    /** "sub" dari Google (ID stabil pengguna di Google). */
+    providerAccountId: text("provider_account_id").notNull(),
+    /** Email yang dilaporkan Google saat penautan (buat informasi, bukan untuk login). */
+    email: text("email"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("oauth_provider_account_idx").on(t.provider, t.providerAccountId),
+    index("oauth_user_idx").on(t.userId),
+  ],
 );
 
 // ─── Relasi (untuk query bertingkat) ────────────────────────────────────────

@@ -93,7 +93,8 @@ export async function listSellerPayouts(sellerId: string, limit = 20) {
 async function stepUp(user: Pick<CurrentUser, "id">, password: string, code: string | undefined, action: string) {
   if (!(await sharedLimit(`stepup:${user.id}`, 8, 15 * 60_000)).ok) throw new PayoutError("Terlalu banyak percobaan. Coba lagi 15 menit lagi.", "password");
   const [u] = await db.select({ passwordHash: users.passwordHash, totpEnabledAt: users.totpEnabledAt }).from(users).where(eq(users.id, user.id)).limit(1);
-  if (!u || !(await verifyPassword(password, u.passwordHash))) {
+  // passwordHash null = akun daftar-via-Google: harus buat password dulu di /akun/keamanan.
+  if (!u || !u.passwordHash || !(await verifyPassword(password, u.passwordHash))) {
     await logSecurityEvent("payout_step_up_failed", { userId: user.id, meta: { action, reason: "password" } });
     throw new PayoutError("Password salah.", "password");
   }

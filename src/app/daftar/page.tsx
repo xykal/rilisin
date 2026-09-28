@@ -5,6 +5,7 @@ import { TurnstileScript } from "@/components/turnstile-script";
 import { LogoMark } from "@/components/logo";
 import { Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { googleEnabled } from "@/lib/auth/oauth";
 import { SITE } from "@/lib/config";
 import { issueFormToken } from "@/lib/security/form-guard";
 import { turnstilePublic } from "@/lib/security/turnstile";
@@ -17,6 +18,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/daftar"
   const nextPath = safeNextPath(next, "/");
   if (await getCurrentUser()) redirect(nextPath);
   const turnstile = turnstilePublic();
+  const google = googleEnabled();
 
   return (
     <div className="mx-auto max-w-md px-4 py-14">
@@ -27,7 +29,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/daftar"
       </div>
       <Card className="p-6 sm:p-8">
         {turnstile && <TurnstileScript />}
-        <RegisterForm next={nextPath} formToken={issueFormToken()} turnstile={turnstile} />
+        <RegisterForm next={nextPath} formToken={issueFormToken()} turnstile={turnstile} google={google} />
       </Card>
     </div>
   );

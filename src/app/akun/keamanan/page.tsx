@@ -2,6 +2,7 @@ import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
 import {
   AlertTriangle,
   CheckCircle2,
+  Fingerprint,
   History,
   KeyRound,
   LaptopMinimal,
@@ -11,12 +12,19 @@ import {
   Smartphone,
 } from "lucide-react";
 import type { Metadata } from "next";
-import { revokeOtherSessionsAction, revokeSessionAction, startTotpSetupAction } from "@/app/actions/security";
-import { ChangePasswordForm, DisableTotpForm, RegenerateCodesForm } from "@/components/security-forms";
+import Link from "next/link";
+import {
+  revokeOtherSessionsAction,
+  revokeSessionAction,
+  startTotpSetupAction,
+  unlinkGoogleAction,
+} from "@/app/actions/security";
+import { ChangePasswordForm, DisableTotpForm, RegenerateCodesForm, SetPasswordForm } from "@/components/security-forms";
 import { SubmitButton } from "@/components/submit-button";
 import { Alert, Badge, Card } from "@/components/ui";
 import { requireUser, staffMfaRequired } from "@/lib/auth/guards";
 import { isStaff } from "@/lib/auth/current-user";
+import { googleEnabled, listGoogleIdentities } from "@/lib/auth/oauth";
 import { db } from "@/lib/db";
 import { recoveryCodes, securityEvents, sessions, users } from "@/lib/db/schema";
 import { formatDateTime, isWithin, timeAgo } from "@/lib/format";
@@ -28,9 +36,9 @@ const TONE_TO_BADGE = { green: "green", amber: "amber", red: "red", slate: "slat
 
 export default async function SecurityPage({ searchParams }: PageProps<"/akun/keamanan">) {
   const user = await requireUser("/akun/keamanan");
-  const { wajib } = await searchParams;
+  const { wajib, oauth } = await searchParams;
 
-  const [mySessions, events, [codesLeft], [profile]] = await Promise.all([
+  const [mySessions, events, [codesLeft], [profile], googleIdentities] = await Promise.all([
     db
       .select()
       .from(sessions)
@@ -38,7 +46,8 @@ export default async function SecurityPage({ searchParams }: PageProps<"/akun/ke
       .orderBy(desc(sessions.lastSeenAt)),
     db.select().from(securityEvents).where(eq(securityEvents.userId, user.id)).orderBy(desc(securityEvents.createdAt)).limit(15),
     db.select({ n: count() }).from(recoveryCodes).where(and(eq(recoveryCodes.userId, user.id), isNull(recoveryCodes.usedAt))),
-    db.select({ passwordChangedAt: users.passwordChangedAt, totpEnabledAt: users.totpEnabledAt }).from(users).where(eq(users.id, user.id)),
+    db.select({ passwordChangedAt: users.passwordChangedAt, totpEnabledAt: users.totpEnabledAt, passwordHash: users.passwordHash }).from(users).where(eq(users.id, user.id)),
+    listGoogleIdentities(user.id),
   ]);
   const others = mySessions.filter((s) => s.id !== user.sessionId).length;
   const failed24h = events.filter((e) => e.type === "login_failed" && isWithin(e.createdAt, 86_400_000)).length;
@@ -133,13 +142,82 @@ export default async function SecurityPage({ searchParams }: PageProps<"/akun/ke
         )}
       </Card>
 
+      {!user.emailVerifiedAt && (
+        <Alert tone="warning" className="mt-6" title="Email belum diverifikasi">
+          Verifikasi <b className="text-ink">{user.email}</b> untuk membuka semua fitur akun (jualan, unduh, dan pemulihan akun).{" "}
+          <Link href="/verifikasi-email" className="font-semibold underline">
+            Kirim link verifikasi
+          </Link>
+        </Alert>
+      )}
+      {oauth === "email-beda" && (
+        <Alert tone="danger" className="mt-6" title="Email Google tidak sama">
+          Akun Google yang kamu pilih punya email berbeda dari email akun ini. Pakai akun Google yang emailnya sama, atau ganti email akun dulu.
+        </Alert>
+      )}
+
       {/* Password */}
       <Card className="mt-6 p-6">
-        <h2 className="text-lg font-bold text-ink">Ganti password</h2>
-        <p className="mb-4 mt-0.5 text-sm text-slate-500">
-          Terakhir diganti: {profile?.passwordChangedAt ? timeAgo(profile.passwordChangedAt) : "belum pernah"}. Setelah diganti, semua perangkat lain otomatis dikeluarkan.
+        <h2 className="text-lg font-bold text-ink">{profile?.passwordHash ? "Ganti password" : "Buat password"}</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          {profile?.passwordHash
+            ? "Ganti password secara berkala. Perangkat lain otomatis dikeluarkan."
+            : "Akun ini masuk lewat Google dan belum punya password. Buat password supaya bisa mencairkan saldo dan tetap bisa masuk kalau akun Google bermasalah."}
         </p>
-        <ChangePasswordForm />
+        <p className="mb-4 mt-0.5 text-sm text-slate-500">
+          Terakhir diganti: {profile?.passwordChangedAt ? timeAgo(profile.passwordChangedAt) : "belum pernah"}.
+          {profile?.passwordHash ? " Setelah diganti, semua perangkat lain otomatis dikeluarkan." : ""}
+        </p>
+        {profile?.passwordHash ? <ChangePasswordForm /> : <SetPasswordForm mfaEnabled={user.mfaEnabled} />}
+      </Card>
+
+      {/* Akun tertaut */}
+      <Card className="mt-6 p-6">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-ink">
+          <Fingerprint className="h-5 w-5 text-brand-600" /> Akun tertaut
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Cara masuk yang bisa dipakai untuk akun @{user.username}. Login Google hanya menerima email yang sudah diverifikasi Google.
+        </p>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-ink">Password</p>
+              <p className="text-xs text-slate-500">
+                {profile?.passwordHash ? "Aktif — masuk pakai email/username dan password" : "Tidak ada — akun ini masuk lewat Google"}
+              </p>
+            </div>
+            {profile?.passwordHash ? <Badge tone="green">Aktif</Badge> : <Badge tone="slate">Tidak ada</Badge>}
+          </div>
+          {googleIdentities.map((g) => (
+            <div key={`${g.provider}-${g.email ?? ""}`} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">Google{g.email ? ` · ${g.email}` : ""}</p>
+                <p className="text-xs text-slate-500">Ditautkan {formatDateTime(g.createdAt)}</p>
+              </div>
+              <form action={unlinkGoogleAction}>
+                <SubmitButton variant="secondary" pendingText="Melepas…" confirm="Lepas tautan Google? Pastikan kamu masih punya cara lain untuk masuk.">
+                  Lepas tautan
+                </SubmitButton>
+              </form>
+            </div>
+          ))}
+        </div>
+        {googleEnabled() ? (
+          googleIdentities.length === 0 && (
+            <Link
+              href="/api/auth/google?next=/akun/keamanan"
+              className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:bg-slate-50"
+            >
+              Hubungkan dengan Google
+            </Link>
+          )
+        ) : (
+          <p className="mt-3 text-xs text-slate-500">
+            Login Google menyala sendiri setelah <code className="font-mono">GOOGLE_CLIENT_ID</code> dan{" "}
+            <code className="font-mono">GOOGLE_CLIENT_SECRET</code> diisi di environment deploy.
+          </p>
+        )}
       </Card>
 
       {/* Perangkat */}

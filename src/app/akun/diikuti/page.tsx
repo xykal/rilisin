@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Avatar, ProductIcon } from "@/components/bits";
 import { FollowButton } from "@/components/follow-button";
 import { Card, EmptyState } from "@/components/ui";
+import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { requireUser } from "@/lib/auth/guards";
 import { timeAgo } from "@/lib/format";
 import { listFollowing } from "@/lib/follows";
@@ -16,6 +17,7 @@ export default async function FollowingPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Diikuti</h1>
+      <VerifyEmailBanner />
       <p className="mt-1 text-slate-500">
         Kamu dapat notifikasi saat seller ini merilis karya baru, dan saat karya ini punya versi baru atau devlog. Karya yang kamu unduh/beli otomatis diikuti.{" "}
         <Link href="/akun/notifikasi" className="font-semibold text-brand-700 hover:underline">

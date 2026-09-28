@@ -45,6 +45,14 @@ jobs:
       # Kunci UJI resmi Cloudflare Turnstile (publik, selalu lolos dengan token dummy) — mode ketat
       TURNSTILE_SITE_KEY: 1x00000000000000000000AA
       TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+      # Login Google: kredensial & endpoint UJI (server OAuth palsu di bawah, bukan Google sungguhan).
+      # Nilai ini hanya ada di CI — kredensial produksi disimpan sebagai secret environment.
+      GOOGLE_CLIENT_ID: uji-ci-rilisin.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: rahasia-uji-ci-bukan-produksi
+      GOOGLE_AUTH_URL: http://localhost:9090/auth
+      GOOGLE_TOKEN_URL: http://localhost:9090/token
+      GOOGLE_USERINFO_URL: http://localhost:9090/userinfo
+      FAKE_GOOGLE_PORT: "9090"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -67,12 +75,21 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npx next typegen && npx tsc --noEmit
+      - name: Dokumen hukum sinkron (docs/legal ↔ src/content/legal)
+        run: npm run legal:check
       - name: Migrasi + data demo
         run: npx tsx scripts/seed.ts
       - name: Uji backup & restore (enkripsi, pulih, cocokkan data)
         run: npx tsx scripts/test-backup.ts
       - name: Build
         run: npm run build
+      # Server OAuth Google PALSU: dipakai tes login Google end-to-end (PKCE, state, penolakan).
+      # Tidak ada kredensial Google sungguhan di CI — kalau tidak, token bisa terpakai orang lain.
+      - name: Google OAuth palsu (untuk tes login Google)
+        run: |
+          node tests/security/fake-google.mjs > fake-google.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf -o /dev/null http://localhost:9090/__state && exit 0; sleep 1; done
+          echo "server Google palsu tidak menyala"; cat fake-google.log; exit 1
       - name: Jalankan server
         run: |
           npm run start > server.log 2>&1 &
@@ -86,7 +103,10 @@ jobs:
         run: npm run test:pakasir
       - name: Log server (kalau gagal)
         if: failure()
-        run: tail -n 200 server.log || true
+        run: |
+          tail -n 200 server.log || true
+          echo "--- log Google palsu ---"
+          tail -n 50 fake-google.log || true
 
   security:
     name: Security scan (dependency)

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { clearMfaChallenge, createMfaChallenge, MFA_MAX_ATTEMPTS, readMfaChallenge, verifySecondFactor } from "@/lib/auth/mfa";
 import { fakePasswordCheck, hashPassword, verifyPassword } from "@/lib/auth/password";
+import { sendVerificationAfterRegister } from "@/lib/auth/email-verification";
 import { createSession, destroySession } from "@/lib/auth/session";
 import { RESERVED_USERNAMES } from "@/lib/config";
 import { db } from "@/lib/db";
@@ -84,6 +85,9 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
 
   await logSecurityEvent("register", { userId });
   await createSession(userId);
+  // Akun yang mendaftar sendiri harus membuktikan emailnya miliknya (akun Google sudah
+  // diverifikasi oleh Google). Email dikirim setelah respons supaya waktu balas tidak bocor.
+  sendVerificationAfterRegister(userId, ip);
   redirect(safeNextPath(formData.get("next"), "/"));
 }
 

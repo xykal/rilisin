@@ -9,6 +9,7 @@ import {
   confirmTotpSetupAction,
   disableTotpAction,
   regenerateRecoveryCodesAction,
+  setPasswordAction,
   type RecoveryState,
 } from "@/app/actions/security";
 import { SubmitButton } from "./submit-button";
@@ -71,6 +72,32 @@ export function ChangePasswordForm() {
         </Field>
       </div>
       <SubmitButton pendingText="Menyimpan…">Ganti password</SubmitButton>
+    </form>
+  );
+}
+
+/** Akun daftar-via-Google (belum punya password) membuat password pertamanya di sini. */
+export function SetPasswordForm({ mfaEnabled }: { mfaEnabled: boolean }) {
+  const [state, action] = useActionState(setPasswordAction, undefined);
+  const fe = state?.fieldErrors ?? {};
+  return (
+    <form action={action} className="space-y-4">
+      {state?.error && <Alert tone="danger">{state.error}</Alert>}
+      {state?.success && <Alert tone="success">{state.success}</Alert>}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Password baru" htmlFor="newPassword" error={fe.newPassword} hint="Min. 10 karakter, bukan password umum">
+          <input id="newPassword" name="newPassword" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputStyles} />
+        </Field>
+        <Field label="Ulangi password baru" htmlFor="confirmPassword" error={fe.confirmPassword}>
+          <input id="confirmPassword" name="confirmPassword" type="password" required autoComplete="new-password" className={inputStyles} />
+        </Field>
+      </div>
+      {mfaEnabled && (
+        <Field label="Kode 2FA" htmlFor="code" error={fe.code} hint="Kode 6 digit dari aplikasi authenticator">
+          <input id="code" name="code" required inputMode="numeric" pattern="[0-9 ]{6,7}" maxLength={7} autoComplete="one-time-code" className={inputStyles} />
+        </Field>
+      )}
+      <SubmitButton pendingText="Menyimpan…">Buat password</SubmitButton>
     </form>
   );
 }

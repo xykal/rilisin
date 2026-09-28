@@ -15,6 +15,8 @@ export type CurrentUser = {
   bio: string | null;
   createdAt: Date;
   mfaEnabled: boolean;
+  /** Email sudah diverifikasi? (dibutuhkan untuk jual/unduh, dipakai untuk banner di /akun). */
+  emailVerifiedAt: Date | null;
   /** Hash token session yang sedang dipakai (untuk label "perangkat ini"). */
   sessionId: string;
   seller: { storeName: string; tagline: string | null; isTrusted: boolean } | null;
@@ -38,6 +40,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       avatarKey: users.avatarKey,
       bio: users.bio,
       createdAt: users.createdAt,
+      emailVerifiedAt: users.emailVerifiedAt,
       bannedAt: users.bannedAt,
       totpEnabledAt: users.totpEnabledAt,
       lastSeenAt: sessions.lastSeenAt,
@@ -71,6 +74,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     bio: row.bio,
     createdAt: row.createdAt,
     mfaEnabled: !!row.totpEnabledAt,
+    emailVerifiedAt: row.emailVerifiedAt ?? null,
     sessionId,
     seller: row.storeName
       ? { storeName: row.storeName, tagline: row.tagline, isTrusted: row.isTrusted ?? false }

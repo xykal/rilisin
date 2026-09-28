@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CATEGORIES, SITE } from "@/lib/config";
+import { LEGAL_DOCS } from "@/lib/legal";
 import { BRAND } from "@/config/brand";
 import { Logo } from "./logo";
 
@@ -10,9 +11,7 @@ export function SiteFooter() {
         <div className="md:col-span-1">
           <Logo />
           <p className="mt-3 text-sm text-slate-500">{SITE.tagline}.</p>
-          <p className="mt-4 text-xs text-slate-400">
-            Prototype · nama &amp; domain masih sementara.
-          </p>
+          <p className="mt-4 text-xs text-slate-400">Prototype · dokumen hukum masih draf (menunggu review pengacara).</p>
         </div>
         <div>
           <p className="text-sm font-bold text-ink">Jelajahi</p>
@@ -38,8 +37,13 @@ export function SiteFooter() {
         <div>
           <p className="text-sm font-bold text-ink">Bantuan &amp; legal</p>
           <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            <li><span className="text-slate-400">Syarat &amp; Ketentuan (disusun sebelum launch)</span></li>
-            <li><span className="text-slate-400">Kebijakan Privasi (disusun sebelum launch)</span></li>
+            {LEGAL_DOCS.map((doc) => (
+              <li key={doc.slug}>
+                <Link href={`/${doc.slug}`} className="hover:text-brand-700">
+                  {doc.title}
+                </Link>
+              </li>
+            ))}
             <li><Link href="/keamanan" className="hover:text-brand-700">Pusat Keamanan</Link></li>
             <li><a href="/.well-known/security.txt" className="hover:text-brand-700">Lapor celah keamanan</a></li>
           </ul>

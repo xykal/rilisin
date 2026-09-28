@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ProductIcon } from "@/components/bits";
 import { Badge, ButtonLink, Card, EmptyState } from "@/components/ui";
+import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { requireUser } from "@/lib/auth/guards";
 import { formatDateTime, formatRupiah } from "@/lib/format";
 import { ORDER_STATUS_LABEL, paymentMethod } from "@/lib/payments/methods";
@@ -20,6 +21,7 @@ export default async function MyOrdersPage() {
       <p className="text-sm font-semibold text-brand-700">Akun</p>
       <h1 className="text-3xl font-extrabold tracking-tight text-ink">Pesanan saya</h1>
       <p className="mt-1 text-slate-600">Riwayat pembelian & bukti bayar. Produk yang sudah lunas ada di Library.</p>
+      <VerifyEmailBanner />
       <div className="mt-6">
         {items.length === 0 ? (
           <EmptyState icon={<ReceiptText className="h-10 w-10" />} title="Belum ada pesanan">

@@ -4,11 +4,12 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/guards";
+import { requestEmailVerification } from "@/lib/auth/email-verification";
 import { issueRecoveryCodes, TOTP_PURPOSE, verifySecondFactor } from "@/lib/auth/mfa";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { revokeOtherSessions } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { recoveryCodes, sessions, users } from "@/lib/db/schema";
+import { oauthAccounts, recoveryCodes, sessions, users } from "@/lib/db/schema";
 import { sharedLimit } from "@/lib/rate-limit";
 import { decryptString, encryptString } from "@/lib/security/crypto";
 import { logSecurityEvent } from "@/lib/security/events";
@@ -21,7 +22,8 @@ async function checkCurrentPassword(userId: string, password: string) {
   const rl = await sharedLimit(`reauth:${userId}`, 8, 15 * 60 * 1000);
   if (!rl.ok) return "Terlalu banyak percobaan. Tunggu beberapa menit.";
   const [u] = await db.select({ hash: users.passwordHash }).from(users).where(eq(users.id, userId));
-  if (!u || !(await verifyPassword(password, u.hash))) return "Password saat ini salah.";
+  // hash null = akun daftar-via-Google (belum pernah punya password) → tidak bisa dicek di sini.
+  if (!u || !u.hash || !(await verifyPassword(password, u.hash))) return "Password saat ini salah.";
   return null;
 }
 
@@ -126,4 +128,63 @@ export async function regenerateRecoveryCodesAction(_prev: RecoveryState, formDa
   await logSecurityEvent("recovery_codes_regenerated", { userId: user.id });
   revalidatePath("/akun/keamanan");
   return { success: "Kode cadangan baru dibuat. Kode lama tidak berlaku lagi.", codes };
+}
+
+/**
+ * Buat password PERTAMA untuk akun yang daftar lewat Google (password_hash masih null).
+ * Tanpa password, akun itu tidak bisa mengonfirmasi pencairan saldo atau ganti password
+ * nanti. Tidak meminta password lama — bukti kepemilikan adalah session yang sedang aktif
+ * (+ kode 2FA kalau 2FA menyala).
+ */
+export async function setPasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser("/akun/keamanan");
+  const [u] = await db.select({ hash: users.passwordHash }).from(users).where(eq(users.id, user.id)).limit(1);
+  if (u?.hash) return { error: "Akun ini sudah punya password. Pakai formulir Ganti password." };
+  const next = String(formData.get("newPassword") ?? "");
+  const confirm = String(formData.get("confirmPassword") ?? "");
+  const weak = checkNewPassword(next, { email: user.email, username: user.username });
+  if (weak) return { fieldErrors: { newPassword: weak } };
+  if (next !== confirm) return { fieldErrors: { confirmPassword: "Konfirmasi password tidak sama" } };
+  if (user.mfaEnabled && !(await verifySecondFactor(user.id, String(formData.get("code") ?? "")))) {
+    return { fieldErrors: { code: "Kode 2FA salah." } };
+  }
+  await db.update(users).set({ passwordHash: await hashPassword(next), passwordChangedAt: new Date() }).where(eq(users.id, user.id));
+  await logSecurityEvent("password_changed", { userId: user.id, meta: { passwordPertama: true } });
+  revalidatePath("/akun/keamanan");
+  return { success: "Password dibuat. Sekarang kamu juga bisa masuk pakai email + password." };
+}
+
+/**
+ * Lepas tautan Google dari akun. Dilarang kalau itu satu-satunya cara masuk:
+ * akun tanpa password (daftar via Google) wajib punya minimal satu identitas Google.
+ */
+export async function unlinkGoogleAction(formData: FormData) {
+  const user = await requireUser("/akun/keamanan");
+  const [row] = await db
+    .select({ passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1);
+  const identities = await db
+    .select({ id: oauthAccounts.id })
+    .from(oauthAccounts)
+    .where(and(eq(oauthAccounts.userId, user.id), eq(oauthAccounts.provider, "google")));
+  if (!row?.passwordHash && identities.length <= 1) {
+    await logSecurityEvent("oauth_unlink_rejected", { userId: user.id, meta: { reason: "satu-satunya_cara_masuk" } });
+    return;
+  }
+  const deleted = await db
+    .delete(oauthAccounts)
+    .where(and(eq(oauthAccounts.userId, user.id), eq(oauthAccounts.provider, "google")))
+    .returning({ id: oauthAccounts.id });
+  if (deleted.length) await logSecurityEvent("oauth_unlinked", { userId: user.id, meta: { count: deleted.length } });
+  revalidatePath("/akun/keamanan");
+}
+
+/** Kirim ulang email verifikasi (dipakai di /akun dan halaman /verifikasi-email). */
+export async function resendVerificationAction(): Promise<FormState> {
+  const result = await requestEmailVerification();
+  if ("error" in result) return { error: result.error };
+  if ("limited" in result && result.limited) return { error: "Terlalu banyak permintaan. Tunggu beberapa menit ya." };
+  return { success: "Link verifikasi sudah dikirim ke email kamu. Cek juga folder spam." };
 }

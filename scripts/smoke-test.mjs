@@ -168,6 +168,20 @@ const guest = new Session();
   ok(prof.res.status === 200 && prof.text.includes("Pixel Rantau Studio"), "Profil /@pixelrantau tampil");
   const admin = await guest.html("/admin/review");
   ok(admin.res.status === 307 || admin.res.status === 303 || admin.res.status === 302, "Halaman admin mengarahkan tamu ke login");
+  // Dokumen hukum publik (isinya dari docs/legal, dicek sinkron di CI)
+  for (const [path, needle] of [
+    ["/ketentuan", "Syarat &amp; Ketentuan"],
+    ["/privasi", "Kebijakan Privasi"],
+    ["/kuki", "Kebijakan Cookie"],
+    ["/aup", "Aturan Paku yang Dapat Diterima"],
+    ["/refund", "Kebijakan Refund"],
+  ]) {
+    const page = await guest.html(path);
+    ok(page.res.status === 200 && page.text.includes(needle), `Halaman hukum ${path} tampil (200) & memuat isi dokumen`);
+    ok(page.text.includes("Masih draf"), `Halaman ${path} menandai status draf dengan jujur`);
+  }
+  const verify = await guest.html("/verifikasi-email");
+  ok(verify.res.status === 200 && verify.text.includes("Verifikasi email"), "Halaman /verifikasi-email terbuka untuk tamu (200)");
   const traversal = await guest.req("/media/..%2F..%2F.env.local");
   // Lokal: route menjawab 404. Di Vercel, edge sudah menolak `..%2F` dengan 400 sebelum sampai ke app.
   ok(traversal.status === 404 || traversal.status === 400, `Path traversal di /media ditolak (${traversal.status})`);

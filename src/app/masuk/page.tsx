@@ -5,11 +5,23 @@ import { TurnstileScript } from "@/components/turnstile-script";
 import { LogoMark } from "@/components/logo";
 import { Alert, Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { googleEnabled } from "@/lib/auth/oauth";
 import { getClientIp } from "@/lib/http";
 import { loginNeedsChallenge, turnstilePublic } from "@/lib/security/turnstile";
 import { safeNextPath } from "@/lib/slug";
 
 export const metadata: Metadata = { title: "Masuk" };
+
+/** Pesan hasil callback Google — generik, jangan bocorkan detail teknis ke pengguna. */
+const OAUTH_MESSAGES: Record<string, string> = {
+  "belum-aktif": "Login Google belum diaktifkan di deploy ini. Hubungi pengelola situs.",
+  gagal: "Login Google tidak selesai (kode kedaluwarsa, email Google belum terverifikasi, atau permintaan tidak cocok). Coba lagi.",
+  kadaluarsa: "Permintaan login Google sudah kedaluwarsa. Klik tombol Google sekali lagi.",
+  "perlu-password": "Email ini sudah punya akun dengan password. Masuk pakai password dulu, lalu hubungkan Google di menu Keamanan akun.",
+  diblokir: "Akun ini diblokir. Hubungi dukungan kalau menurutmu ini keliru.",
+  "terlalu-banyak": "Terlalu banyak percobaan login Google dari jaringan ini. Tunggu beberapa menit.",
+  "email-beda": "Email Google tidak sama dengan email akun yang sedang masuk. Pakai akun Google yang emailnya sama, atau ganti email akun dulu.",
+};
 
 const DEMO_ACCOUNTS = [
   { email: "user@rilisin.test", role: "Pengguna biasa" },
@@ -19,11 +31,12 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {
-  const { next, reset } = await searchParams;
+  const { next, reset, oauth } = await searchParams;
   const nextPath = safeNextPath(next, "/");
   if (await getCurrentUser()) redirect(nextPath);
   const turnstile = turnstilePublic();
   const challenge = turnstile ? await loginNeedsChallenge(await getClientIp()) : false;
+  const google = googleEnabled();
 
   return (
     <div className="mx-auto max-w-md px-4 py-14">
@@ -32,6 +45,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {
         <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">Masuk ke akunmu</h1>
         <p className="mt-1 text-sm text-slate-500">Download karya, pantau update, dan kelola tokomu.</p>
       </div>
+      {oauth && OAUTH_MESSAGES[String(oauth)] && (
+        <Alert tone={String(oauth) === "belum-aktif" ? "info" : "danger"} className="mb-4" title="Login Google">
+          {OAUTH_MESSAGES[String(oauth)]}
+        </Alert>
+      )}
       {reset === "1" && (
         <Alert tone="success" className="mb-4" title="Password berhasil diganti">
           Semua perangkat sudah dikeluarkan. Silakan masuk dengan password baru.
@@ -40,7 +58,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {
       <Card className="p-6 sm:p-8">
         {/* Script dimuat walau belum perlu: tantangan bisa muncul setelah beberapa kali salah */}
         {turnstile && <TurnstileScript />}
-        <LoginForm next={nextPath} turnstile={turnstile} challenge={challenge} />
+        <LoginForm next={nextPath} turnstile={turnstile} challenge={challenge} google={google} />
       </Card>
       <div className="mt-6 rounded-2xl border border-dashed border-brand-300 bg-brand-50/60 p-4 text-sm">
         {/* Staging memakai password demo lain (SEED_DEMO_PASSWORD) — jangan tampilkan rilisin123 di sana */}
@@ -53,7 +71,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/masuk">) {
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-xs text-brand-900/60">Login Google ditambahkan saat deploy (butuh akun Google Cloud).</p>
+        <p className="mt-2 text-xs text-brand-900/60">
+          {google
+            ? "Login Google aktif. Email Google yang belum terverifikasi tidak bisa dipakai."
+            : "Login Google menyala otomatis begitu GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET diisi di environment deploy."}
+        </p>
       </div>
     </div>
   );

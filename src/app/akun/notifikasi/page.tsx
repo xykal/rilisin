@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { NotificationPrefsForm, TestEmailForm } from "@/components/notification-forms";
 import { Alert, Card } from "@/components/ui";
+import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { requireUser } from "@/lib/auth/guards";
 import { emailConfigured, isUndeliverableAddress } from "@/lib/email";
 import { getEmailPrefs } from "@/lib/notifications/server";
@@ -18,6 +19,7 @@ export default async function NotificationSettingsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Pengaturan notifikasi</h1>
+      <VerifyEmailBanner />
       <p className="mt-1 text-slate-500">
         Semua notifikasi selalu muncul di{" "}
         <Link href="/notifikasi" className="font-semibold text-brand-700 hover:underline">

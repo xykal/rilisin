@@ -20,6 +20,9 @@ Inventaris ini diambil langsung dari skema database aplikasi (`src/lib/db/schema
 | Email, username, nama tampilan | Pendaftaran | Akun, login, notifikasi | Pelaksanaan kontrak |
 | Hash password (scrypt) | Pendaftaran | Autentikasi | Pelaksanaan kontrak |
 | Rahasia 2FA (terenkripsi AES-256-GCM), kode cadangan (di-hash) | Aktivasi 2FA | Keamanan akun | Pelaksanaan kontrak |
+| Identitas Google: ID pengguna Google (`sub`), provider, email yang dilaporkan Google, waktu penautan | Login dengan Google | Autentikasi & penautan akun | Pelaksanaan kontrak |
+| Token verifikasi email (hanya SHA-256-nya yang disimpan), email tujuan, **hash IP** peminta, waktu kedaluwarsa | Daftar / kirim ulang verifikasi | Membuktikan email milik pemilik akun | Pelaksanaan kontrak |
+| Penanda email sudah terverifikasi (`email_verified_at`) | Verifikasi / login Google | Membuka fitur yang butuh email terverifikasi | Pelaksanaan kontrak |
 | Token sesi (di-hash), user agent, **hash IP** | Setiap login | Menjaga sesi & keamanan | Kepentingan yang sah |
 | **Hash IP** + user agent pada event keamanan (login gagal, bot diblokir, webhook ditolak) | Aktivitas | Deteksi penyalahgunaan | Kepentingan yang sah |
 | Nama toko, tagline, bio, avatar | Profil seller/anggota | Tampilan publik | Persetujuan |
@@ -57,6 +60,8 @@ Kami tidak menjual data pribadi. Tidak ada iklan pihak ketiga di Platform.
 | Sesi login | 30 hari (otomatis kedaluwarsa) |
 | Tantangan 2FA | 10 menit |
 | Token reset password | 30 menit, sekali pakai |
+| Token verifikasi email | 24 jam, sekali pakai |
+| Identitas Google yang tertaut | Selama akun aktif; dihapus saat tautan dilepas atau akun dihapus |
 | Event keamanan | 12 bulan (rencana pembersihan otomatis) |
 | Pesan chat & posting forum | Selama akun aktif; salinan "dihapus untuk semua orang" dibersihkan ≤ 30 hari |
 | Catatan transaksi & pencairan | 10 tahun (kewajiban pembukuan/pajak Indonesia) |
@@ -118,13 +123,16 @@ dokumen dicatat di bagian bawah berkas ini.
    password hash, encrypted 2FA secrets, hashed session tokens and IP hashes,
    security event logs, seller profiles, uploaded works, community content
    (chat, forum, reviews, reports), payment and payout records, and download
-   logs. We do **not** store raw IP addresses or card numbers.
+   logs, linked Google identities (Google user ID + the email Google reports), and
+   email verification tokens (stored only as SHA-256 hashes). We do **not** store
+   raw IP addresses or card numbers.
 2. **Recipients:** Vercel (hosting/CDN), Neon (database), Vercel Blob (files),
    Cloudflare (DNS + Turnstile), Resend (email, optional), Pakasir (payments),
    GitHub (CI). We do not sell personal data and run no third-party ads.
 3. **Retention:** see the retention table in the Indonesian section (accounts
    while active, sessions 30 days, 2FA challenges 10 minutes, reset tokens 30
-   minutes, security events 12 months, transaction records 10 years for tax).
+   minutes, email verification tokens 24 hours, linked Google identities until
+   unlinked, security events 12 months, transaction records 10 years for tax).
 4. **Your rights** (UU PDP No. 27/2022): access, correction, deletion,
    restriction, objection, withdrawal of consent, and portability. Contact
    [CONTACT EMAIL]. We confirm within 3x24 hours and complete requests within

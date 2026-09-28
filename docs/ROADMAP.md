@@ -23,6 +23,7 @@ Estimates are working-day counts from the start date 2026-09-27.
 | 2026-09-28 | Job audit dependency di CI | selesai, CI hijau |
 | 2026-09-28 | docs/PRD.md + docs/ROADMAP.md | selesai |
 | 2026-09-28 | Proving test keamanan (tests/security/) + step CI | selesai, CI hijau |
+| 2026-09-28 | Login Google (OAuth + PKCE), verifikasi email, halaman hukum publik | selesai (menunggu CI), butuh env + redirect URI Google dari kall |
 
 ## Berikutnya (target, bisa geser)
 
@@ -31,6 +32,7 @@ Estimates are working-day counts from the start date 2026-09-27.
 | 2026-10-05 | ~~Legal DRAFT: Terms, Privacy, Cookie, AUP, Refund~~ | **SELESAI 2026-09-28** (docs/legal/, DRAFT-marked, bilingual) | — |
 | 2026-10-05 | Review pengacar dokumen legal + isi placeholder entitas | draft engineer ≠ nasihat hukum | M |
 | 2026-10-05 | ZAP baseline (DAST) di CI | celah runtime (header, cookie, injeksi) ketahuan sebelum deploy | M |
+| 2026-10-05 | Daftarkan redirect URI Google `https://rilisin.xyverse.my.id/api/auth/google/callback` + isi env `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` | login Google belum bisa dipakai tanpa ini (tidak bisa diverifikasi dari sandbox) | S |
 | 2026-10-12 | Onboarding seller 3 langkah + checklist verifikasi | aktivasi seller = metrik stage MVP | M |
 | 2026-10-19 | Cutover produksi: domain, rotasi secret, budget alert, runbook | hentikan ketergantungan staging | L |
 | 2026-11-02 | Gerbang launch publik: legal reviewed, proving test hijau, support live | tidak launch tanpa syarat ini | L |
@@ -45,6 +47,12 @@ Estimates are working-day counts from the start date 2026-09-27.
 - Proving test keamanan `tests/security/` (429, injeksi, IDOR, CSRF, batas auth)
 - Workflow CodeQL (SAST) + triage 2 alert (false positive, alasan tercatat)
 - `docs/DESIGN.md` + README bilingual + SECURITY.md disegarkan
+- Legal draft `docs/legal/` (5 dokumen + indeks, DRAFT-marked, bilingual)
+- Login sungguhan: Google OAuth 2.0 + PKCE S256 (`lib/auth/oauth.ts`, `/api/auth/google*`),
+  verifikasi email (`lib/auth/email-verification.ts`, `/verifikasi-email`), migrasi
+  `drizzle/0006_auth_oauth.sql`, halaman hukum publik (`/ketentuan`, `/privasi`, `/kuki`,
+  `/aup`, `/refund`) yang isinya di-generate dari `docs/legal/*.md` + cek sinkron di CI,
+  dan tes Google palsu di CI (`tests/security/fake-google.mjs`)
 
 ## Parkir (belum dijadwalkan)
 

@@ -36,6 +36,8 @@ Status: **prototype, belum diaudit pihak ketiga**. Wajib ada review keamanan/pen
 | **Open redirect lewat notifikasi** | `url` notifikasi wajib path internal — dicek di kode (`safeNextPath`) **dan** CHECK constraint database (`url like '/%' and not like '//%'`); link notifikasi milik orang lain tidak bisa dibuka/ditandai | `lib/notifications/server.ts`, `drizzle/0003_community.sql` |
 | **Banjir email / reputasi domain** | Maks. 1 email per grup notifikasi sampai dibaca (klaim atomik `emailed_at`); preferensi per kategori; berhenti berlangganan satu klik (RFC 8058, token HMAC per user+kategori, konfirmasi lewat tombol POST supaya pemindai link tidak ikut mematikan); alamat `.test/.example/.invalid/.localhost` **tidak pernah dikirim** (bounce merusak reputasi) | `lib/notifications/server.ts`, `lib/email.ts` |
 | **Pengambilalihan akun lewat reset password** | Token acak 256-bit, hanya SHA-256 yang disimpan, sekali pakai (klaim atomik), 30 menit, link lama hangus saat minta baru, maks. 3 per jam per akun + 5 per 15 menit per IP; jawaban selalu sama & email dikirim setelah respons (tidak membocorkan email terdaftar lewat isi/waktu); token dipindah ke cookie httpOnly berpath lalu redirect (tidak tertinggal di URL/Referer); semua sesi dikeluarkan + email pemberitahuan; 2FA tetap berlaku | `lib/auth/password-reset.ts`, `app/atur-ulang-password/` |
+| **Pengambilalihan akun lewat login Google** | OAuth 2.0 + **PKCE S256** (tanpa dependency baru); `state` acak 256-bit hanya di cookie HttpOnly bertanda tangan HMAC (10 menit, sekali pakai) — bukan di URL; email dipercaya hanya kalau Google melaporkan `email_verified`; penautan ke akun lama hanya kalau email akun itu sudah diverifikasi (akun lokal yang emailnya belum diverifikasi **ditolak** → tutup celah pra-pendaftaran); penautan dari halaman akun hanya untuk email yang sama; akun hasil Google tanpa password; semua penolakan dicatat di log keamanan; rate limit 30 percobaan/10 menit per IP | `lib/auth/oauth.ts`, `app/api/auth/google/` |
+| **Verifikasi email palsu / pemindai link menghanguskan token** | Token 256-bit, hanya SHA-256 yang disimpan, 24 jam, sekali pakai (klaim atomik), link lama hangus saat minta baru, maks. 3 per jam per akun + 5 per 15 menit per IP; token dipindah ke cookie HttpOnly berpath `/verifikasi-email` lalu redirect ke URL bersih; verifikasi butuh klik tombol; email pemberitahuan dikirim setelah verifikasi | `lib/auth/email-verification.ts`, `app/verifikasi-email/` |
 | **Laporan jahat terhadap pesaing** | Produk & akun **tidak** disembunyikan otomatis oleh laporan — selalu diputuskan moderator; alasan laporan divalidasi per jenis konten di server; tidak bisa melaporkan karya/akun sendiri; 1 laporan per orang per target; rate limit 10 laporan/jam | `lib/community/reports.ts`, `lib/community/shared.ts` |
 | **Banjir notifikasi dari fitur ikuti** | Notifikasi ke pengikut digabung per produk/seller selama belum dibaca ("3 versi baru"); email kategori *Update yang diikuti* default mati, dikirim batch (maks. 100/request) hanya ke yang menyalakan; ikuti/berhenti di-rate limit | `lib/follows.ts`, `lib/notifications/server.ts` |
 
@@ -64,25 +66,32 @@ Status: **prototype, belum diaudit pihak ketiga**. Wajib ada review keamanan/pen
 
 Lainnya: ganti kontak di `public/.well-known/security.txt`, aktifkan backup database harian, simpan secret di environment hosting (bukan di repo), aktifkan 2FA/passkey untuk akun GitHub/Vercel/Neon/Cloudflare/Pakasir milik tim. Kunci situs staging mengecualikan webhook pembayaran & `/api/notifications/unsubscribe` (dipanggil server email, diotorisasi token HMAC). Token deploy CI hanya disimpan sebagai secret environment `staging` di GitHub (dibatasi ke branch `main`, tidak terbaca oleh PR/Dependabot); job test tidak memakai secret sama sekali.
 
+## 3b. Login Google — konfigurasi wajib
+
+- Isi `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` (environment Vercel, **jangan** di repo). Kosong = tombol Google tidak dirender dan pendaftaran email jalan normal.
+- Daftarkan **Authorized redirect URI** di Google Cloud Console: `https://<domain>/api/auth/google/callback`. Kalau belum didaftarkan, Google menolak dengan error dan pengguna hanya melihat pesan generik "login Google tidak selesai".
+- `GOOGLE_AUTH_URL` / `GOOGLE_TOKEN_URL` / `GOOGLE_USERINFO_URL` hanya untuk pengujian (CI). Kalau terisi di produksi, token Google bisa bocor ke alamat itu — perlakukan seperti secret dan biarkan kosong.
+- Akun yang dibuat lewat Google tidak punya password (kolom `password_hash` null), jadi tautan Google-nya tidak bisa dilepas sampai akun punya cara masuk lain (dicek di `unlinkGoogleAction`).
+
 ## 4. Yang belum ada (rencana)
 
-- Verifikasi email & login Google (saat deploy).
+- Passkey (WebAuthn) sebagai alternatif 2FA.
 - Rate limit & presence di **Redis** untuk multi-instance.
 - Deteksi otomatis gambar tidak pantas di chat.
 - Job terjadwal: hapus salinan pesan terhapus > 30 hari, gambar chat tak terpakai, event keamanan > 1 tahun.
 - Notifikasi email saat login dari perangkat baru / 2FA dimatikan.
-- Passkey (WebAuthn) sebagai alternatif 2FA.
 - **Pentest / audit independen sebelum menerima uang sungguhan** (Fase 2 sudah jalan dalam mode simulasi & sandbox).
 - Rekonsiliasi harian otomatis: cocokkan pesanan lunas dengan laporan transaksi Pakasir (deteksi selisih).
 - Allowlist IP webhook kalau Pakasir mempublikasikan daftar IP pengirim.
 - Batas & pola anti-fraud pembelian (banyak pesanan gagal beruntun, kartu/akun baru dengan nominal besar).
 
-Sudah jalan (dulu masuk daftar ini): Cloudflare Turnstile di form daftar/login, scan malware ClamAV untuk file rilis, reset password via email, rate limit bersama antar instance lewat Postgres.
+Sudah jalan (dulu masuk daftar ini): Cloudflare Turnstile di form daftar/login, scan malware ClamAV untuk file rilis, reset password via email, verifikasi email untuk akun daftar-sendiri, login Google (OAuth + PKCE) — menunggu isi `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` + redirect URI terdaftar di Google Cloud Console, rate limit bersama antar instance lewat Postgres.
 
 ## 5. SAST & tes keamanan di CI
 
 - **CodeQL (SAST)** jalan di tiap push + mingguan (`.github/workflows/codeql.yml`, action di-pin commit SHA). Alert muncul di tab **Security → Code scanning**; tidak memblokir deploy, tapi harus ditriage.
 - **Proving test** (`tests/security/proving-tests.mjs`, `npm run test:security`) membuktikan tiap run: rate limit membalas 429 setelah ambang (chat 30/menit, upload 60/10 menit, notifikasi 60/menit), payload injeksi/traversal/XSS ditolak atau dinetralkan, IDOR per-objek (akun B tidak bisa edit/hapus/pin pesan akun A), CSRF (Origin asing 403, Content-Type salah 415), endpoint mutasi wajib login, flag cookie session. Kontrol tanpa tes bukti dianggap tidak ada.
+- **Login Google (OAuth 2.0 + PKCE)** diuji end-to-end tiap run memakai server Google palsu di CI (`tests/security/fake-google.mjs`) — tidak ada kredensial Google sungguhan di CI. Yang dibuktikan: redirect pakai `code_challenge_method=S256` (43 karakter base64url), state acak hanya di cookie **HttpOnly + SameSite=Lax** (bertanda tangan HMAC, 10 menit, sekali pakai), callback dengan state palsu/kosong ditolak **tanpa membuat session**, `email_verified=false` dari Google ditolak, email yang sama dengan akun lokal yang emailnya belum diverifikasi **ditolak** (anti pengambilalihan akun lewat pra-pendaftaran), dan tiket OAuth dihapus setelah dipakai.
 - **Triage alert (2026-09-28)** — dua alert CodeQL ditutup sebagai *false positive* dengan alasan tercatat di GitHub:
   - `js/insufficient-password-hash` (crypto-core.ts): `sha256Hex` hanya dipakai untuk hash token acak MFA challenge (mfa.ts:20,30), bukan password. Password memakai **scrypt N=16384/r=8/p=1** (password.ts:15) — memory-hard, tanpa dependency tambahan.
   - `js/xss-through-dom` (composer.tsx:194): `image.url` adalah blob URL lokal atau URL publik dari server setelah upload — bukan teks buatan user; `<img src>` juga tidak bisa menjalankan script.

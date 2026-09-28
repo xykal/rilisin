@@ -35,6 +35,7 @@ plus a community (group chat + forum) and reviews from verified owners only.
   follows and devlogs, in-app + email notifications, 2FA/TOTP, password reset.
 - **Security:** nonce CSP with `strict-dynamic`, Origin + Content-Type checks on
   every mutating endpoint, shared (Postgres) rate limits, honeypot + form tokens,
+  Google sign-in (OAuth 2.0 + PKCE) and email verification for self-registered accounts,
   Cloudflare Turnstile on bot-prone forms, per-object authorization, hashed IPs
   (Indonesian PDP law), encrypted database backups.
 - **Tests in CI:** lint → typecheck → seed → backup/restore → build → 143-check
@@ -73,6 +74,9 @@ plus a community (group chat + forum) and reviews from verified owners only.
 | **Forum (Fase 3)** | `/forum`: 8 kategori (Pengumuman · Tanya Jawab · Pamer Karya · Devlog · Request · Cari Tim · Masukan · Warung Kopi), urutan Aktif / Terbaru / Teratas / **Belum terjawab**, pencarian full-text. Thread & balasan **Markdown aman** (kode, daftar, link `nofollow ugc`, `@mention` → notifikasi), **upvote**, **jawaban terbaik** (kategori Tanya Jawab, dipilih penanya), ubah/hapus postingan sendiri. **Diskusi per produk**: thread bisa ditautkan ke produk, muncul di halaman produk dengan badge **Pembuat** / **Pemilik** |
 | **Ulasan & rating (Fase 3)** | Hanya **pemilik** (sudah mengunduh / membeli) yang bisa mengulas, 1 ulasan per orang, bisa diubah/dihapus. Rating 1–2 wajib ada alasan, tanpa link. **Seller membalas** (tidak bisa menghapus). Ringkasan & distribusi bintang, halaman semua ulasan (urut & filter bintang), rating di kartu produk, urutan **Rating tertinggi** di Jelajahi |
 | **Notifikasi (Fase 3)** | **Lonceng** di header (jumlah belum dibaca, panel 8 terbaru, tandai dibaca) + halaman `/notifikasi`. Pemicu: balasan & mention forum, jawaban terbaik, ulasan baru, balasan seller, penjualan, pencairan diproses/ditolak, karya disetujui/ditolak, balasan & mention di chat. Kejadian sejenis **digabung** ("3 balasan baru di …"). **Email** via Resend per kategori (`/akun/notifikasi`), maks. 1 email per grup sampai dibuka, link **berhenti berlangganan** + one-click (RFC 8058) |
+| **Login Google (OAuth + PKCE)** | Tombol "Lanjutkan dengan Google" di halaman masuk & daftar (muncul hanya kalau `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` diisi). Alur: `/api/auth/google` → Google → `/api/auth/google/callback`, PKCE S256, `state` acak hanya di cookie HttpOnly bertanda tangan 10 menit sekali pakai. Email Google wajib terverifikasi; penautan ke akun lama hanya kalau email akun itu sudah diverifikasi (akun lokal yang belum verifikasi ditolak → anti pengambilalihan). Akun hasil Google tanpa password; tautan bisa dilepas/hubungkan dari `/akun/keamanan` |
+| **Verifikasi email** | Akun yang daftar sendiri dapat link verifikasi sekali pakai (24 jam) → `/verifikasi-email`. Token hanya disimpan sebagai hash, link email dipindah ke cookie HttpOnly supaya URL bersih, verifikasi butuh klik tombol, banner pengingat di `/akun/*`, kirim ulang kapan saja |
+| **Dokumen hukum publik** | `/ketentuan`, `/privasi`, `/kuki`, `/aup`, `/refund` — isi di-generate dari `docs/legal/*.md` (CI memastikan keduanya sinkron). Masih **draf** (noindex + banner) sampai direview pengacara |
 | **Lupa password (Fase 3)** | `/lupa-password` → link sekali pakai 30 menit ke email → password baru → semua perangkat dikeluarkan + email pemberitahuan. Jawaban selalu sama (tidak membocorkan email terdaftar) |
 | **Ikuti (Fase 3b)** | Ikuti **seller** (kabar karya baru) & **produk** (versi baru + devlog). Karya yang diunduh/dibeli **otomatis diikuti** (bisa dihentikan). Jumlah pengikut di profil & halaman produk, halaman `/akun/diikuti`, seller dapat notifikasi pengikut baru. Notifikasi ke semua pengikut dikirim dalam **satu query** (INSERT … SELECT), email kategori ini default **mati** |
 | **Devlog (Fase 3b)** | Thread kategori Devlog yang ditulis seller untuk produknya: tampil di bagian **Devlog** halaman produk (`/p/[slug]/devlog`), pengikut produk dapat notifikasi; komentar, upvote & moderasi memakai forum |
@@ -84,7 +88,7 @@ plus a community (group chat + forum) and reviews from verified owners only.
 | **Rate limit bersama (Fase 4)** | Jalur sensitif (login, daftar, reset, lapor, chat, unduh, checkout) pakai limit fixed-window di **Postgres** (`INSERT … ON CONFLICT` atomik) → konsisten walau request jatuh ke instance Vercel berbeda. Database down → jatuh ke limit memori (fail-open terukur, situs tidak mati) |
 | **Cron harian & backup (Fase 4)** | Vercel Cron → `/api/cron/harian` (Bearer `CRON_SECRET`): pembersihan (sesi/token kedaluwarsa, notifikasi > 90 hari, upload mentah, isi pesan terhapus > 30 hari, pesanan lewat batas) + **backup database terenkripsi** (X25519 + AES-256-GCM, retensi 14 file, kunci privat tidak pernah ada di server). Restore teruji: `npm run backup:restore` |
 | **Halaman Sistem (Fase 4)** | `/admin/sistem` (khusus admin): status pengaman (2FA staf, Turnstile, worker scan, backup), riwayat tugas cron, daftar backup + unduh terenkripsi, picu tugas manual |
-| Halaman info | `/keamanan` (Pusat Keamanan), `/komunitas/aturan`, `/panduan/android`, `/.well-known/security.txt` |
+| Halaman info | `/keamanan` (Pusat Keamanan), `/komunitas/aturan`, `/panduan/android`, dokumen hukum (`/ketentuan`, `/privasi`, `/kuki`, `/aup`, `/refund`), `/.well-known/security.txt` |
 
 ## Akun demo
 
@@ -123,6 +127,7 @@ npm run build && npm run start  # buka http://localhost:3000
 | `npm run db:migrate` | Jalankan migrasi (tanpa menghapus data) |
 | `npm run db:generate` | Buat file migrasi baru setelah mengubah `src/lib/db/schema.ts` |
 | `npm run typecheck` / `npm run lint` | Cek TypeScript / ESLint |
+| `npm run legal:sync` / `npm run legal:check` | Perbarui `src/content/legal/*.ts` dari `docs/legal/*.md` / pastikan keduanya sinkron (dijalankan CI) |
 | `npm run test:smoke` | Tes end-to-end **252 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, checkout, pembayaran, saldo, pencairan, refund, forum, ulasan, ikuti, Turnstile, rate limit bersama, cron+backup, protokol worker antivirus). Server harus jalan; isi `CRON_SECRET`/`SCAN_WORKER_TOKEN` di env shell supaya uji cron & worker ikut jalan. Menambah data uji → jalankan `db:seed` lagi |
 | `npm run test:pakasir` | Contract test adapter **Pakasir API v2** + webhook (16 pengecekan) memakai server Pakasir palsu — tidak menyentuh akun asli |
 | `npm run test:backup` | Uji bolak-balik backup: ekspor → enkripsi → dekripsi → restore ke database baru → cocokkan jumlah baris, saldo, rating, skor forum & sequence (butuh `DATABASE_URL`) |
@@ -268,7 +273,9 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
   - kebijakan password (min 10, tolak password umum);
   - honeypot + token waktu anti-bot;
   - cookie `__Host-`;
-  - session baru tiap login, keluarkan semua perangkat saat ganti password.
+  - session baru tiap login, keluarkan semua perangkat saat ganti password;
+  - **login Google**: OAuth 2.0 + PKCE S256, `state` di cookie HttpOnly sekali pakai, email Google wajib terverifikasi, penautan akun hanya untuk email yang sudah diverifikasi;
+  - **verifikasi email**: token 256-bit sekali pakai 24 jam, hanya hash-nya yang disimpan, link tidak pernah tinggal di URL.
 - **Chat:**
   - validasi zod;
   - pembersihan karakter tak terlihat/bidi/zalgo;
@@ -301,7 +308,8 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
   - pencairan ke seller masih **transfer manual** oleh admin (Pakasir tidak punya API disbursement); refund ke pembeli juga manual;
   - pajak (PMK 37/2025, PPh 22 marketplace) belum dihitung — baru relevan kalau ditunjuk DJP.
 - **Akun:**
-  - belum ada login Google, verifikasi email, dan reset password (butuh layanan email/Google Cloud, dikerjakan saat deploy);
+  - login Google sudah jadi & diuji di CI (memakai server Google palsu), tapi di staging/produksi masih butuh dua hal dari kall: isi `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`, dan daftarkan **Authorized redirect URI** `https://rilisin.xyverse.my.id/api/auth/google/callback` di Google Cloud Console (redirect URI tidak bisa diverifikasi dari sandbox);
+  - verifikasi email mengikuti jalur email yang ada (Resend via env; tanpa `RESEND_API_KEY` email hanya tercatat di log — jadi link verifikasi tidak sampai ke pengguna sungguhan);
   - admin belum *wajib* 2FA di demo (`REQUIRE_STAFF_2FA=0`); di production set `1`.
 - **Realtime:**
   - presence ("N online") masih dihitung per proses server (rate limit sensitif sudah pindah ke Postgres di Fase 4);
@@ -351,6 +359,7 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
    - ganti kontak di `public/.well-known/security.txt`.
 5. **Upstash Redis:** rate limit & presence lintas server.
 6. **Pakasir (pembayaran):** buat proyek baru "rilisin" (otomatis mode sandbox) → isi Webhook URL `https://DOMAIN/api/payments/pakasir/webhook` → isi env `PAYMENT_PROVIDER=pakasir`, `PAKASIR_SLUG`, `PAKASIR_API_KEY`, `PAKASIR_WEBHOOK_SECRET`. Go live: KYC akun + KYC proyek di Pakasir, lalu `PAKASIR_ALLOW_SANDBOX=0`.
+7. **Login Google:** Google Cloud Console → Credentials → OAuth client ID (Web application) → tambahkan **Authorized redirect URI** `https://DOMAIN/api/auth/google/callback` → isi env `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET` (Vercel, jangan di repo). Kosong = tombol Google tidak muncul dan pendaftaran email tetap jalan.
 
 ---
 

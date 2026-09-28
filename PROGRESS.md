@@ -80,3 +80,32 @@ Lanjutan (kall: "gas" lagi) — legal draft:
   REFUND.md (kapan diberikan/tidak + catatan UU Perlindungan Konsumen 8/1999 yang
   harus dikonfirmasi pengacara). Semua DRAFT-marked, bilingual (ID mengikat),
   placeholder [NAMA ENTITAS]/[EMAIL]/[KOTA] belum diisi karena entitas belum dibentuk.
+
+Lanjutan (kall: "gas" lagi) — login sungguhan: Google OAuth + verifikasi email + halaman hukum publik:
+- Migrasi drizzle/0006_auth_oauth.sql (tulis tangan, tanpa drizzle-kit lokal): kolom
+  users.email_verified_at, tabel email_verifications & oauth_accounts, dan
+  users.password_hash jadi nullable (akun daftar-via-Google tidak punya password).
+- src/lib/auth/oauth.ts: Google OAuth 2.0 + PKCE S256 tanpa dependency baru (state &
+  code_verifier dibawa dalam satu cookie HttpOnly bertanda tangan HMAC, 10 menit, sekali
+  pakai). Aturan penautan: email Google wajib email_verified; penautan ke akun lama hanya
+  kalau email akun itu sudah diverifikasi — akun lokal yang emailnya BELUM diverifikasi
+  DITOLAK (menutup celah pra-pendaftaran: daftar pakai email orang lain lalu ambil alih
+  akun Google-nya). Penautan dari /akun/keamanan hanya untuk email yang sama.
+- Route: /api/auth/google (307 + cookie state) & /api/auth/google/callback (semua gagal →
+  redirect /masuk dengan kode generik, tidak membocorkan detail). Tombol "Lanjutkan dengan
+  Google" hanya dirender kalau GOOGLE_CLIENT_ID/SECRET diisi.
+- Verifikasi email: src/lib/auth/email-verification.ts (token 32 byte, hanya hash-nya
+  disimpan, 24 jam, sekali pakai), link email → /verifikasi-email/buka memindahkan token ke
+  cookie HttpOnly lalu redirect ke URL bersih; verifikasi butuh klik tombol (pemindai link
+  email tidak menghanguskannya). Dikirim otomatis setelah daftar + tombol kirim ulang.
+- Halaman hukum publik: /ketentuan, /privasi, /kuki, /aup, /refund. Isi dibaca dari modul
+  src/content/legal/*.ts yang DIHASILKAN dari docs/legal/*.md (scripts/sync-legal.mjs) —
+  CI menjalankan `npm run legal:check` supaya keduanya tidak pernah beda. Semua halaman
+  masih noindex + banner "Masih draf" karena placeholder belum diisi.
+- Tes: tests/security/fake-google.mjs (Google palsu di CI, bukan kredensial sungguhan) +
+  bagian baru di proving tests (PKCE S256, cookie state HttpOnly+SameSite=Lax, state palsu
+  ditolak tanpa session, email_verified=false ditolak, pra-pendaftaran ditolak, tiket sekali
+  pakai) + smoke test mengecek kelima halaman hukum & /verifikasi-email.
+- Kredensial Google produksi TIDAK masuk repo: hanya env (GOOGLE_CLIENT_ID/SECRET). Redirect
+  URI https://rilisin.xyverse.my.id/api/auth/google/callback masih harus didaftarkan kall di
+  Google Cloud Console sebelum login Google bisa dipakai di staging/produksi.

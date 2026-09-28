@@ -10,11 +10,15 @@
  *   3. Otorisasi per-objek: akun A tidak bisa menyentuh objek akun B (IDOR)
  *   4. Endpoint mutasi wajib login + origin benar (CSRF/auth boundary)
  *   5. Header keamanan & flag cookie session
+ *   9. Login Google (OAuth 2.0 + PKCE): state, sekali pakai, email harus terverifikasi
  *
  * PERHATIAN: menambah data (pesan chat) ke database — aman dijalankan berulang.
  * Butuh seed demo: user@rilisin.test & seller@rilisin.test (password SEED_DEMO_PASSWORD).
  */
+import { randomBytes } from "node:crypto";
 import { Session, ok, uuid, DEMO_PW, clean } from "./lib.mjs";
+
+const b64url = (buf) => buf.toString("base64url");
 
 const ROOM = "nongkrong";
 
@@ -236,6 +240,130 @@ async function loginDemo(label, session, identifier = "user@rilisin.test") {
     if (r.status === 429) notifBlocked++;
   }
   ok(notifBlocked >= 1, `Rate limit notifikasi: ${notifBlocked} permintaan diblokir 429`);
+}
+
+// ─── 9. Login Google (OAuth 2.0 + PKCE) ─────────────────────────────────────
+// Hanya jalan kalau CI mengisi GOOGLE_CLIENT_ID + endpoint Google palsu. Membuktikan:
+//   a. halaman masuk menawarkan tautan Google
+//   b. /api/auth/google memakai PKCE S256 + state di cookie HttpOnly
+//   c. callback dengan state palsu/kosong → ditolak, TIDAK ada session
+//   d. alur penuh (code → token → userinfo) membuat session & akun baru
+//   e. email Google yang belum diverifikasi ditolak (tidak bisa dipakai mengambil alih akun)
+//   f. email Google yang sama dengan akun lama yang emailnya BELUM diverifikasi → ditolak
+{
+  const GOOGLE_ID = process.env.GOOGLE_CLIENT_ID;
+  const FAKE = process.env.GOOGLE_AUTH_URL;
+  const OAUTH_COOKIE = /^https:/.test(BASE) ? "__Secure-rilisin_oauth" : "rilisin_oauth";
+
+  if (GOOGLE_ID && FAKE) {
+    const setIdentity = async (payload) => {
+      const r = await fetch(`${new URL(FAKE).origin}/__identity`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error(`gagal mengatur identitas Google palsu: ${r.status}`);
+    };
+
+    // a. tautan Google tampil di halaman masuk
+    const guest = new Session();
+    const loginPage = await guest.html("/masuk");
+    ok(loginPage.text.includes('data-testid="google-login"'), "Halaman /masuk menampilkan tautan \"Lanjutkan dengan Google\"");
+
+    // b. redirect ke Google dengan PKCE S256 + state di cookie HttpOnly
+    const start = await guest.req("/api/auth/google?next=/akun/keamanan");
+    ok(start.status === 307, "GET /api/auth/google → 307 redirect ke Google");
+    const authorize = new URL(start.headers.get("location") ?? "");
+    ok(authorize.origin + authorize.pathname === new URL(FAKE).origin + new URL(FAKE).pathname, "Redirect menuju halaman izin Google");
+    ok(authorize.searchParams.get("client_id") === GOOGLE_ID, "client_id dikirim ke Google");
+    ok(authorize.searchParams.get("redirect_uri")?.endsWith("/api/auth/google/callback"), "redirect_uri menunjuk ke callback aplikasi");
+    ok(authorize.searchParams.get("code_challenge_method") === "S256", "PKCE memakai S256 (bukan plain)");
+    const challenge = authorize.searchParams.get("code_challenge") ?? "";
+    ok(/^[A-Za-z0-9_-]{43}$/.test(challenge), "code_challenge berupa base64url 32 byte (43 karakter)");
+    ok(authorize.searchParams.get("state")?.length >= 30, "state acak panjang dikirim ke Google");
+    const stateSetCookie = (start.headers.getSetCookie?.() ?? []).find((c) => c.startsWith(`${OAUTH_COOKIE}=`)) ?? "";
+    ok(/HttpOnly/i.test(stateSetCookie), "Cookie tiket OAuth HttpOnly (state tidak bisa dibaca JS)");
+    ok(/SameSite=Lax/i.test(stateSetCookie), "Cookie tiket OAuth SameSite=Lax supaya kembali dari Google");
+    ok(/Max-Age=600/i.test(stateSetCookie), "Cookie tiket OAuth kedaluwarsa 10 menit");
+
+    // c. callback dengan state palsu → ditolak, tanpa session
+    const forged = new Session();
+    const rejected = await forged.req(`/api/auth/google/callback?code=${encodeURIComponent("code-palsu")}&state=${encodeURIComponent("state-palsu")}`);
+    ok(rejected.status === 307, "Callback tanpa tiket valid → 307 (bukan 500)");
+    ok(!forged.hasSession(), "Callback dengan state palsu TIDAK membuat session");
+    ok(!(await forged.req("/api/chat/rooms/nongkrong/messages")).status.toString().startsWith("2"), "Session tidak terbuat: endpoint login tetap menolak");
+    const emptyState = await forged.req("/api/auth/google/callback?code=x");
+    ok(emptyState.status === 307 && !forged.hasSession(), "Callback tanpa state/code → ditolak");
+
+    // d. alur penuh dengan email Google terverifikasi (akun baru dibuat)
+    const fresh = new Session();
+    const freshEmail = `oauth-${b64url(randomBytes(6))}@rilisin.test`;
+    await setIdentity({ email: freshEmail, sub: `sub-${b64url(randomBytes(8))}`, emailVerified: true, name: "Pengguna Baru" });
+    const start2 = await fresh.req("/api/auth/google");
+    const googleRedirect = await fetch(new URL(start2.headers.get("location")), { redirect: "manual" });
+    const callbackUrl = new URL(googleRedirect.headers.get("location"));
+    const callback = await fresh.req(`${callbackUrl.pathname}${callbackUrl.search}`);
+    ok(callback.status === 307, "Callback Google valid → 307");
+    ok(fresh.hasSession(), "Login Google penuh membuat session cookie");
+    const landed = await fresh.req(callback.headers.get("location") ?? "/");
+    ok(landed.status === 200, "Setelah login Google, halaman tujuan terbuka (200)");
+    const me = await fresh.req("/api/notifications");
+    ok(me.status === 200, "Akun hasil login Google benar-benar terautentikasi");
+    // tiket OAuth harus sudah dihapus (sekali pakai)
+    ok(!fresh.cookies.has(OAUTH_COOKIE), "Tiket OAuth dihapus setelah dipakai");
+
+    // e. email Google belum diverifikasi → ditolak
+    const unverified = new Session();
+    await setIdentity({ email: `belum-verif-${b64url(randomBytes(6))}@rilisin.test`, sub: `sub-${b64url(randomBytes(8))}`, emailVerified: false, name: "Belum Verif" });
+    const start3 = await unverified.req("/api/auth/google");
+    const redirect3 = await fetch(new URL(start3.headers.get("location")), { redirect: "manual" });
+    const cbUrl3 = new URL(redirect3.headers.get("location"));
+    const cb3 = await unverified.req(`${cbUrl3.pathname}${cbUrl3.search}`);
+    ok(cb3.status === 307 && !unverified.hasSession(), "email_verified=false dari Google → login ditolak, tanpa session");
+
+    // f. pra-pendaftaran: akun lokal (email + password, email BELUM diverifikasi) tidak boleh
+    //    diambil alih lewat login Google dengan email yang sama. Sesi uji dipakai hanya untuk
+    //    mendaftar; percobaan Google memakai sesi BARU tanpa cookie sama sekali.
+    const localEmail = `pra-daftar-${b64url(randomBytes(6))}@rilisin.test`;
+    const localUsername = ("pra" + b64url(randomBytes(5)).replace(/[^a-z0-9]/g, "0")).slice(0, 20);
+    const signup = new Session();
+    const signupPage = await signup.html("/daftar");
+    ok(signupPage.text.includes('data-testid="google-login"'), "Halaman /daftar menawarkan \"Daftar dengan Google\"");
+    const signupRes = await signup.submitForm("/daftar", signupPage.text, 'name="username"', {
+      displayName: "Pra Daftar",
+      username: localUsername,
+      email: localEmail,
+      password: `Kuat-${b64url(randomBytes(9))}7`,
+      next: "/",
+    });
+    ok(signupRes.status === 303 && signup.hasSession(), "Pendaftaran email + password biasa membuat akun + session");
+
+    await setIdentity({ email: localEmail, sub: `sub-${b64url(randomBytes(8))}`, emailVerified: true, name: "Pengambil Alih" });
+    const attacker = new Session(); // tanpa cookie apa pun
+    const start4 = await attacker.req("/api/auth/google");
+    const redirect4 = await fetch(new URL(start4.headers.get("location")), { redirect: "manual" });
+    const cbUrl4 = new URL(redirect4.headers.get("location"));
+    const cb4 = await attacker.req(`${cbUrl4.pathname}${cbUrl4.search}`);
+    ok(cb4.status === 307 && !attacker.hasSession(), "Email yang sama dengan akun lokal belum terverifikasi → login Google DITOLAK (anti pengambilalihan)");
+    ok((cb4.headers.get("location") ?? "").includes("perlu-password"), "Penolakan diarahkan ke /masuk?oauth=perlu-password (instruksi jelas ke pengguna)");
+
+    // g. kalau email akun itu sudah terverifikasi (login Google yang tadi berhasil), penautan boleh
+    await setIdentity({ email: freshEmail, sub: `sub-${b64url(randomBytes(8))}`, emailVerified: true, name: "Pengguna Baru" });
+    const again = new Session();
+    const start5 = await again.req("/api/auth/google");
+    const redirect5 = await fetch(new URL(start5.headers.get("location")), { redirect: "manual" });
+    const cbUrl5 = new URL(redirect5.headers.get("location"));
+    const cb5 = await again.req(`${cbUrl5.pathname}${cbUrl5.search}`);
+    ok(cb5.status === 307 && again.hasSession(), "Email yang sudah terverifikasi Google → login langsung (identitas yang sama dipakai ulang)");
+
+    // h. halaman /verifikasi-email aman diakses tanpa token
+    const verifyPage = await guest.html("/verifikasi-email");
+    ok(verifyPage.status === 200, "Halaman /verifikasi-email terbuka tanpa error (500)");
+    const buka = await guest.req("/verifikasi-email/buka?token=token-ngawur");
+    ok(buka.status === 303, "Link verifikasi palsu → 303 ke halaman status");
+  } else {
+    console.log("· Lewati tes login Google (GOOGLE_CLIENT_ID/GOOGLE_AUTH_URL tidak diisi)");
+  }
 }
 
 console.log(`\nSemua proving test keamanan lolos.`);
