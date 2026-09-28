@@ -1,4 +1,4 @@
-# Rilisin — prototype (Fase 1 + Fase 2 Pembayaran + Fase 3 Komunitas + Keamanan)
+# Rilisin — prototype (Fase 1 + Fase 2 Pembayaran + Fase 3/3b Komunitas + Keamanan)
 
 > "Rumah karya developer Indonesia". Tempat share gratis & jual aplikasi, game, source code, template, aset desain, dan e-book — plus komunitas (chat grup + forum) dan ulasan dari pemilik asli.
 > **Rilisin** masih nama kerja: domain & merek belum dicek. Ganti nama cukup di `src/lib/config.ts`.
@@ -11,6 +11,7 @@ Blueprint lengkap ada di `../blueprint-store-komunitas.md`. Yang sudah jadi:
 
 - **Fase 2 (uang)** — checkout QRIS / Virtual Account (Pakasir API v2 + mode simulasi), pesanan, buku besar saldo seller, masa tahan 7 hari, pencairan dana, refund, panel keuangan admin.
 - **Fase 3 (komunitas)** — forum (tanya jawab dengan jawaban terbaik, diskusi per produk), ulasan & rating khusus pemilik, notifikasi in-app + email, lupa password lewat email.
+- **Fase 3b** — ikuti seller & produk (kabar karya baru, versi baru, devlog), devlog per produk, lapor produk & akun, profil anggota dengan lencana, chat komunitas layar penuh.
 
 Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 
@@ -38,6 +39,11 @@ Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 | **Ulasan & rating (Fase 3)** | Hanya **pemilik** (sudah mengunduh / membeli) yang bisa mengulas, 1 ulasan per orang, bisa diubah/dihapus. Rating 1–2 wajib ada alasan, tanpa link. **Seller membalas** (tidak bisa menghapus). Ringkasan & distribusi bintang, halaman semua ulasan (urut & filter bintang), rating di kartu produk, urutan **Rating tertinggi** di Jelajahi |
 | **Notifikasi (Fase 3)** | **Lonceng** di header (jumlah belum dibaca, panel 8 terbaru, tandai dibaca) + halaman `/notifikasi`. Pemicu: balasan & mention forum, jawaban terbaik, ulasan baru, balasan seller, penjualan, pencairan diproses/ditolak, karya disetujui/ditolak, balasan & mention di chat. Kejadian sejenis **digabung** ("3 balasan baru di …"). **Email** via Resend per kategori (`/akun/notifikasi`), maks. 1 email per grup sampai dibuka, link **berhenti berlangganan** + one-click (RFC 8058) |
 | **Lupa password (Fase 3)** | `/lupa-password` → link sekali pakai 30 menit ke email → password baru → semua perangkat dikeluarkan + email pemberitahuan. Jawaban selalu sama (tidak membocorkan email terdaftar) |
+| **Ikuti (Fase 3b)** | Ikuti **seller** (kabar karya baru) & **produk** (versi baru + devlog). Karya yang diunduh/dibeli **otomatis diikuti** (bisa dihentikan). Jumlah pengikut di profil & halaman produk, halaman `/akun/diikuti`, seller dapat notifikasi pengikut baru. Notifikasi ke semua pengikut dikirim dalam **satu query** (INSERT … SELECT), email kategori ini default **mati** |
+| **Devlog (Fase 3b)** | Thread kategori Devlog yang ditulis seller untuk produknya: tampil di bagian **Devlog** halaman produk (`/p/[slug]/devlog`), pengikut produk dapat notifikasi; komentar, upvote & moderasi memakai forum |
+| **Profil anggota (Fase 3b)** | `/@username` untuk semua anggota: lencana (Tim Rilisin, Moderator, Seller/terpercaya, Penjawab andal, Aktif di forum), statistik forum & ulasan, thread & balasan terbaru, ulasan yang ditulis, tombol ikuti & **laporkan akun** |
+| **Lapor produk & akun (Fase 3b)** | Alasan khusus per jenis (bajakan, malware, penipuan, akun palsu, …). Masuk antrean **Laporan konten**: produk bisa **ditangguhkan**, akun diblokir (admin). Tidak disembunyikan otomatis (mencegah laporan jahat dari pesaing) |
+| Chat layar penuh | Desktop/tablet: daftar ruang + obrolan mengisi seluruh layar di bawah header (tanpa kartu), HP: ruang obrolan layar penuh seperti aplikasi |
 | Halaman info | `/keamanan` (Pusat Keamanan), `/komunitas/aturan`, `/panduan/android`, `/.well-known/security.txt` |
 
 ## Akun demo

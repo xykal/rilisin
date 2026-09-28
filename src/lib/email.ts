@@ -63,6 +63,42 @@ export async function sendEmail(msg: EmailMessage) {
   }
 }
 
+/**
+ * Kirim banyak email sekaligus lewat Resend batch API (maks. 100 per request) — dipakai notifikasi massal
+ * (mis. versi baru ke semua pengikut) supaya tidak membuat ratusan request satu per satu.
+ */
+export async function sendEmailBatch(msgs: EmailMessage[]) {
+  const key = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  const deliverable = msgs.filter((m) => {
+    const skip = isUndeliverableAddress(m.to);
+    if (skip) console.info(`[email:dilewati] alamat uji/tidak valid ke=${m.to} subjek="${m.subject}"`);
+    return !skip;
+  });
+  if (!deliverable.length) return { sent: 0 };
+  if (!key || !from) {
+    for (const m of deliverable) console.info(`[email:log] ke=${m.to} subjek="${m.subject}"`);
+    return { sent: 0 };
+  }
+  let sent = 0;
+  for (let i = 0; i < deliverable.length; i += 100) {
+    const chunk = deliverable.slice(i, i + 100).map((m) => ({ from, to: [m.to], subject: m.subject, html: m.html, text: m.text, headers: m.headers }));
+    try {
+      const res = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(chunk),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (res.ok) sent += chunk.length;
+      else console.error("[email] Resend batch menolak", res.status, (await res.text()).slice(0, 200));
+    } catch (err) {
+      console.error("[email] batch gagal", (err as Error).message);
+    }
+  }
+  return { sent };
+}
+
 export function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }

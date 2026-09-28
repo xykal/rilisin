@@ -15,6 +15,7 @@ import {
 } from "@/lib/community/shared";
 import { db } from "@/lib/db";
 import { entitlements, forumCategories, forumReplies, forumThreads, forumVotes, moderationActions, products, users } from "@/lib/db/schema";
+import { announceDevlog } from "@/lib/follows";
 import { notifyAndEmail, type NotifyInput } from "@/lib/notifications/server";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -72,6 +73,8 @@ export type ThreadListItem = {
 
 export async function listThreads(opts: {
   categoryId?: string | null;
+  excludeCategoryId?: string | null;
+  authorId?: string | null;
   productId?: string | null;
   q?: string | null;
   sort?: ForumSort;
@@ -82,6 +85,8 @@ export async function listThreads(opts: {
   const page = Math.max(1, Math.min(opts.page ?? 1, 500));
   const where: SQL[] = [threadVisible];
   if (opts.categoryId) where.push(eq(forumThreads.categoryId, opts.categoryId));
+  if (opts.excludeCategoryId) where.push(sql`${forumThreads.categoryId} <> ${opts.excludeCategoryId}`);
+  if (opts.authorId) where.push(eq(forumThreads.authorId, opts.authorId));
   if (opts.productId) where.push(eq(forumThreads.productId, opts.productId));
   const q = opts.q?.trim().slice(0, 100);
   if (q) {
@@ -357,9 +362,17 @@ export async function createThread(actor: CurrentUser, input: { categoryId: stri
   await guardContent(actor, `${title}\n${body}`, { context: "forum_thread", field: "body", allowLinks: true, maxLinks: FORUM_LIMITS.maxLinks });
 
   let productId: string | null = null;
+  let product: { id: string; title: string; sellerId: string } | null = null;
   if (input.productId) {
-    const [p] = await db.select({ id: products.id, status: products.status }).from(products).where(eq(products.id, input.productId)).limit(1);
-    if (p?.status === "published") productId = p.id;
+    const [p] = await db
+      .select({ id: products.id, status: products.status, title: products.title, sellerId: products.sellerId })
+      .from(products)
+      .where(eq(products.id, input.productId))
+      .limit(1);
+    if (p?.status === "published") {
+      productId = p.id;
+      product = p;
+    }
   }
 
   if (!staff) {
@@ -384,6 +397,10 @@ export async function createThread(actor: CurrentUser, input: { categoryId: stri
     .returning({ id: forumThreads.id });
   const id = row!.id;
 
+  // Devlog resmi (kategori devlog, ditulis seller produknya) → kabari pengikut produk
+  if (cat.slug === "devlog" && product && product.sellerId === actor.id) {
+    await announceDevlog({ id, title, body }, product, actor.id);
+  }
   const targets = await mentionTargets(body, [actor.id]);
   if (targets.length) {
     await notifyAndEmail(

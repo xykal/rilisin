@@ -5,7 +5,7 @@ import { forumReplies, forumThreads, moderationActions, productReviews, products
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
 import { ContentError, type ContentActor } from "./guard";
-import { FORUM_LIMITS, replyPath, threadPath, type ContentReportReason, type ContentTargetType } from "./shared";
+import { AUTO_HIDE_TARGETS, FORUM_LIMITS, REASONS_BY_TARGET, replyPath, threadPath, type ContentReportReason, type ContentTargetType } from "./shared";
 
 export type ContentSnapshot = {
   title?: string | null;
@@ -62,6 +62,36 @@ export async function loadTarget(type: ContentTargetType, id: string): Promise<T
       },
     };
   }
+  if (type === "product") {
+    const [p] = await db
+      .select({ id: products.id, title: products.title, summary: products.summary, slug: products.slug, sellerId: products.sellerId, status: products.status, createdAt: products.createdAt })
+      .from(products)
+      .where(eq(products.id, id))
+      .limit(1);
+    if (!p) return null;
+    return {
+      authorId: p.sellerId,
+      deletedAt: null,
+      hiddenAt: p.status === "suspended" ? new Date() : null,
+      reportHiddenAt: null,
+      snapshot: { title: p.title, body: p.summary, authorId: p.sellerId, context: "Produk", url: `/p/${p.slug}`, postedAt: p.createdAt.toISOString() },
+    };
+  }
+  if (type === "user") {
+    const [u] = await db
+      .select({ id: users.id, username: users.username, displayName: users.displayName, bio: users.bio, bannedAt: users.bannedAt, createdAt: users.createdAt })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    if (!u) return null;
+    return {
+      authorId: u.id,
+      deletedAt: null,
+      hiddenAt: u.bannedAt,
+      reportHiddenAt: null,
+      snapshot: { title: u.displayName, body: u.bio ?? "", authorId: u.id, context: "Profil", url: `/@${u.username}`, postedAt: u.createdAt.toISOString() },
+    };
+  }
   const [v] = await db
     .select({ review: productReviews, productTitle: products.title, productSlug: products.slug })
     .from(productReviews)
@@ -86,6 +116,7 @@ export async function loadTarget(type: ContentTargetType, id: string): Promise<T
 }
 
 async function setReportHidden(type: ContentTargetType, id: string, hidden: boolean) {
+  if (!AUTO_HIDE_TARGETS.includes(type)) return;
   const value = hidden ? new Date() : null;
   if (type === "forum_thread") await db.update(forumThreads).set({ reportHiddenAt: value }).where(eq(forumThreads.id, id));
   else if (type === "forum_reply") await db.update(forumReplies).set({ reportHiddenAt: value }).where(eq(forumReplies.id, id));
@@ -93,6 +124,7 @@ async function setReportHidden(type: ContentTargetType, id: string, hidden: bool
 }
 
 async function setModHidden(type: ContentTargetType, id: string, by: string | null, reason: string | null) {
+  if (!AUTO_HIDE_TARGETS.includes(type)) return;
   const values = by
     ? { hiddenAt: new Date(), hiddenBy: by, hiddenReason: reason }
     : { hiddenAt: null, hiddenBy: null, hiddenReason: null, reportHiddenAt: null };
@@ -108,9 +140,12 @@ async function setModHidden(type: ContentTargetType, id: string, by: string | nu
 export async function reportContent(actor: ContentActor, type: ContentTargetType, id: string, reason: ContentReportReason, note?: string) {
   const rl = rateLimit(`content:report:${actor.id}`, 10, 60 * 60_000);
   if (!rl.ok) throw new ContentError("Kamu sudah banyak melapor dalam 1 jam terakhir. Coba lagi nanti.");
+  if (!REASONS_BY_TARGET[type].includes(reason)) throw new ContentError("Alasan laporan tidak cocok untuk konten ini.");
   const target = await loadTarget(type, id);
   if (!target || target.deletedAt) throw new ContentError("Konten ini sudah tidak tersedia.");
-  if (target.authorId === actor.id) throw new ContentError("Tidak bisa melaporkan postingan sendiri.");
+  if (target.authorId === actor.id) {
+    throw new ContentError(type === "user" ? "Tidak bisa melaporkan akun sendiri." : type === "product" ? "Tidak bisa melaporkan karya sendiri." : "Tidak bisa melaporkan postingan sendiri.");
+  }
 
   const [author] = await db.select({ name: users.displayName, username: users.username }).from(users).where(eq(users.id, target.authorId));
   const inserted = await db
@@ -133,7 +168,7 @@ export async function reportContent(actor: ContentActor, type: ContentTargetType
     .from(reports)
     .where(and(eq(reports.targetType, type), eq(reports.targetId, id), eq(reports.status, "open")));
   let hidden = Boolean(target.reportHiddenAt || target.hiddenAt);
-  if (!hidden && n >= FORUM_LIMITS.reportHideThreshold) {
+  if (!hidden && AUTO_HIDE_TARGETS.includes(type) && n >= FORUM_LIMITS.reportHideThreshold) {
     await setReportHidden(type, id, true);
     await logSecurityEvent("content_auto_hidden", { userId: target.authorId, meta: { type, id, reports: n } });
     hidden = true;
@@ -200,7 +235,7 @@ export async function listContentReportGroups(limit = 50): Promise<ContentReport
       (array_agg(r.snapshot order by r.created_at))[1] as snapshot,
       json_agg(json_build_object('reporter', u.username, 'reason', r.reason, 'note', r.note, 'at', r.created_at) order by r.created_at) as items
     from ${reports} r join ${users} u on u.id = r.reporter_id
-    where r.status = 'open' and r.target_type in ('forum_thread', 'forum_reply', 'review')
+    where r.status = 'open' and r.target_type in ('forum_thread', 'forum_reply', 'review', 'product', 'user')
     group by r.target_type, r.target_id
     order by count(*) desc, max(r.created_at) desc
     limit ${limit}
@@ -241,6 +276,15 @@ export async function countOpenContentReports() {
   const [r] = await db
     .select({ n: sql<number>`count(distinct (${reports.targetType}, ${reports.targetId}))::int` })
     .from(reports)
-    .where(and(eq(reports.status, "open"), inArray(reports.targetType, ["forum_thread", "forum_reply", "review"])));
+    .where(and(eq(reports.status, "open"), inArray(reports.targetType, ["forum_thread", "forum_reply", "review", "product", "user"])));
   return r?.n ?? 0;
+}
+
+/** Moderator menangguhkan produk yang dilaporkan: hilang dari katalog & tidak bisa diunduh, seller melihat alasannya. */
+export async function suspendReportedProduct(staffId: string, productId: string, reason: string) {
+  const r = reason.trim().slice(0, 300) || "Melanggar aturan konten (dari laporan anggota)";
+  await db.update(products).set({ status: "suspended", rejectionReason: r, isFeatured: false }).where(eq(products.id, productId));
+  await resolveReports("product", productId, staffId, "resolved", "suspended");
+  await db.insert(moderationActions).values({ moderatorId: staffId, targetType: "product", targetId: productId, action: "suspend", note: r });
+  await logSecurityEvent("admin_hide_content", { userId: staffId, meta: { type: "product", id: productId, reason: r } });
 }

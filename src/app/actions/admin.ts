@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { blockedHashes, moderationActions, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";
+import { announceProductPublished, announceReleasePublished } from "@/lib/follows";
 import { notifyAndEmail } from "@/lib/notifications/server";
 import { storage } from "@/lib/storage";
 
@@ -65,6 +66,8 @@ export async function approveProductAction(formData: FormData) {
   });
   await log(staff.id, "product", productId, "approve", str(formData, "note") || (checkAndroid ? "Bukti verifikasi Android dicek" : null));
   await notifyAndEmail({ userId: product.sellerId, type: "product_approved", actorId: staff.id, url: `/p/${product.slug}`, data: { productTitle: product.title } });
+  // Tayang pertama kali → kabari pengikut seller
+  if (!product.publishedAt) await announceProductPublished(productId);
   revalidatePath("/", "layout");
   redirect("/admin/review?hasil=disetujui");
 }
@@ -116,6 +119,7 @@ export async function approveReleaseAction(formData: FormData) {
   await db.update(releaseFiles).set({ scanStatus: "clean" }).where(eq(releaseFiles.releaseId, releaseId));
   await db.update(products).set({ updatedAt: now }).where(eq(products.id, release.productId));
   await log(staff.id, "release", releaseId, "approve", `v${release.version}`);
+  await announceReleasePublished(releaseId);
   revalidatePath("/", "layout");
   redirect("/admin/review?hasil=rilis-disetujui");
 }

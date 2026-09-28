@@ -112,9 +112,12 @@ export function ChatApp({
 
   return (
     <TzContext.Provider value={tz}>
-      <div className="mx-auto max-w-7xl chat-wide:px-6 chat-wide:py-5">
-        {/* tinggi = layar − (banner 32 + header 65 + padding 40) ≈ 8.75rem → halaman tidak perlu discroll */}
-        <div className="chat-wide:grid chat-wide:h-[calc(100dvh-8.75rem)] chat-wide:min-h-[420px] chat-wide:grid-cols-[320px_minmax(0,1fr)] chat-wide:overflow-hidden chat-wide:rounded-[28px] chat-wide:border chat-wide:border-slate-200/80 chat-wide:bg-white chat-wide:shadow-xl chat-wide:shadow-slate-900/5 chat-wide-lg:grid-cols-[360px_minmax(0,1fr)]">
+      {/*
+        Layar penuh tanpa kartu (desktop/tablet): mengisi sisa layar di bawah header dari tepi ke tepi.
+        Tinggi diatur globals.css (body:has(.chat-shell) → flex column); calc di bawah hanya cadangan browser tanpa :has().
+      */}
+      <div className="chat-shell chat-wide:h-[calc(100dvh-6.0625rem)]">
+        <div className="chat-wide:grid chat-wide:h-full chat-wide:grid-cols-[320px_minmax(0,1fr)] chat-wide:overflow-hidden chat-wide:bg-white chat-wide-lg:grid-cols-[360px_minmax(0,1fr)] min-[1600px]:grid-cols-[400px_minmax(0,1fr)]">
           <aside className={cn("flex min-h-0 flex-col bg-white chat-wide:border-r chat-wide:border-slate-200/80", room && "chat-narrow:hidden")}>
             <RoomList rooms={rooms} activeSlug={activeSlug} viewer={viewer} memberCount={memberCount} />
           </aside>

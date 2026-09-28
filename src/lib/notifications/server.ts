@@ -4,7 +4,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { after } from "next/server";
 import { db } from "@/lib/db";
 import { notifications, users, type NotificationData, type NotifyPrefs } from "@/lib/db/schema";
-import { appUrl, emailConfigured, renderEmail, sendEmail } from "@/lib/email";
+import { appUrl, emailConfigured, renderEmail, sendEmail, sendEmailBatch, type EmailMessage } from "@/lib/email";
 import { safeNextPath } from "@/lib/slug";
 import { mediaUrl } from "@/lib/storage";
 import { signToken, verifyToken } from "@/lib/tokens";
@@ -148,6 +148,7 @@ async function deliverNotificationEmails(ids: number[]) {
     .where(inArray(notifications.id, ids));
 
   const base = appUrl();
+  const outbox: EmailMessage[] = [];
   for (const r of rows) {
     if (!isNotificationType(r.type)) continue;
     const meta = NOTIFICATION_TYPES[r.type];
@@ -171,7 +172,7 @@ async function deliverNotificationEmails(ids: number[]) {
       footnote: `Kamu menerima email ini karena notifikasi "${category.label}" aktif.`,
       unsubscribeUrl: `${base}/notifikasi/berhenti?t=${encodeURIComponent(token)}`,
     });
-    await sendEmail({
+    outbox.push({
       to: r.email,
       subject: title,
       html,
@@ -183,6 +184,9 @@ async function deliverNotificationEmails(ids: number[]) {
       },
     });
   }
+  // Sedikit = kirim satu-satu; banyak (mis. versi baru ke semua pengikut) = batch 100 per request.
+  if (outbox.length <= 2) for (const m of outbox) await sendEmail(m);
+  else await sendEmailBatch(outbox);
 }
 
 // ─── Baca ────────────────────────────────────────────────────────────────────

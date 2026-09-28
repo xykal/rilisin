@@ -251,6 +251,47 @@ Kecepatan belok sekarang tergantung kecepatan — becak yang pelan nggak bisa be
     ],
   },
   {
+    key: "devlogkasirku",
+    cat: "devlog",
+    by: "nusantaralabs",
+    days: 13,
+    product: "kasirku",
+    title: "KasirKu v2.0: versi Windows, laporan bulanan, dan backup data",
+    body: `Halo pengguna KasirKu! Ini devlog pertama kami di Rilisin 🙌
+
+**Yang baru di v2.0**
+- Versi **Windows portable** — cukup ekstrak, tanpa instalasi
+- Laporan bulanan & daftar barang terlaris
+- **Backup/pulihkan data** ke file (aman kalau ganti HP)
+
+**Lagi dikerjakan untuk v2.1**
+- Multi kasir (shift pagi/malam)
+- Diskon per barang
+- Ekspor laporan ke CSV (request dari forum)
+
+Terima kasih buat semua yang sudah kasih masukan di forum & ulasan!`,
+    votes: ["rina", "siti11", "andi10", "dewi13"],
+    replies: [{ by: "siti11", h: 5, body: "Backup-nya penting banget, kemarin HP saya rusak untung sempat backup. Ditunggu multi kasirnya!", votes: ["nusantaralabs"] }],
+  },
+  {
+    key: "devlogkancil",
+    cat: "devlog",
+    by: "pixelrantau",
+    days: 8,
+    product: "kancil",
+    title: "Devlog #7 Si Kancil: di balik level hutan bakau",
+    body: `Level hutan bakau di v1.4 ternyata yang paling lama kami kerjakan — 3 minggu cuma untuk 5 level 😅
+
+**Tantangannya**
+1. Air pasang-surut bikin platform naik-turun → harus tetap adil buat anak kecil
+2. Palet warna bakau gelap, jadi kontras sprite kami naikkan
+3. Ukuran game harus tetap kecil (target < 35 MB)
+
+Hasilnya ukuran justru turun jadi 31 MB karena semua tekstur kami kompres ulang. Level berikutnya: **Pasar Terapung**. Pengikut game ini dapat kabar duluan!`,
+    votes: ["ayu25", "citra27", "rina"],
+    replies: [{ by: "ayu25", h: 30, body: "Pasar Terapung! Anak saya pasti heboh. Semangat Pixel Rantau 💪" }],
+  },
+  {
     key: "santri",
     cat: "request",
     by: "hendra22",
@@ -529,6 +570,54 @@ export async function seedCommunity(db: Db, ctx: { userIds: Map<string, string>;
     }
   }
 
+  // ── Ikuti: pemilik otomatis mengikuti produknya (sama seperti aplikasi) + beberapa anggota mengikuti seller.
+  // maya23, oki38, rizky14, kartika34 sengaja dibiarkan bersih untuk smoke test.
+  await db.execute(sql`insert into follows (user_id, target_type, target_id, created_at)
+    select user_id, 'product', product_id, created_at from entitlements on conflict do nothing`);
+  const RESERVED = new Set(["maya23", "oki38", "rizky14", "kartika34"]);
+  const sellerFans: Record<string, string[]> = {
+    nusantaralabs: ["rina", "andi10", "siti11", "budi12", "dewi13", "eko28", "hendra22", "fitri29", "galih30"],
+    pixelrantau: ["rina", "ayu25", "citra27", "bayu26", "hana31", "mega36", "joko33"],
+    dapurkode: ["nanda37", "lukman35", "irfan32", "oki38"],
+    rintisdesain: ["indah19", "yoga20", "citra27"],
+    bukuterbuka: ["budi12", "fajar16"],
+  };
+  for (const [seller, fans] of Object.entries(sellerFans)) {
+    for (const [i, fan] of fans.entries()) {
+      if (RESERVED.has(fan)) continue;
+      await db.insert(schema.follows).values({ userId: uid(fan), targetType: "seller", targetId: uid(seller), createdAt: new Date(now - (20 - i) * DAY) }).onConflictDoNothing();
+    }
+  }
+  const reportSnapshot = async (type: "product" | "user", id: string) => {
+    if (type === "product") {
+      const [p] = await db.select({ title: schema.products.title, summary: schema.products.summary, slug: schema.products.slug, sellerId: schema.products.sellerId }).from(schema.products).where(eq(schema.products.id, id));
+      const [a] = await db.select({ name: schema.users.displayName, username: schema.users.username }).from(schema.users).where(eq(schema.users.id, p!.sellerId));
+      return { title: p!.title, body: p!.summary, authorId: p!.sellerId, authorName: a?.name, authorUsername: a?.username, context: "Produk", url: `/p/${p!.slug}` };
+    }
+    const [u] = await db.select({ name: schema.users.displayName, username: schema.users.username, bio: schema.users.bio }).from(schema.users).where(eq(schema.users.id, id));
+    return { title: u!.name, body: u!.bio ?? "", authorId: id, authorName: u!.name, authorUsername: u!.username, context: "Profil", url: `/@${u!.username}` };
+  };
+  await db.insert(schema.reports).values([
+    {
+      reporterId: uid("agus18"),
+      targetType: "product",
+      targetId: productIds.get("laravelpos")!,
+      reason: "penipuan",
+      note: "File zip rusak waktu saya beli, seller tidak merespons (sudah di-refund).",
+      snapshot: await reportSnapshot("product", productIds.get("laravelpos")!),
+      createdAt: new Date(now - 12 * DAY),
+    },
+    {
+      reporterId: uid("joko33"),
+      targetType: "user",
+      targetId: uid("agus18"),
+      reason: "spam",
+      note: "Promosi toko laptop di thread Warung Kopi.",
+      snapshot: await reportSnapshot("user", uid("agus18")),
+      createdAt: new Date(now - 1 * DAY),
+    },
+  ]);
+
   // ── Notifikasi contoh untuk akun demo (tanpa email)
   const productUrl = (key: string) => `/p/${key}`;
   const slugOf = async (key: string) => {
@@ -584,6 +673,12 @@ export async function seedCommunity(db: Db, ctx: { userIds: Map<string, string>;
   push({ userId: uid("bukuterbuka"), type: "forum_accepted", actorId: uid("budi12"), url: `/forum/t/${threadIds.get("flutter")}?balasan=${flutterReplies[0]!.id}#b-${flutterReplies[0]!.id}`, data: { threadTitle: threadTitles.get("flutter")! }, at: ago(3, 20) });
   push({ userId: uid("dapurkode"), type: "forum_accepted", actorId: uid("nanda37"), url: `/forum/t/${threadIds.get("nextcache")}?balasan=${nextReplies[0]!.id}#b-${nextReplies[0]!.id}`, data: { threadTitle: threadTitles.get("nextcache")! }, at: ago(11, 20), read: true });
   push({ userId: uid("tim_rilisin"), type: "forum_reply", actorId: uid("pixelrantau"), url: `/forum/t/${threadIds.get("welcome")}`, data: { threadTitle: threadTitles.get("welcome")!, snippet: "Siap! Devlog game kami nanti ditaruh di kategori Devlog ya." }, groupKey: `forum_reply:${threadIds.get("welcome")}`, count: 2, at: ago(19, 16) });
+  const devlogKancil = threadIds.get("devlogkancil")!;
+  push({ userId: uid("rina"), type: "product_devlog", actorId: uid("pixelrantau"), url: `/forum/t/${devlogKancil}`, data: { productTitle: kancil.title, threadTitle: threadTitles.get("devlogkancil")!, snippet: "Level hutan bakau di v1.4 ternyata yang paling lama kami kerjakan…" }, groupKey: `product_devlog:${productIds.get("kancil")}`, at: ago(8, 1) });
+  push({ userId: uid("rina"), type: "product_update", actorId: uid("nusantaralabs"), url: `/p/${kasirku.slug}`, data: { productTitle: kasirku.title, version: "2.0.0", snippet: "Baru: versi Windows (portable), laporan bulanan & barang terlaris, backup/pulihkan data" }, at: ago(12), read: true });
+  const becak = await slugOf("becak");
+  push({ userId: uid("rina"), type: "product_new", actorId: uid("pixelrantau"), url: `/p/${becak.slug}`, data: { productTitle: becak.title, sellerName: "Pixel Rantau Studio", snippet: "Game balap becak antar kota" }, at: ago(25), read: true });
+  push({ userId: uid("nusantaralabs"), type: "new_follower", actorId: uid("galih30"), url: "/@galih30", data: {}, groupKey: `new_follower:${uid("nusantaralabs")}`, count: 3, at: ago(0, 6) });
   if (notes.length) await db.insert(schema.notifications).values(notes);
 
   const [{ n: threads } = { n: 0 }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.forumThreads);

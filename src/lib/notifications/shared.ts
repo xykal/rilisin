@@ -23,6 +23,12 @@ export const NOTIFICATION_CATEGORIES = [
     description: "Balasan di thread kamu, mention @username, jawaban terbaik. Maksimal satu email per thread sampai kamu membukanya.",
     emailDefault: true,
   },
+  {
+    id: "diikuti",
+    label: "Update yang kamu ikuti",
+    description: "Versi baru & devlog dari karya yang kamu ikuti (otomatis untuk karya yang kamu unduh/beli), karya baru dari seller yang kamu ikuti.",
+    emailDefault: false,
+  },
 ] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number]["id"];
 
@@ -41,6 +47,10 @@ export const NOTIFICATION_TYPES = {
   forum_accepted: { category: "komunitas", email: true },
   chat_reply: { category: "komunitas", email: false },
   chat_mention: { category: "komunitas", email: false },
+  product_update: { category: "diikuti", email: true },
+  product_new: { category: "diikuti", email: true },
+  product_devlog: { category: "diikuti", email: true },
+  new_follower: { category: "karya", email: false },
 } as const satisfies Record<string, { category: NotificationCategory; email: boolean }>;
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
 
@@ -123,6 +133,20 @@ export function describeNotification(n: Describable): { title: string; body: str
       return many
         ? { title: `Kamu disebut ${n.count}× di #${str(d.roomName, 40)}`, body: snippet ? `${who}: ${snippet}` : null }
         : { title: `${who} menyebut kamu di #${str(d.roomName, 40)}`, body: snippet };
+    case "product_update":
+      return many
+        ? { title: `${str(d.productTitle)} punya ${n.count} versi baru`, body: `Terbaru: v${str(d.version, 30)}. ${snippet ?? ""}`.trim() }
+        : { title: `Versi baru ${str(d.productTitle)} v${str(d.version, 30)}`, body: snippet ?? "Buka Library untuk mengunduh versi terbaru." };
+    case "product_new":
+      return many
+        ? { title: `${str(d.sellerName) || who} merilis ${n.count} karya baru`, body: `Terbaru: ${str(d.productTitle)}` }
+        : { title: `${str(d.sellerName) || who} merilis karya baru: ${str(d.productTitle)}`, body: snippet };
+    case "product_devlog":
+      return many
+        ? { title: `${n.count} devlog baru dari ${str(d.productTitle)}`, body: `Terbaru: ${quote(d.threadTitle)}` }
+        : { title: `Devlog baru ${str(d.productTitle)}: ${quote(d.threadTitle)}`, body: snippet };
+    case "new_follower":
+      return many ? { title: `${n.count} pengikut baru`, body: `Terakhir: ${who}` } : { title: `${who} mulai mengikutimu`, body: "Mereka akan dapat kabar saat kamu merilis karya baru." };
     default:
       return { title: "Notifikasi baru", body: snippet };
   }

@@ -7,6 +7,7 @@
  *  - Fase 3: komunitas — ulasan & rating (khusus pemilik), forum (thread/balasan/upvote/jawaban terbaik),
  *    notifikasi in-app + email, reset password lewat email.
  *    Penghitung (rating produk, jumlah balasan, skor vote) dijaga trigger database, bukan kode aplikasi.
+ *  - Fase 3b: ikuti seller/produk (notifikasi karya baru, versi baru, devlog), lapor produk & profil.
  */
 import { relations, sql } from "drizzle-orm";
 import {
@@ -688,6 +689,28 @@ export const forumVotes = pgTable(
     primaryKey({ columns: [t.userId, t.targetType, t.targetId] }),
     index("forum_votes_target_idx").on(t.targetType, t.targetId),
     check("forum_votes_type_check", sql`target_type in ('thread', 'reply')`),
+  ],
+);
+
+// ─── Ikuti (Fase 3b) ────────────────────────────────────────────────────────
+/**
+ * Mengikuti seller (karya baru) atau produk (versi baru & devlog). Pemilik produk otomatis mengikuti
+ * saat pertama kali mengunduh / membeli (bisa berhenti kapan saja).
+ */
+export const follows = pgTable(
+  "follows",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetType: text("target_type").notNull(), // seller | product
+    targetId: uuid("target_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.targetType, t.targetId] }),
+    index("follows_target_idx").on(t.targetType, t.targetId),
+    check("follows_type_check", sql`target_type in ('seller', 'product')`),
   ],
 );
 

@@ -1,4 +1,4 @@
-import { AtSign, Banknote, CheckCircle2, MessageCircle, MessagesSquare, PackageCheck, PackageX, ReceiptText, Star, Wallet, XCircle, type LucideIcon } from "lucide-react";
+import { AtSign, Banknote, CheckCircle2, MessageCircle, MessagesSquare, Newspaper, PackageCheck, PackagePlus, PackageX, ReceiptText, RefreshCw, Star, UserPlus, Wallet, XCircle, type LucideIcon } from "lucide-react";
 import { cn } from "./ui";
 
 const MAP: Record<string, { icon: LucideIcon; tone: string }> = {
@@ -15,6 +15,10 @@ const MAP: Record<string, { icon: LucideIcon; tone: string }> = {
   forum_accepted: { icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-600" },
   chat_reply: { icon: MessagesSquare, tone: "bg-sky-50 text-sky-600" },
   chat_mention: { icon: AtSign, tone: "bg-violet-50 text-violet-600" },
+  product_update: { icon: RefreshCw, tone: "bg-brand-50 text-brand-600" },
+  product_new: { icon: PackagePlus, tone: "bg-brand-50 text-brand-600" },
+  product_devlog: { icon: Newspaper, tone: "bg-sky-50 text-sky-600" },
+  new_follower: { icon: UserPlus, tone: "bg-violet-50 text-violet-600" },
 };
 
 export function NotificationIcon({ type, className }: { type: string; className?: string }) {

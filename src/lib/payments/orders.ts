@@ -6,6 +6,7 @@ import type { CurrentUser } from "@/lib/auth/current-user";
 import { db } from "@/lib/db";
 import { entitlements, ledgerEntries, orders, paymentEvents, products, sellerProfiles, users, type Order } from "@/lib/db/schema";
 import { escapeHtml, sendEmail } from "@/lib/email";
+import { autoFollowProduct } from "@/lib/follows";
 import { notifyAndEmail } from "@/lib/notifications/server";
 import { formatDateTime, formatRupiah } from "@/lib/format";
 import { rateLimit } from "@/lib/rate-limit";
@@ -144,7 +145,10 @@ export async function createOrder(
         .values({ userId: buyer.id, productId: p.id, source: "free" })
         .onConflictDoNothing()
         .returning({ id: entitlements.id });
-      if (ins.length) await db.update(products).set({ downloadCount: sql`${products.downloadCount} + 1` }).where(eq(products.id, p.id));
+      if (ins.length) {
+        await db.update(products).set({ downloadCount: sql`${products.downloadCount} + 1` }).where(eq(products.id, p.id));
+        await autoFollowProduct(db, buyer.id, p.id);
+      }
       return { kind: "claimed" };
     }
     const floor = Math.max(p.minPriceIdr, PRICE_LIMITS.pwywFloor);
@@ -281,6 +285,7 @@ export async function applyPaymentCompleted(evt: PaymentEventInput) {
       .returning({ id: entitlements.id });
     if (ins.length) {
       await tx.update(products).set({ downloadCount: sql`${products.downloadCount} + 1` }).where(eq(products.id, o.productId));
+      await autoFollowProduct(tx, o.buyerId, o.productId);
     }
     if (o.sellerEarningIdr > 0) {
       await tx

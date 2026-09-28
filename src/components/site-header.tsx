@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, KeyRound, Library, LogOut, ReceiptText, Search, ShieldCheck, Store, UserRound } from "lucide-react";
+import { Bell, BellRing, ChevronDown, KeyRound, Library, LogOut, ReceiptText, Search, ShieldCheck, Store, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { logoutAction } from "@/app/actions/auth";
@@ -103,11 +103,12 @@ export async function SiteHeader() {
                     <Link href="/seller" className={menuItem}>
                       <Store className="h-4 w-4" /> {user.seller ? "Seller Center" : "Mulai jualan / berbagi"}
                     </Link>
-                    {user.seller && (
-                      <Link href={`/@${user.username}`} className={menuItem}>
-                        <UserRound className="h-4 w-4" /> Profil publik
-                      </Link>
-                    )}
+                    <Link href="/akun/diikuti" className={menuItem}>
+                      <BellRing className="h-4 w-4" /> Diikuti
+                    </Link>
+                    <Link href={`/@${user.username}`} className={menuItem}>
+                      <UserRound className="h-4 w-4" /> Profil publik
+                    </Link>
                     <Link href="/akun/keamanan" className={menuItem}>
                       <KeyRound className="h-4 w-4" /> Keamanan akun
                       {!user.mfaEnabled && <span className="ml-auto rounded-full bg-amber-100 px-2 text-[10px] font-bold text-amber-800">2FA off</span>}
