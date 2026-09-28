@@ -1,0 +1,74 @@
+# Uji worker antivirus dengan ClamAV sungguhan + file uji EICAR (bukan malware sungguhan).
+# Terpisah dari CI utama karena ClamAV perlu mengunduh database signature (±2–3 menit). Ini PENGUJIAN kode —
+# pemindaian produksi berjalan di server worker sendiri (lihat scanner/), bukan di GitHub Actions.
+name: Antivirus (ClamAV)
+
+on:
+  push:
+    branches: [main]
+    paths: ["scanner/**", "src/lib/scan.ts", "src/app/api/internal/**", "scripts/test-scanner.ts", ".github/workflows/scanner.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["scanner/**", "src/lib/scan.ts", "src/app/api/internal/**", "scripts/test-scanner.ts", ".github/workflows/scanner.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  clamav:
+    name: Worker + ClamAV (EICAR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: rilisin
+          POSTGRES_PASSWORD: rilisin
+          POSTGRES_DB: rilisin
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rilisin -d rilisin"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      clamav:
+        image: clamav/clamav:stable
+        ports: ["3310:3310"]
+    env:
+      DATABASE_URL: postgres://rilisin:rilisin@localhost:5432/rilisin
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: .local/storage
+      PAYMENT_PROVIDER: mock
+      REQUIRE_STAFF_2FA: "0"
+      APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+      CLAMD_HOST: localhost
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Rahasia acak (khusus run ini)
+        run: |
+          for name in APP_SECRET SCAN_WORKER_TOKEN; do
+            s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+            echo "::add-mask::$s"
+            echo "$name=$s" >> "$GITHUB_ENV"
+          done
+      - name: Migrasi + data demo
+        run: npx tsx scripts/seed.ts
+      - name: Build
+        run: npm run build
+      - name: Jalankan server
+        run: |
+          npm run start > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/ && exit 0; sleep 1; done
+          echo "server tidak menyala"; cat server.log; exit 1
+      - name: Worker memindai antrean (termasuk EICAR)
+        run: npx tsx scripts/test-scanner.ts
+      - name: Log server (kalau gagal)
+        if: failure()
+        run: tail -n 200 server.log || true

@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { forumReplies, forumThreads, moderationActions, productReviews, products, reports, users } from "@/lib/db/schema";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
 import { ContentError, type ContentActor } from "./guard";
 import { AUTO_HIDE_TARGETS, FORUM_LIMITS, REASONS_BY_TARGET, replyPath, threadPath, type ContentReportReason, type ContentTargetType } from "./shared";
@@ -138,7 +138,7 @@ async function setModHidden(type: ContentTargetType, id: string, by: string | nu
  * FORUM_LIMITS.reportHideThreshold orang berbeda (menunggu keputusan moderator).
  */
 export async function reportContent(actor: ContentActor, type: ContentTargetType, id: string, reason: ContentReportReason, note?: string) {
-  const rl = rateLimit(`content:report:${actor.id}`, 10, 60 * 60_000);
+  const rl = await sharedLimit(`content:report:${actor.id}`, 10, 60 * 60_000);
   if (!rl.ok) throw new ContentError("Kamu sudah banyak melapor dalam 1 jam terakhir. Coba lagi nanti.");
   if (!REASONS_BY_TARGET[type].includes(reason)) throw new ContentError("Alasan laporan tidak cocok untuk konten ini.");
   const target = await loadTarget(type, id);

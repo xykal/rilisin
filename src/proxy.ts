@@ -7,14 +7,15 @@ import { NextResponse, type NextRequest } from "next/server";
  * 1. Kunci situs (opsional, untuk staging): kalau SITE_LOCK_PASSWORD diisi, setiap request wajib HTTP Basic Auth —
  *    termasuk /api/* dan request prefetch (supaya kunci tidak bisa dilewati dengan header next-router-prefetch).
  *    Pengecualian: webhook payment gateway (dipanggil server gateway), berhenti-langganan satu klik dari email
- *    (dipanggil server Gmail/Yahoo, diotorisasi token HMAC) & /.well-known/*.
+ *    (dipanggil server Gmail/Yahoo, diotorisasi token HMAC), cron harian (CRON_SECRET), worker antivirus
+ *    (SCAN_WORKER_TOKEN) & /.well-known/*.
  * 2. Content-Security-Policy dengan nonce acak per request untuk halaman (bukan API/prefetch).
  *    Hanya script ber-nonce (dari Next.js sendiri) yang boleh jalan → XSS jauh lebih sulit dieksploitasi.
  *
  * FRAME_ANCESTORS: siapa yang boleh menampilkan situs ini di dalam iframe.
  *   production → 'none' (default, anti clickjacking) · preview demo → *
  */
-const LOCK_EXEMPT = /^\/(api\/payments\/[a-z]+\/webhook|api\/notifications\/unsubscribe$|\.well-known\/|robots\.txt$)/;
+const LOCK_EXEMPT = /^\/(api\/payments\/[a-z]+\/webhook|api\/notifications\/unsubscribe$|api\/cron\/|api\/internal\/scan\/|\.well-known\/|robots\.txt$)/;
 
 function sameSecret(a: string, b: string) {
   const ab = Buffer.from(a);
@@ -53,21 +54,23 @@ export function proxy(request: NextRequest) {
   const dev = process.env.NODE_ENV === "development";
   const frameAncestors = process.env.FRAME_ANCESTORS?.trim() || "'none'";
   const blob = process.env.STORAGE_DRIVER === "vercel-blob";
+  // Cloudflare Turnstile: script (dimuat dengan nonce) + iframe tantangan dari challenges.cloudflare.com
+  const cf = Boolean(process.env.TURNSTILE_SITE_KEY) ? " https://challenges.cloudflare.com" : "";
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${cf}${dev ? " 'unsafe-eval'" : ""}`,
     // atribut style={...} dari React butuh 'unsafe-inline' (CSS tidak bisa menjalankan script)
     "style-src 'self' 'unsafe-inline'",
     // Vercel Blob: gambar dari store publik, upload presigned ke vercel.com/api/blob, download = redirect ke store privat
     `img-src 'self' blob: data:${blob ? " https://*.public.blob.vercel-storage.com" : ""}`,
     "font-src 'self'",
-    `connect-src 'self'${blob ? " https://vercel.com" : ""}`,
+    `connect-src 'self'${blob ? " https://vercel.com" : ""}${cf}`,
     "media-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     `form-action 'self'${blob ? " https://*.private.blob.vercel-storage.com" : ""}`,
     `frame-ancestors ${frameAncestors}`,
-    "frame-src 'none'",
+    cf ? `frame-src${cf}` : "frame-src 'none'",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
   ].join("; ");

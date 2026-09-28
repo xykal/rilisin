@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { follows, notifications, products, releases, sellerProfiles, users, type NotificationData } from "@/lib/db/schema";
 import { notify, queueNotificationEmails } from "@/lib/notifications/server";
 import { NOTIFICATION_TYPES, type NotificationType } from "@/lib/notifications/shared";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 
 export type FollowTarget = "seller" | "product";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -29,7 +29,7 @@ export async function getFollowState(viewerId: string | null | undefined, type: 
 
 /** Ikuti / berhenti mengikuti. Seller yang diikuti dapat notifikasi (digabung selama belum dibaca). */
 export async function toggleFollow(user: CurrentUser, type: FollowTarget, id: string) {
-  const rl = rateLimit(`follow:${user.id}`, 60, 60_000);
+  const rl = await sharedLimit(`follow:${user.id}`, 60, 60_000);
   if (!rl.ok) throw new ContentError("Terlalu sering, tunggu sebentar.");
   if (type === "seller") {
     if (id === user.id) throw new ContentError("Tidak bisa mengikuti diri sendiri.");

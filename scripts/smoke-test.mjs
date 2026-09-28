@@ -20,6 +20,7 @@ const BASIC = process.env.SMOKE_BASIC_AUTH ? `Basic ${Buffer.from(process.env.SM
 // Password akun demo: sama dengan SEED_DEMO_PASSWORD saat seed (staging tidak memakai default).
 const DEMO_PW = process.env.SMOKE_DEMO_PASSWORD || process.env.SEED_DEMO_PASSWORD || "rilisin123";
 const authHeaders = () => (BASIC ? { authorization: BASIC } : {});
+const TURNSTILE_TEST_SITEKEY = "1x00000000000000000000AA";
 // Link download bertanda tangan: driver local (/api/storage/file?token=) atau Vercel Blob (store privat, presigned)
 const isSignedDownload = (loc) => loc.startsWith("/api/storage/file?token=") || /^https:\/\/[a-z0-9]+\.private\.blob\.vercel-storage\.com\/.+vercel-blob-signature=/.test(loc);
 let passed = 0;
@@ -97,6 +98,8 @@ class Session {
     for (const [k, v] of Object.entries(fields)) {
       for (const item of Array.isArray(v) ? v : [v]) fd.append(k, item);
     }
+    // Kunci uji Turnstile (CI): browser akan mengisi token dummy ini; staging (kunci asli + mode lunak) tanpa token.
+    if (!opts.noTurnstile && form.includes(`data-turnstile="${TURNSTILE_TEST_SITEKEY}"`)) fd.append("cf-turnstile-response", "XXXX.DUMMY.TOKEN.XXXX");
     return this.req(pagePath, { method: "POST", body: fd });
   }
   async login(email, password = DEMO_PW) {
@@ -985,6 +988,98 @@ async function register(s, username, password, extra = {}) {
   ok(dl.status === 303 && dk2.text.includes("Starter Kit Next.js Bahasa Indonesia"), "Unduh pertama kali → otomatis mengikuti update karya");
   await rina.submitForm("/akun/diikuti", dk2.text, `name="targetId" value="${skId}"`, {});
   ok(Boolean(skId) && !(await rina.html("/akun/diikuti")).text.includes("Starter Kit Next.js Bahasa Indonesia"), "Halaman Diikuti: bisa berhenti mengikuti");
+}
+
+// ─── 10. Fase 4: Turnstile, rate limit bersama, tugas harian & backup, antivirus ─
+{
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const as = async (email) => {
+    const s = new Session();
+    await s.login(email);
+    return s;
+  };
+  const daftar = await guest.html("/daftar");
+  const testKeys = daftar.text.includes(`data-turnstile="${TURNSTILE_TEST_SITEKEY}"`);
+  if (testKeys) {
+    const csp = daftar.res.headers.get("content-security-policy") ?? "";
+    ok(csp.includes("frame-src https://challenges.cloudflare.com") && daftar.text.includes("challenges.cloudflare.com/turnstile/v0/api.js"), "Turnstile: script & iframe Cloudflare diizinkan CSP di halaman daftar");
+    const bot = new Session();
+    const page = await bot.html("/daftar");
+    await sleep(1600);
+    const noToken = await bot.submitForm("/daftar", page.text, 'name="displayName"', { displayName: "Bot Tanpa Token", username: `bot${Date.now().toString(36)}`, email: `bot${Date.now().toString(36)}@contoh.test`, password: "Kopi-Susu-Gula-Aren-99" }, { noTurnstile: true });
+    ok(clean(await noToken.text()).includes("Selesaikan verifikasi keamanan"), "Turnstile: daftar tanpa token verifikasi ditolak");
+    // Login adaptif: 3× salah dari satu jaringan → wajib verifikasi
+    const tebak = new Session();
+    for (let i = 0; i < 3; i++) await tebak.login("akun-yang-tidak-ada-xyz@contoh.test", `salah-${i}`);
+    const lp = await tebak.html("/masuk");
+    ok(lp.text.includes(`data-turnstile="${TURNSTILE_TEST_SITEKEY}"`), "Turnstile: setelah 3× gagal masuk, halaman masuk menampilkan verifikasi");
+    const blocked = await tebak.submitForm("/masuk", lp.text, 'name="identifier"', { identifier: "akun-yang-tidak-ada-xyz@contoh.test", password: "salah-lagi", next: "/" }, { noTurnstile: true });
+    ok(clean(await blocked.text()).includes("Selesaikan verifikasi keamanan"), "Turnstile: percobaan berikutnya tanpa verifikasi ditolak");
+  } else {
+    console.log("  (Turnstile memakai kunci asli / mode lunak — uji token dummy dilewati; sudah diuji di CI)");
+  }
+
+  // Rate limit bersama (database): 12× minta reset dari satu jaringan → pasti ada yang ditolak.
+  // 12 (bukan 6): jendela fixed-window 15 menit bisa berganti tepat di tengah banjir, membagi hitungan ke dua
+  // ember. 12 permintaan terbagi ke maksimal 2 ember → salah satunya pasti melewati batas 5 (pigeonhole),
+  // jadi uji tidak lagi bergantung pada keberuntungan waktu.
+  const flood = new Session();
+  let ditolak = 0;
+  for (let i = 0; i < 12; i++) {
+    const page = await flood.html("/lupa-password");
+    await sleep(1600);
+    const teks = clean(await (await flood.submitForm("/lupa-password", page.text, 'data-form="forgot-password"', { email: `banjir${i}@contoh.test` })).text());
+    if (teks.includes("Terlalu banyak permintaan")) ditolak++;
+  }
+  ok(ditolak > 0, `Rate limit bersama: permintaan reset dari jaringan yang sama ditolak (${ditolak}/12)`);
+
+  // Tugas harian (cron) & halaman Sistem
+  const cronRes = await guest.req("/api/cron/harian");
+  ok(cronRes.status === 401 || cronRes.status === 503, "Cron harian: tanpa rahasia ditolak");
+  const adm = await as("admin@rilisin.test");
+  if (process.env.CRON_SECRET) {
+    const run = await fetch(`${BASE}/api/cron/harian`, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
+    const body = await run.json().catch(() => ({}));
+    ok(run.status === 200 && body.cleaned?.ok === true && body.backup?.ok === true && body.backup?.details?.bytes > 0, `Cron harian: pembersihan + backup terenkripsi berhasil (${body.backup?.details?.rows ?? "?"} baris)`);
+    const sys = await adm.html("/admin/sistem");
+    const bakKey = sys.text.match(/\/admin\/sistem\/unduh\?key=([^"&]+)/)?.[1];
+    ok(sys.res.status === 200 && sys.text.includes("Status pengaman") && Boolean(bakKey), "Halaman Sistem: status pengaman & daftar backup");
+    const dl = await adm.req(`/admin/sistem/unduh?key=${bakKey}`);
+    ok(dl.status === 200 || dl.status === 303, "Admin bisa mengunduh file backup terenkripsi");
+  } else {
+    console.log("  (CRON_SECRET tidak diberikan ke smoke test — uji cron dengan rahasia dilewati)");
+  }
+  const modS = await as("dimas24@contoh.test");
+  ok((await modS.req("/admin/sistem")).status === 404, "Halaman Sistem khusus admin (moderator 404)");
+
+  // Antivirus: protokol worker (smoke test berperan sebagai worker palsu)
+  const noAuth = await fetch(`${BASE}/api/internal/scan/claim`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  ok(noAuth.status === 401 || noAuth.status === 503, "Antivirus: klaim antrean tanpa token worker ditolak");
+  if (process.env.SCAN_WORKER_TOKEN) {
+    const W = { authorization: `Bearer ${process.env.SCAN_WORKER_TOKEN}`, "content-type": "application/json" };
+    const claim = await fetch(`${BASE}/api/internal/scan/claim`, { method: "POST", headers: W, body: JSON.stringify({ limit: 10, worker: "smoke", engine: "ClamAV 0.0.0-smoke/1" }) });
+    const { files = [] } = await claim.json();
+    ok(claim.status === 200 && files.length > 0 && files.every((f) => f.url && f.sha256), `Antivirus: worker mengklaim ${files.length} file + URL unduh bertanda tangan`);
+    const target = files.find((f) => f.filename === "apk-premium-pack.apk");
+    for (const f of files) {
+      const r = await fetch(`${BASE}/api/internal/scan/result`, { method: "POST", headers: W, body: JSON.stringify({ fileId: f.fileId, status: f === target ? "infected" : "clean", engine: "ClamAV 0.0.0-smoke/1", signature: f === target ? "Uji.Smoke.Malware" : null }) });
+      if (r.status !== 200) throw new Error(`hasil scan ditolak: ${r.status}`);
+    }
+    ok(Boolean(target), "Antivirus: hasil scan tiap file diterima");
+    const again = await (await fetch(`${BASE}/api/internal/scan/claim`, { method: "POST", headers: W, body: JSON.stringify({ limit: 10, worker: "smoke", engine: "x" }) })).json();
+    ok(!again.files.some((f) => files.some((g) => g.fileId === f.fileId)), "Antivirus: file yang sudah dipindai tidak diklaim ulang");
+    const queue = await adm.html("/admin/review");
+    const apkId = queue.text.match(/href="\/admin\/review\/([0-9a-f-]{36})"[^>]*>[\s\S]{0,400}?Kumpulan APK Premium Gratis/)?.[1] ?? queue.text.match(/Kumpulan APK Premium Gratis[\s\S]{0,600}?\/admin\/review\/([0-9a-f-]{36})/)?.[1];
+    const det = apkId ? await adm.html(`/admin/review/${apkId}`) : { text: "" };
+    ok(det.text.includes("MALWARE: Uji.Smoke.Malware"), "Antivirus: file terinfeksi ditandai MALWARE di halaman review moderator");
+    const fid = target.fileId;
+    ok((await adm.req(`/api/download/${fid}`, { method: "POST" })).status === 451, "Antivirus: file terinfeksi tidak bisa diunduh siapa pun (termasuk admin)");
+    const rv = await adm.html(`/admin/review/${apkId}`);
+    const approve = await adm.submitForm(`/admin/review/${apkId}`, rv.text, "Setujui &amp; tayangkan");
+    ok(approve.status === 303 && (approve.headers.get("location") ?? "").includes("error=malware"), "Antivirus: produk berisi malware tidak bisa disetujui moderator");
+  } else {
+    console.log("  (SCAN_WORKER_TOKEN tidak diberikan ke smoke test — uji protokol worker dilewati)");
+  }
 }
 
 console.log(`\nSemua ${passed} pengecekan lulus.`);

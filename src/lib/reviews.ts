@@ -6,7 +6,7 @@ import { REVIEW_LIMITS, plainSnippet } from "@/lib/community/shared";
 import { db } from "@/lib/db";
 import { entitlements, productReviews, products, releases, users } from "@/lib/db/schema";
 import { notifyAndEmail } from "@/lib/notifications/server";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 
 type Viewer = Pick<CurrentUser, "id" | "role"> | null;
 
@@ -154,7 +154,7 @@ async function loadProduct(productId: string) {
 
 /** Tulis / ubah ulasan (satu per orang per produk). Seller dapat notifikasi hanya untuk ulasan baru. */
 export async function saveReview(user: CurrentUser, productId: string, input: { rating: number; body: string }) {
-  const rl = rateLimit(`review:write:${user.id}`, 12, 60 * 60_000);
+  const rl = await sharedLimit(`review:write:${user.id}`, 12, 60 * 60_000);
   if (!rl.ok) throw new ContentError("Terlalu sering mengubah ulasan. Coba lagi nanti.");
   const product = await loadProduct(productId);
   const elig = await reviewEligibility(user, product);
@@ -223,7 +223,7 @@ export async function deleteReview(user: CurrentUser, productId: string) {
 
 /** Balasan seller (satu per ulasan, bisa diubah). Penulis ulasan dapat notifikasi. */
 export async function replyToReview(seller: CurrentUser, reviewId: string, text: string) {
-  const rl = rateLimit(`review:reply:${seller.id}`, 30, 60 * 60_000);
+  const rl = await sharedLimit(`review:reply:${seller.id}`, 30, 60 * 60_000);
   if (!rl.ok) throw new ContentError("Terlalu banyak balasan dalam 1 jam. Coba lagi nanti.");
   const [row] = await db
     .select({ review: productReviews, sellerId: products.sellerId, productTitle: products.title, slug: products.slug })

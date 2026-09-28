@@ -18,6 +18,8 @@ export interface StorageDriver {
   move(from: string, to: string): Promise<void>;
   remove(key: string): Promise<void>;
   publicUrl(key: string): string;
+  /** Daftar file di bawah awalan key (mis. "private/backups/") — dipakai retensi backup & pembersihan tmp. */
+  list(prefix: string): Promise<{ key: string; size: number; uploadedAt: Date }[]>;
   /** Signed URL download (berlaku singkat). Driver local: terikat ke user; vercel-blob: link bearer 5 menit. */
   downloadUrl(key: string, opts: { filename: string; userId: string; ttlSec: number }): Promise<string>;
 }

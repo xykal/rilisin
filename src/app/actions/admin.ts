@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth/guards";
@@ -42,6 +42,13 @@ export async function approveProductAction(formData: FormData) {
   const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
   if (!product || product.status !== "review") redirect("/admin/review");
 
+  const [infected] = await db
+    .select({ id: releaseFiles.id })
+    .from(releaseFiles)
+    .innerJoin(releases, eq(releases.id, releaseFiles.releaseId))
+    .where(and(eq(releases.productId, productId), eq(releaseFiles.scanStatus, "infected")))
+    .limit(1);
+  if (infected) redirect(`/admin/review/${productId}?error=malware`);
   const now = new Date();
   const checkAndroid = formData.get("androidChecked") === "on";
   await db.transaction(async (tx) => {
@@ -59,10 +66,7 @@ export async function approveProductAction(formData: FormData) {
       .update(releases)
       .set({ status: "published", publishedAt: now })
       .where(and(eq(releases.productId, productId), eq(releases.status, "review")));
-    await tx
-      .update(releaseFiles)
-      .set({ scanStatus: "clean" })
-      .where(sql`${releaseFiles.releaseId} in (select id from ${releases} where product_id = ${productId})`);
+    // Status scan TIDAK diubah di sini: persetujuan moderator bukan hasil antivirus (diisi worker scan).
   });
   await log(staff.id, "product", productId, "approve", str(formData, "note") || (checkAndroid ? "Bukti verifikasi Android dicek" : null));
   await notifyAndEmail({ userId: product.sellerId, type: "product_approved", actorId: staff.id, url: `/p/${product.slug}`, data: { productTitle: product.title } });
@@ -115,8 +119,9 @@ export async function approveReleaseAction(formData: FormData) {
   const [release] = await db.select().from(releases).where(eq(releases.id, releaseId)).limit(1);
   if (!release || release.status !== "review") redirect("/admin/review");
   const now = new Date();
+  const [infected] = await db.select({ id: releaseFiles.id }).from(releaseFiles).where(and(eq(releaseFiles.releaseId, releaseId), eq(releaseFiles.scanStatus, "infected"))).limit(1);
+  if (infected) redirect(`/admin/review/${release.productId}?error=malware`);
   await db.update(releases).set({ status: "published", publishedAt: now, rejectionReason: null }).where(eq(releases.id, releaseId));
-  await db.update(releaseFiles).set({ scanStatus: "clean" }).where(eq(releaseFiles.releaseId, releaseId));
   await db.update(products).set({ updatedAt: now }).where(eq(products.id, release.productId));
   await log(staff.id, "release", releaseId, "approve", `v${release.version}`);
   await announceReleasePublished(releaseId);

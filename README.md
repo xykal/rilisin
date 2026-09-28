@@ -1,4 +1,4 @@
-# Rilisin — prototype (Fase 1 + Fase 2 Pembayaran + Fase 3/3b Komunitas + Keamanan)
+# Rilisin — prototype (Fase 1 + Fase 2 Pembayaran + Fase 3/3b Komunitas + Fase 4 Keamanan & Operasi)
 
 > "Rumah karya developer Indonesia". Tempat share gratis & jual aplikasi, game, source code, template, aset desain, dan e-book — plus komunitas (chat grup + forum) dan ulasan dari pemilik asli.
 > **Rilisin** masih nama kerja: domain & merek belum dicek. Ganti nama cukup di `src/lib/config.ts`.
@@ -12,6 +12,7 @@ Blueprint lengkap ada di `../blueprint-store-komunitas.md`. Yang sudah jadi:
 - **Fase 2 (uang)** — checkout QRIS / Virtual Account (Pakasir API v2 + mode simulasi), pesanan, buku besar saldo seller, masa tahan 7 hari, pencairan dana, refund, panel keuangan admin.
 - **Fase 3 (komunitas)** — forum (tanya jawab dengan jawaban terbaik, diskusi per produk), ulasan & rating khusus pemilik, notifikasi in-app + email, lupa password lewat email.
 - **Fase 3b** — ikuti seller & produk (kabar karya baru, versi baru, devlog), devlog per produk, lapor produk & akun, profil anggota dengan lencana, chat komunitas layar penuh.
+- **Fase 4 (keamanan & operasi)** — scan malware otomatis (worker ClamAV terpisah, file terinfeksi diblokir + rilis ditolak), Cloudflare Turnstile di form rawan bot, rate limit bersama antar instance (Postgres), cron harian (pembersihan + backup database terenkripsi), halaman **Sistem** admin.
 
 Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 
@@ -44,6 +45,11 @@ Detail keamanan ada di [`SECURITY.md`](./SECURITY.md).
 | **Profil anggota (Fase 3b)** | `/@username` untuk semua anggota: lencana (Tim Rilisin, Moderator, Seller/terpercaya, Penjawab andal, Aktif di forum), statistik forum & ulasan, thread & balasan terbaru, ulasan yang ditulis, tombol ikuti & **laporkan akun** |
 | **Lapor produk & akun (Fase 3b)** | Alasan khusus per jenis (bajakan, malware, penipuan, akun palsu, …). Masuk antrean **Laporan konten**: produk bisa **ditangguhkan**, akun diblokir (admin). Tidak disembunyikan otomatis (mencegah laporan jahat dari pesaing) |
 | Chat layar penuh | Desktop/tablet: daftar ruang + obrolan mengisi seluruh layar di bawah header (tanpa kartu), HP: ruang obrolan layar penuh seperti aplikasi |
+| **Antivirus (Fase 4)** | Setiap file rilis masuk **antrean scan**. Worker terpisah (`scanner/`, ClamAV) mengklaim antrean lewat API internal bertoken → stream file → clamd `INSTREAM` (file tak pernah mendarat di disk worker). **Terinfeksi**: hash diblokir permanen, file dihapus, rilis otomatis **ditolak**, produk ditangguhkan kalau tak ada versi bersih, seller dikabari. File lama dipindai ulang tiap 30 hari (signature baru). `REQUIRE_CLEAN_SCAN=1` → file belum bersih tak bisa diunduh. Uji EICAR di CI (workflow `scanner.yml`) |
+| **Turnstile (Fase 4)** | Captcha tanpa teka-teki (Cloudflare) di daftar, lupa password, dan **masuk setelah 3× gagal** dari IP yang sama (pengguna normal tak terganggu). Verifikasi server-side (action + hostname diikat), gagal tertutup saat Cloudflare down. Kunci uji resmi dipakai CI |
+| **Rate limit bersama (Fase 4)** | Jalur sensitif (login, daftar, reset, lapor, chat, unduh, checkout) pakai limit fixed-window di **Postgres** (`INSERT … ON CONFLICT` atomik) → konsisten walau request jatuh ke instance Vercel berbeda. Database down → jatuh ke limit memori (fail-open terukur, situs tidak mati) |
+| **Cron harian & backup (Fase 4)** | Vercel Cron → `/api/cron/harian` (Bearer `CRON_SECRET`): pembersihan (sesi/token kedaluwarsa, notifikasi > 90 hari, upload mentah, isi pesan terhapus > 30 hari, pesanan lewat batas) + **backup database terenkripsi** (X25519 + AES-256-GCM, retensi 14 file, kunci privat tidak pernah ada di server). Restore teruji: `npm run backup:restore` |
+| **Halaman Sistem (Fase 4)** | `/admin/sistem` (khusus admin): status pengaman (2FA staf, Turnstile, worker scan, backup), riwayat tugas cron, daftar backup + unduh terenkripsi, picu tugas manual |
 | Halaman info | `/keamanan` (Pusat Keamanan), `/komunitas/aturan`, `/panduan/android`, `/.well-known/security.txt` |
 
 ## Akun demo
@@ -83,8 +89,12 @@ npm run build && npm run start  # buka http://localhost:3000
 | `npm run db:migrate` | Jalankan migrasi (tanpa menghapus data) |
 | `npm run db:generate` | Buat file migrasi baru setelah mengubah `src/lib/db/schema.ts` |
 | `npm run typecheck` / `npm run lint` | Cek TypeScript / ESLint |
-| `npm run test:smoke` | Tes end-to-end **143 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, checkout, pembayaran, saldo, pencairan, refund). Server harus jalan. Menambah data uji → jalankan `db:seed` lagi |
+| `npm run test:smoke` | Tes end-to-end **252 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, checkout, pembayaran, saldo, pencairan, refund, forum, ulasan, ikuti, Turnstile, rate limit bersama, cron+backup, protokol worker antivirus). Server harus jalan; isi `CRON_SECRET`/`SCAN_WORKER_TOKEN` di env shell supaya uji cron & worker ikut jalan. Menambah data uji → jalankan `db:seed` lagi |
 | `npm run test:pakasir` | Contract test adapter **Pakasir API v2** + webhook (16 pengecekan) memakai server Pakasir palsu — tidak menyentuh akun asli |
+| `npm run test:backup` | Uji bolak-balik backup: ekspor → enkripsi → dekripsi → restore ke database baru → cocokkan jumlah baris, saldo, rating, skor forum & sequence (butuh `DATABASE_URL`) |
+| `npm run test:scanner` | Uji worker antivirus dengan **ClamAV sungguhan** + file uji EICAR: deteksi → hash diblokir → file dihapus → rilis ditolak (butuh app jalan + clamd, lihat `.github/workflows/scanner.yml`) |
+| `npm run backup:keygen` | Buat pasangan kunci X25519 untuk backup: publik → env server, privat → simpan offline |
+| `npm run backup:restore -- <file.rlsbak> [--ganti]` | Pulihkan backup terenkripsi (butuh `BACKUP_PRIVATE_KEY` + `DATABASE_URL` database kosong) |
 | `npm run test:responsive -- <engine> <quick\|full>` | Audit tampilan: 36 halaman × 8 (quick) atau 25 (full) ukuran layar. Engine: `chromium`, `webkit`, `firefox`, `all`. Tambah `shots` untuk screenshot |
 | `npm run test:ui -- <engine>` | Cek komponen interaktif: laci menu, mega menu, dropdown akun, chat, overlay tahan pesan, sheet hapus |
 
@@ -241,6 +251,13 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
   - IP hanya disimpan sebagai hash;
   - IP dibaca dari proxy tepercaya (`TRUSTED_PROXY_HOPS`);
   - log keamanan & log moderasi.
+- **Fase 4:**
+  - **Turnstile** di form rawan bot (daftar, lupa password, masuk setelah 3× gagal) — verifikasi server-side, action & hostname diikat, gagal tertutup;
+  - rate limit jalur sensitif **di Postgres** (konsisten antar instance; kunci di-hash, tanpa IP/email mentah — UU PDP);
+  - **antivirus**: file rilis dipindai ClamAV sebelum boleh diunduh publik (opsional `REQUIRE_CLEAN_SCAN=1`), hash malware diblokir permanen;
+  - endpoint internal (`/api/cron/*`, `/api/internal/scan/*`) bertoken (timing-safe, min. 32 karakter) & mati total tanpa env — dikecualikan dari Basic Auth staging hanya untuk pemegang token;
+  - **backup terenkripsi** harian (X25519 + AES-256-GCM, integritas teruji, kunci privat offline) + retensi 14 file;
+  - pembersihan terjadwal data kedaluwarsa (sesi, token, notifikasi lama, upload yatim, isi pesan terhapus).
 
 ## Belum ada / batasan prototype
 
@@ -253,13 +270,12 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
   - belum ada login Google, verifikasi email, dan reset password (butuh layanan email/Google Cloud, dikerjakan saat deploy);
   - admin belum *wajib* 2FA di demo (`REQUIRE_STAFF_2FA=0`); di production set `1`.
 - **Realtime:**
-  - presence ("N online") dan rate limit masih dihitung per proses server;
-  - untuk banyak instance/serverless → Redis (Upstash) + layanan realtime (mis. Supabase Realtime), atau jalankan chat di server Node biasa;
+  - presence ("N online") masih dihitung per proses server (rate limit sensitif sudah pindah ke Postgres di Fase 4);
+  - untuk banyak instance/serverless → layanan realtime khusus (mis. Supabase Realtime), atau jalankan chat di server Node biasa;
   - `LISTEN` butuh koneksi database langsung (`DATABASE_URL_DIRECT`), bukan transaction pooler.
 - **Chat:**
-  - belum ada pencarian pesan, notifikasi push, DM pribadi, dan deteksi gambar tidak pantas otomatis (masih mengandalkan laporan);
-  - job pembersih (salinan pesan terhapus > 30 hari, gambar tak terpakai) belum dijadwalkan.
-- **File:** scan malware otomatis (ClamAV) masuk Fase 4; storage: driver lokal (dev) & Vercel Blob (staging); R2 saat trafik besar.
+  - belum ada pencarian pesan, notifikasi push, DM pribadi, dan deteksi gambar tidak pantas otomatis (masih mengandalkan laporan).
+- **File:** scan malware sudah jalan (Fase 4) tapi **worker ClamAV produksi belum di-hosting** — perlu VPS/mesin apa pun yang bisa HTTPS keluar (`scanner/`, lihat `scanner/docker-compose.yml`); sampai itu aktif, moderasi tetap manual dan `REQUIRE_CLEAN_SCAN` masih 0. Storage: driver lokal (dev) & Vercel Blob (staging); R2 saat trafik besar.
 - **Review ulang:** edit produk yang sudah tayang langsung berlaku tanpa review ulang — perlu diputuskan sebelum beta publik.
 - **Audit:** sebelum memegang uang sungguhan, kode sebaiknya direview **security reviewer manusia** / pentest.
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { BlobMissingError, blobDel, blobHead, blobMove, blobPut, blobRead, blobReadRange, blobSha256, blobUrl, presignGet, presignPut } from "./blob-core";
+import { BlobMissingError, blobDel, blobHead, blobList, blobMove, blobPut, blobRead, blobReadRange, blobSha256, blobUrl, presignGet, presignPut } from "./blob-core";
 import { StorageError, type StorageDriver } from "./types";
 
 const KEY_RE = /^(tmp|public|private)\/[a-zA-Z0-9][a-zA-Z0-9/_.-]*$/;
@@ -36,5 +36,9 @@ export const blobDriver: StorageDriver = {
   async downloadUrl(key) {
     // Link bearer berumur pendek (5 menit). Nama file = bagian akhir key (…/<acak>/<nama-asli>).
     return presignGet(check(key), 5 * 60);
+  },
+  async list(prefix) {
+    if (!/^(tmp|public|private)\/[a-zA-Z0-9/_.-]*$/.test(prefix) || prefix.includes("..")) throw new StorageError("INVALID_KEY");
+    return blobList(prefix);
   },
 };

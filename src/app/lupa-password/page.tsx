@@ -2,16 +2,19 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LogoMark } from "@/components/logo";
 import { ForgotPasswordForm } from "@/components/password-reset-forms";
+import { TurnstileScript } from "@/components/turnstile-script";
 import { Alert, Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { RESET_TTL_MIN } from "@/lib/auth/password-reset";
 import { issueFormToken } from "@/lib/security/form-guard";
+import { turnstilePublic } from "@/lib/security/turnstile";
 
 export const metadata: Metadata = { title: "Lupa password", robots: { index: false } };
 
 export default async function ForgotPasswordPage({ searchParams }: PageProps<"/lupa-password">) {
   const { kedaluwarsa } = await searchParams;
   if (await getCurrentUser()) redirect("/akun/keamanan");
+  const turnstile = turnstilePublic();
   return (
     <div className="mx-auto max-w-md px-4 py-14">
       <div className="mb-8 text-center">
@@ -25,7 +28,8 @@ export default async function ForgotPasswordPage({ searchParams }: PageProps<"/l
         </Alert>
       )}
       <Card className="p-6 sm:p-8">
-        <ForgotPasswordForm formToken={issueFormToken()} />
+        {turnstile && <TurnstileScript />}
+        <ForgotPasswordForm formToken={issueFormToken()} turnstile={turnstile} />
       </Card>
     </div>
   );

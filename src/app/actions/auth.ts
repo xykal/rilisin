@@ -11,9 +11,10 @@ import { RESERVED_USERNAMES } from "@/lib/config";
 import { db } from "@/lib/db";
 import { authChallenges, users } from "@/lib/db/schema";
 import { getClientIp } from "@/lib/http";
-import { rateLimit } from "@/lib/rate-limit";
+import { sharedLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
 import { checkFormGuard } from "@/lib/security/form-guard";
+import { loginNeedsChallenge, verifyTurnstile } from "@/lib/security/turnstile";
 import { getAccountLock, LOCK_THRESHOLD } from "@/lib/security/login-guard";
 import { checkNewPassword } from "@/lib/security/password-policy";
 import { safeNextPath } from "@/lib/slug";
@@ -32,7 +33,7 @@ const registerSchema = z.object({
 
 export async function registerAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const ip = await getClientIp();
-  const rl = rateLimit(`register:${ip}`, 10, 60 * 60 * 1000);
+  const rl = await sharedLimit(`register:${ip}`, 10, 60 * 60 * 1000);
   if (!rl.ok) return { error: "Terlalu banyak percobaan daftar. Coba lagi nanti." };
 
   const values = {
@@ -44,6 +45,11 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
   if (!checkFormGuard(formData)) {
     await logSecurityEvent("bot_blocked", { meta: { form: "register" } });
     return { error: "Pendaftaran gagal diverifikasi. Muat ulang halaman lalu coba lagi.", values };
+  }
+  const human = await verifyTurnstile(formData, { action: "daftar", ip });
+  if (!human.ok) {
+    await logSecurityEvent("bot_blocked", { meta: { form: "register", reason: "turnstile" } });
+    return { error: human.reason, values };
   }
 
   const parsed = registerSchema.safeParse({ ...values, password: formData.get("password") ?? "" });
@@ -92,10 +98,15 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
   }
 
   const ip = await getClientIp();
-  const rlIp = rateLimit(`login-ip:${ip}`, 30, 10 * 60 * 1000);
-  const rlId = rateLimit(`login-id:${identifier}`, 10, 10 * 60 * 1000);
+  const rlIp = await sharedLimit(`login-ip:${ip}`, 30, 10 * 60 * 1000);
+  const rlId = await sharedLimit(`login-id:${identifier}`, 10, 10 * 60 * 1000);
   if (!rlIp.ok || !rlId.ok) {
     return { error: "Terlalu banyak percobaan masuk. Tunggu beberapa menit lalu coba lagi.", values };
+  }
+  // Setelah ≥ 3 kali salah dari jaringan ini: wajib lolos Turnstile (bot tebak password berhenti di sini)
+  if (await loginNeedsChallenge(ip)) {
+    const human = await verifyTurnstile(formData, { action: "masuk", ip });
+    if (!human.ok) return { error: human.reason, values, challenge: true };
   }
 
   const [user] = await db
@@ -123,8 +134,11 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
       await logSecurityEvent("login_failed", { userId: user.id });
       const lock = await getAccountLock(user.id);
       if (lock.failures === LOCK_THRESHOLD) await logSecurityEvent("login_locked", { userId: user.id });
+    } else {
+      // Dicatat juga (tanpa akun) supaya tebak-tebakan email acak dari satu jaringan ikut memicu Turnstile
+      await logSecurityEvent("login_failed", { meta: { unknownAccount: true } });
     }
-    return { error: "Email/username atau password salah.", values };
+    return { error: "Email/username atau password salah.", values, challenge: await loginNeedsChallenge(ip) };
   }
   if (user.bannedAt) return { error: "Akun ini sedang dinonaktifkan. Hubungi admin.", values };
 
@@ -145,7 +159,7 @@ export async function verifyMfaAction(_prev: FormState, formData: FormData): Pro
   if (!challenge) return { error: "Sesi verifikasi sudah habis. Silakan masuk ulang.", values: { expired: "1" } };
 
   const ip = await getClientIp();
-  if (!rateLimit(`mfa-ip:${ip}`, 20, 10 * 60 * 1000).ok) {
+  if (!(await sharedLimit(`mfa-ip:${ip}`, 20, 10 * 60 * 1000)).ok) {
     return { error: "Terlalu banyak percobaan. Tunggu beberapa menit." };
   }
 

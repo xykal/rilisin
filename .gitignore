@@ -49,3 +49,6 @@ next-env.d.ts
 .claude/
 /agent/
 skills-lock.json
+
+# log server lokal/CI (npm run start > server.log)
+server.log
