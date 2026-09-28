@@ -253,7 +253,10 @@ async function loginDemo(label, session, identifier = "user@rilisin.test") {
 {
   const GOOGLE_ID = process.env.GOOGLE_CLIENT_ID;
   const FAKE = process.env.GOOGLE_AUTH_URL;
-  const OAUTH_COOKIE = /^https:/.test(BASE) ? "__Secure-rilisin_oauth" : "rilisin_oauth";
+  // Nama cookie tiket OAuth bergantung mode env server (CI = produksi → prefix __Secure-),
+  // jadi jangan dihitung dari URL: cari dari header Set-Cookie yang benar-benar dikirim.
+  const ticketCookie = (res) => (res.headers.getSetCookie?.() ?? []).find((c) => /rilisin_oauth/.test(c)) ?? "";
+  const hasTicket = (session) => [...session.cookies.keys()].some((k) => k.includes("rilisin_oauth"));
 
   if (GOOGLE_ID && FAKE) {
     const setIdentity = async (payload) => {
@@ -281,7 +284,8 @@ async function loginDemo(label, session, identifier = "user@rilisin.test") {
     const challenge = authorize.searchParams.get("code_challenge") ?? "";
     ok(/^[A-Za-z0-9_-]{43}$/.test(challenge), "code_challenge berupa base64url 32 byte (43 karakter)");
     ok(authorize.searchParams.get("state")?.length >= 30, "state acak panjang dikirim ke Google");
-    const stateSetCookie = (start.headers.getSetCookie?.() ?? []).find((c) => c.startsWith(`${OAUTH_COOKIE}=`)) ?? "";
+    const stateSetCookie = ticketCookie(start);
+    ok(Boolean(stateSetCookie), "Cookie tiket OAuth (state + PKCE verifier) dipasang server");
     ok(/HttpOnly/i.test(stateSetCookie), "Cookie tiket OAuth HttpOnly (state tidak bisa dibaca JS)");
     ok(/SameSite=Lax/i.test(stateSetCookie), "Cookie tiket OAuth SameSite=Lax supaya kembali dari Google");
     ok(/Max-Age=600/i.test(stateSetCookie), "Cookie tiket OAuth kedaluwarsa 10 menit");
@@ -310,7 +314,7 @@ async function loginDemo(label, session, identifier = "user@rilisin.test") {
     const me = await fresh.req("/api/notifications");
     ok(me.status === 200, "Akun hasil login Google benar-benar terautentikasi");
     // tiket OAuth harus sudah dihapus (sekali pakai)
-    ok(!fresh.cookies.has(OAUTH_COOKIE), "Tiket OAuth dihapus setelah dipakai");
+    ok(!hasTicket(fresh), "Tiket OAuth dihapus setelah dipakai");
 
     // e. email Google belum diverifikasi → ditolak
     const unverified = new Session();
