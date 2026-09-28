@@ -59,7 +59,8 @@ export async function SiteHeader() {
               {staff && (
                 <Link href="/admin/review" className={cn(buttonStyles.ghost, "relative max-sm:hidden")}>
                   <ShieldCheck className="h-4 w-4" />
-                  Moderasi
+                  {/* Tablet (< 1024px): ikon saja supaya header staf + lonceng tetap muat */}
+                  <span className="max-lg:sr-only">Moderasi</span>
                   {pending > 0 && (
                     <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{pending}</span>
                   )}

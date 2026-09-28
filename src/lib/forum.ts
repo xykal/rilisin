@@ -36,9 +36,11 @@ export async function getForumCategories() {
       emoji: forumCategories.emoji,
       description: forumCategories.description,
       kind: forumCategories.kind,
-      threads: sql<number>`(select count(*)::int from ${forumThreads} t where t.category_id = ${forumCategories.id}
+      // Nama tabel ditulis eksplisit: di query satu tabel Drizzle merender ${forumCategories.id} sebagai "id" saja,
+      // yang di dalam subquery malah menunjuk ke kolom id milik forum_threads (hasilnya selalu 0).
+      threads: sql<number>`(select count(*)::int from forum_threads t where t.category_id = "forum_categories"."id"
         and t.deleted_at is null and t.hidden_at is null and t.report_hidden_at is null)`,
-      lastActivityAt: sql<Date | null>`(select max(t.last_activity_at) from ${forumThreads} t where t.category_id = ${forumCategories.id}
+      lastActivityAt: sql<Date | null>`(select max(t.last_activity_at) from forum_threads t where t.category_id = "forum_categories"."id"
         and t.deleted_at is null and t.hidden_at is null and t.report_hidden_at is null)`.mapWith((v) => (v ? new Date(v) : null)),
     })
     .from(forumCategories)

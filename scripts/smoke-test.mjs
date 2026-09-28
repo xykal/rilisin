@@ -686,6 +686,8 @@ async function register(s, username, password, extra = {}) {
   // Forum publik
   const home = await guest.html("/forum");
   ok(home.res.status === 200 && home.text.includes("Tanya Jawab") && home.text.includes("KasirKu Offline bisa cetak struk"), "Forum: beranda menampilkan kategori & thread");
+  const qaCount = Number(home.text.match(/font-semibold">Tanya Jawab<\/span><span class="text-xs tabular-nums text-slate-400">(\d+)</)?.[1] ?? 0);
+  ok(qaCount >= 1, `Forum: jumlah thread per kategori dihitung (Tanya Jawab: ${qaCount})`);
   ok((await guest.html("/forum?q=flutter")).text.includes("APK Flutter release"), "Forum: pencarian menemukan thread");
   const unanswered = (await guest.html("/forum?urut=belum-terjawab")).text;
   ok(unanswered.includes("Webhook payment gateway") && !unanswered.includes("APK Flutter release"), "Forum: filter belum terjawab");
