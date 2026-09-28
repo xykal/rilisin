@@ -43,3 +43,9 @@ next-env.d.ts
 
 # data lokal development (database dump, file upload)
 /.local/
+
+# File "agent skills" yang ditulis Vercel CLI saat `vercel install` (bukan bagian proyek)
+.agents/
+.claude/
+/agent/
+skills-lock.json

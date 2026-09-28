@@ -248,18 +248,39 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
 - **Chat:**
   - belum ada pencarian pesan, notifikasi push, DM pribadi, dan deteksi gambar tidak pantas otomatis (masih mengandalkan laporan);
   - job pembersih (salinan pesan terhapus > 30 hari, gambar tak terpakai) belum dijadwalkan.
-- **File:** scan malware otomatis (ClamAV) masuk Fase 4; storage baru driver lokal (R2 saat deploy).
+- **File:** scan malware otomatis (ClamAV) masuk Fase 4; storage: driver lokal (dev) & Vercel Blob (staging); R2 saat trafik besar.
 - **Review ulang:** edit produk yang sudah tayang langsung berlaku tanpa review ulang — perlu diputuskan sebelum beta publik.
 - **Audit:** sebelum memegang uang sungguhan, kode sebaiknya direview **security reviewer manusia** / pentest.
+
+## Staging gratis — https://rilisin.xyverse.my.id
+
+- **Stack:** Vercel Hobby (region `sin1`) + Neon Free (Postgres 18, Singapura, via Vercel Marketplace) + Vercel Blob (`rilisin-media` publik, `rilisin-files` privat). DNS: CNAME di Cloudflare.
+- **Dikunci Basic Auth** (`SITE_LOCK_USER` / `SITE_LOCK_PASSWORD`). Yang tetap terbuka: webhook pembayaran, `/.well-known/`, `robots.txt`. Pembayaran **mode simulasi** (`PAYMENT_PROVIDER=mock`).
+- **Hobby = non-komersial.** Jangan terima uang sungguhan di sini; produksi pakai Vercel Pro.
+- **Seed ulang** (MENGHAPUS semua data staging, termasuk file di Blob):
+  ```bash
+  vercel env pull .env.staging --environment=production   # JANGAN ke .env.local
+  # muat isi .env.staging ke environment, lalu:
+  DATABASE_URL="$DATABASE_URL_UNPOOLED" SEED_ALLOW_REMOTE=hapus-semua-data SEED_DEMO_PASSWORD='…' npx tsx scripts/seed.ts
+  ```
+- **Smoke test ke staging** (menambah data uji, jadi seed ulang sesudahnya):
+  ```bash
+  SMOKE_BASIC_AUTH='user:password' SMOKE_DEMO_PASSWORD='…' node scripts/smoke-test.mjs https://rilisin.xyverse.my.id
+  ```
+- **Catatan:**
+  - Neon Free tidur setelah 5 menit sepi, jadi request pertama sesudahnya ±1–2 dtk lebih lambat.
+  - Seed dari luar Singapura makan waktu ±5 menit (latensi per query).
+  - `vercel install` / `vercel env pull` / `vercel link` bisa menulis `.env.local` dan file "agent skills" (`.agents/`, `.claude/`, `skills-lock.json`). Pakai `--no-env-pull`; file skills sudah masuk `.gitignore`.
+  - Edge Vercel menolak path `..%2F` dengan 400 sebelum sampai ke app (lokal: 404 dari route).
 
 ## Menuju production (butuh akun milik kamu)
 
 1. **Domain:** cek ketersediaan nama + merek di DJKI.
-2. **Supabase (database):**
-   - `DATABASE_URL` = Transaction pooler, `DATABASE_URL_DIRECT` = Direct/Session (untuk chat realtime);
-   - jalankan `npm run db:migrate`.
-3. **Cloudflare R2 (file):** 1 bucket publik (gambar) + 1 privat (file aplikasi) + API token → aku tambahkan driver `r2`.
-4. **Hosting:**
+2. **Database — Neon** (sudah dipakai staging):
+   - `DATABASE_URL` = pooler, `DATABASE_URL_UNPOOLED` = koneksi langsung (dipakai LISTEN chat realtime); keduanya diisi otomatis oleh integrasi Vercel;
+   - jalankan `npm run db:migrate`. Produksi = proyek/branch Neon terpisah dari staging.
+3. **File — Vercel Blob** (sudah jalan: store publik + privat, presigned upload/download). Pindah ke **Cloudflare R2** kalau trafik unduhan besar (egress R2 gratis).
+4. **Hosting — Vercel Pro** (Hobby dilarang untuk komersial):
    - isi env: `APP_SECRET` (acak ≥ 32 karakter), `ALLOWED_ORIGINS=domainkamu`, `REQUIRE_STAFF_2FA=1`, `TRUSTED_PROXY_HOPS=1`;
    - `FRAME_ANCESTORS` kosongkan;
    - ganti kontak di `public/.well-known/security.txt`.

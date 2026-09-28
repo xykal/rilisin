@@ -16,6 +16,8 @@ const BASE = process.argv[2] ?? "http://localhost:3000";
 const ORIGIN = new URL(BASE).origin;
 // Staging yang dikunci (SITE_LOCK_PASSWORD): SMOKE_BASIC_AUTH="user:password"
 const BASIC = process.env.SMOKE_BASIC_AUTH ? `Basic ${Buffer.from(process.env.SMOKE_BASIC_AUTH).toString("base64")}` : null;
+// Password akun demo: sama dengan SEED_DEMO_PASSWORD saat seed (staging tidak memakai default).
+const DEMO_PW = process.env.SMOKE_DEMO_PASSWORD || process.env.SEED_DEMO_PASSWORD || "rilisin123";
 const authHeaders = () => (BASIC ? { authorization: BASIC } : {});
 // Link download bertanda tangan: driver local (/api/storage/file?token=) atau Vercel Blob (store privat, presigned)
 const isSignedDownload = (loc) => loc.startsWith("/api/storage/file?token=") || /^https:\/\/[a-z0-9]+\.private\.blob\.vercel-storage\.com\/.+vercel-blob-signature=/.test(loc);
@@ -92,7 +94,7 @@ class Session {
     }
     return this.req(pagePath, { method: "POST", body: fd });
   }
-  async login(email, password = "rilisin123") {
+  async login(email, password = DEMO_PW) {
     const { text } = await this.html("/masuk");
     const res = await this.submitForm("/masuk", text, 'name="identifier"', { identifier: email, password, next: "/" });
     return res;
@@ -159,7 +161,8 @@ const guest = new Session();
   const admin = await guest.html("/admin/review");
   ok(admin.res.status === 307 || admin.res.status === 303 || admin.res.status === 302, "Halaman admin mengarahkan tamu ke login");
   const traversal = await guest.req("/media/..%2F..%2F.env.local");
-  ok(traversal.status === 404, "Path traversal di /media ditolak");
+  // Lokal: route menjawab 404. Di Vercel, edge sudah menolak `..%2F` dengan 400 sebelum sampai ke app.
+  ok(traversal.status === 404 || traversal.status === 400, `Path traversal di /media ditolak (${traversal.status})`);
   const csrf = await fetch(`${BASE}/api/download/00000000-0000-0000-0000-000000000000`, { method: "POST", headers: { origin: "https://situs-jahat.example", ...authHeaders() }, redirect: "manual" });
   ok(csrf.status === 403, "POST dari origin asing ditolak (CSRF)");
 }
@@ -572,9 +575,9 @@ async function register(s, username, password, extra = {}) {
 
   const req = (fields) => seller.html("/seller/saldo").then((pg) => seller.submitForm("/seller/saldo", pg.text, "Ajukan pencairan", fields)).then(async (r) => clean(await r.text()));
   ok((await req({ amount: "60000", password: "salah-banget" })).includes("Password salah"), "Pencairan: password salah ditolak");
-  ok((await req({ amount: "20000", password: "rilisin123" })).includes("Minimal pencairan Rp50.000"), "Pencairan: di bawah minimal ditolak");
-  ok((await req({ amount: "100000", password: "rilisin123" })).includes("Saldo tersedia hanya Rp82.300"), "Pencairan: melebihi saldo tersedia ditolak");
-  ok((await req({ amount: "60000", password: "rilisin123" })).includes("Pencairan diajukan"), "Pencairan Rp60.000 diajukan");
+  ok((await req({ amount: "20000", password: DEMO_PW })).includes("Minimal pencairan Rp50.000"), "Pencairan: di bawah minimal ditolak");
+  ok((await req({ amount: "100000", password: DEMO_PW })).includes("Saldo tersedia hanya Rp82.300"), "Pencairan: melebihi saldo tersedia ditolak");
+  ok((await req({ amount: "60000", password: DEMO_PW })).includes("Pencairan diajukan"), "Pencairan Rp60.000 diajukan");
   const bal2 = await seller.html("/seller/saldo");
   ok(bal2.text.includes("Rp22.300") && bal2.text.includes("Masih ada pencairan yang sedang diproses"), "Saldo tersedia berkurang & pengajuan kedua diblokir");
 
@@ -600,7 +603,7 @@ async function register(s, username, password, extra = {}) {
   ok(rej.status === 200 && clean(await rej.text()).includes("dana kembali ke saldo seller"), "Admin menolak pencairan");
   ok((await seller.html("/seller/saldo")).text.includes("Rp82.300"), "Pencairan ditolak → saldo tersedia kembali Rp82.300");
 
-  ok((await req({ amount: "50000", password: "rilisin123" })).includes("Pencairan diajukan"), "Seller mengajukan pencairan lagi (Rp50.000)");
+  ok((await req({ amount: "50000", password: DEMO_PW })).includes("Pencairan diajukan"), "Seller mengajukan pencairan lagi (Rp50.000)");
   const fin2 = await admin2.html("/admin/keuangan");
   const ids2 = [...fin2.text.matchAll(/name="payoutId" value="([0-9a-f-]{36})"/g)].map((m) => m[1]);
   const newest = ids2[ids2.length - 1];
@@ -618,7 +621,7 @@ async function register(s, username, password, extra = {}) {
 
   // Ganti rekening → wajib verifikasi ulang sebelum bisa cair
   const acct = await seller.html("/seller/saldo");
-  const changed = await seller.submitForm("/seller/saldo", acct.text, 'name="accountHolder"', { method: "bank", providerName: "BRI", accountNumber: "9876543210", accountHolder: "Ahmad Fauzi", password: "rilisin123" });
+  const changed = await seller.submitForm("/seller/saldo", acct.text, 'name="accountHolder"', { method: "bank", providerName: "BRI", accountNumber: "9876543210", accountHolder: "Ahmad Fauzi", password: DEMO_PW });
   const changedText = clean(await changed.text());
   ok(changedText.includes("Rekening disimpan") && changedText.includes("Menunggu verifikasi") && changedText.includes("Rekening sedang diverifikasi admin"), "Ganti rekening → status menunggu verifikasi & pencairan terkunci");
   const fin3 = await admin2.html("/admin/keuangan");
