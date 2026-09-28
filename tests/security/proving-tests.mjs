@@ -16,7 +16,7 @@
  * Butuh seed demo: user@rilisin.test & seller@rilisin.test (password SEED_DEMO_PASSWORD).
  */
 import { randomBytes } from "node:crypto";
-import { Session, ok, uuid, DEMO_PW, clean } from "./lib.mjs";
+import { BASE, Session, ok, uuid, DEMO_PW, clean } from "./lib.mjs";
 
 const b64url = (buf) => buf.toString("base64url");
 

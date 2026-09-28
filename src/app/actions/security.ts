@@ -158,7 +158,7 @@ export async function setPasswordAction(_prev: FormState, formData: FormData): P
  * Lepas tautan Google dari akun. Dilarang kalau itu satu-satunya cara masuk:
  * akun tanpa password (daftar via Google) wajib punya minimal satu identitas Google.
  */
-export async function unlinkGoogleAction(formData: FormData) {
+export async function unlinkGoogleAction() {
   const user = await requireUser("/akun/keamanan");
   const [row] = await db
     .select({ passwordHash: users.passwordHash })
