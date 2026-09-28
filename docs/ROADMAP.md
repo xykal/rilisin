@@ -28,14 +28,22 @@ Estimates are working-day counts from the start date 2026-09-27.
 
 | Target | Item | Kenapa | Effort |
 |---|---|---|---|
-| 2026-09-30 | Job CodeQL/SAST + ZAP baseline di CI | celah umum & XSS regresi ketahuan sebelum deploy | M |
-| 2026-10-03 | ~~`tests/security/`: proving test 429, injeksi 400/403, IDOR, header~~ | **SELESAI 2026-09-28** (lihat tests/security/) | — |
 | 2026-10-05 | Legal DRAFT: Terms, Privacy (UU PDP), Cookie, AUP, Refund | syarat launch publik & gateway | M |
-| 2026-10-05 | docs/DESIGN.md: tipografi, palet, spacing, motion, aturan ikon | identitas asli sebelum tampilan publik | M |
-| 2026-10-10 | README dual-language (ID + EN) + bagian English ringkas | kontributor & seller luar negeri | S |
+| 2026-10-05 | ZAP baseline (DAST) di CI | celah runtime (header, cookie, injeksi) ketahuan sebelum deploy | M |
 | 2026-10-12 | Onboarding seller 3 langkah + checklist verifikasi | aktivasi seller = metrik stage MVP | M |
 | 2026-10-19 | Cutover produksi: domain, rotasi secret, budget alert, runbook | hentikan ketergantungan staging | L |
 | 2026-11-02 | Gerbang launch publik: legal reviewed, proving test hijau, support live | tidak launch tanpa syarat ini | L |
+
+### Selesai di 2026-09-28 (dipindah dari jadwal)
+
+- Audit repo + `docs/AUDIT-2026-09-28.md`
+- Pin actions ke commit SHA (supply chain) di semua workflow
+- Atribusi XyVerse + LICENSE + THIRD_PARTY_NOTICES + PROGRESS + IDEAS
+- Job audit dependency di CI (`npm audit --audit-level=high`)
+- `docs/PRD.md` + `docs/ROADMAP.md`
+- Proving test keamanan `tests/security/` (429, injeksi, IDOR, CSRF, batas auth)
+- Workflow CodeQL (SAST) + triage 2 alert (false positive, alasan tercatat)
+- `docs/DESIGN.md` + README bilingual + SECURITY.md disegarkan
 
 ## Parkir (belum dijadwalkan)
 

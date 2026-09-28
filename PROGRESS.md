@@ -52,3 +52,21 @@ Lanjutan (kall: "gas") — proving test keamanan:
   server membalas 500. Sudah diperbaiki di tests/security/lib.mjs.
 - CI hijau (3 job) di https://github.com/xykal/rilisin/actions/runs/36491062365 —
   deploy staging ikut jalan.
+
+Lanjutan (kall: "gas" lagi) — SAST + identitas visual:
+- .github/workflows/codeql.yml: CodeQL untuk javascript-typescript (build-mode none,
+  tidak perlu build Next.js), jalan tiap push + cron mingguan. Action di-pin ke
+  commit SHA asli v4 (2892aa5e…, diverifikasi: tag v4 = annotated tag 7999b86c →
+  commit 2892aa5e).
+- Triage 2 alert CodeQL (dua-duanya false positive, ditutup dengan alasan tercatat
+  di GitHub): sha256Hex dipakai untuk token MFA (bukan password — password pakai
+  scrypt N=16384), dan image.url di composer adalah blob URL/URL server (bukan teks
+  user). Rincian masuk SECURITY.md bagian 5.
+- docs/DESIGN.md: identitas visual Rilisin (tipografi, skala brand + hasil hitung
+  kontras WCAG AA asli, radius, elevation, aturan motion, daftar trope yang dilarang,
+  rencana dark mode & ikon XyVerse).
+- README bilingual: ringkasan English di atas + footer atribusi XyVerse dua bahasa.
+- SECURITY.md disegarkan: daftar "belum ada" dibersihkan (Turnstile/ClamAV/reset
+  password sudah jalan) + bagian SAST & triage.
+- CI hijau (3 job) https://github.com/xykal/rilisin/actions/runs/36494437791 dan
+  CodeQL hijau https://github.com/xykal/rilisin/actions/runs/36494437741.
