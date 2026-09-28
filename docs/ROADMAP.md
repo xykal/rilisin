@@ -28,7 +28,8 @@ Estimates are working-day counts from the start date 2026-09-27.
 
 | Target | Item | Kenapa | Effort |
 |---|---|---|---|
-| 2026-10-05 | Legal DRAFT: Terms, Privacy (UU PDP), Cookie, AUP, Refund | syarat launch publik & gateway | M |
+| 2026-10-05 | ~~Legal DRAFT: Terms, Privacy, Cookie, AUP, Refund~~ | **SELESAI 2026-09-28** (docs/legal/, DRAFT-marked, bilingual) | — |
+| 2026-10-05 | Review pengacar dokumen legal + isi placeholder entitas | draft engineer ≠ nasihat hukum | M |
 | 2026-10-05 | ZAP baseline (DAST) di CI | celah runtime (header, cookie, injeksi) ketahuan sebelum deploy | M |
 | 2026-10-12 | Onboarding seller 3 langkah + checklist verifikasi | aktivasi seller = metrik stage MVP | M |
 | 2026-10-19 | Cutover produksi: domain, rotasi secret, budget alert, runbook | hentikan ketergantungan staging | L |

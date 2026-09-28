@@ -70,3 +70,13 @@ Lanjutan (kall: "gas" lagi) — SAST + identitas visual:
   password sudah jalan) + bagian SAST & triage.
 - CI hijau (3 job) https://github.com/xykal/rilisin/actions/runs/36494437791 dan
   CodeQL hijau https://github.com/xykal/rilisin/actions/runs/36494437741.
+
+Lanjutan (kall: "gas" lagi) — legal draft:
+- docs/legal/: README (status + placeholder + keputusan bisnis yang belum diambil),
+  TERMS.md, PRIVACY.md (inventaris & retensi data diambil dari skema DB asli +
+  hak subjek data UU PDP 27/2022 + notifikasi pelanggaran 3x24 jam), COOKIES.md
+  (3 cookie yang benar-benar dipasang aplikasi: session 30 hari, MFA 10 menit,
+  reset 30 menit), AUP.md (larangan malware/bajakan/judol + konsekuensi bertingkat),
+  REFUND.md (kapan diberikan/tidak + catatan UU Perlindungan Konsumen 8/1999 yang
+  harus dikonfirmasi pengacara). Semua DRAFT-marked, bilingual (ID mengikat),
+  placeholder [NAMA ENTITAS]/[EMAIL]/[KOTA] belum diisi karena entitas belum dibentuk.
