@@ -145,8 +145,16 @@ export function useRoom(opts: {
       es.addEventListener("activity", (e) => cbs.current.onActivity(JSON.parse((e as MessageEvent).data)));
       es.addEventListener("busy", () => {
         es?.close();
-        setStatus("offline");
-        cbs.current.onError("Terlalu banyak tab chat terbuka. Tutup beberapa tab lalu muat ulang.");
+        attempt++;
+        // Slot bisa bebas sendiri (tab latar dilepas setelah 45 dtk) → coba lagi dengan backoff,
+        // baru menyerah setelah 5x (user benar-benar kebanyakan tab aktif).
+        if (attempt > 5) {
+          setStatus("offline");
+          cbs.current.onError("Terlalu banyak tab chat terbuka. Tutup beberapa tab lalu muat ulang.");
+          return;
+        }
+        setStatus("connecting");
+        retryTimer = window.setTimeout(connect, Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5)));
       });
       es.onerror = () => {
         if (stopped) return;

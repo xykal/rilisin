@@ -23,6 +23,8 @@ export type BusEvent =
 type Handler = (e: BusEvent) => void;
 
 export const MAX_STREAMS_PER_USER = 6;
+/** Bel notifikasi: satu stream per tab, dihitung terpisah supaya tidak memakan jatah chat. */
+export const MAX_NOTIF_STREAMS_PER_USER = 12;
 const MAX_STREAMS_TOTAL = 2000;
 
 class ChatBus {
@@ -31,6 +33,7 @@ class ChatBus {
   private users = new Map<string, Set<Handler>>();
   private presence = new Map<string, Map<string, number>>();
   private streamsByUser = new Map<string, number>();
+  private streamsByUserNotif = new Map<string, number>();
   private totalStreams = 0;
   private ready: Promise<void> | null = null;
 
@@ -145,9 +148,9 @@ class ChatBus {
 
   /** Daftar koneksi SSE bel notifikasi (per user, tanpa presence). Return null kalau batas tercapai. */
   openUser(userId: string, handler: Handler) {
-    const mine = this.streamsByUser.get(userId) ?? 0;
-    if (mine >= MAX_STREAMS_PER_USER || this.totalStreams >= MAX_STREAMS_TOTAL) return null;
-    this.streamsByUser.set(userId, mine + 1);
+    const mine = this.streamsByUserNotif.get(userId) ?? 0;
+    if (mine >= MAX_NOTIF_STREAMS_PER_USER || this.totalStreams >= MAX_STREAMS_TOTAL) return null;
+    this.streamsByUserNotif.set(userId, mine + 1);
     this.totalStreams++;
     const set = this.users.get(userId) ?? new Set<Handler>();
     set.add(handler);
@@ -158,9 +161,9 @@ class ChatBus {
       closed = true;
       set.delete(handler);
       if (!set.size) this.users.delete(userId);
-      const s = (this.streamsByUser.get(userId) ?? 1) - 1;
-      if (s <= 0) this.streamsByUser.delete(userId);
-      else this.streamsByUser.set(userId, s);
+      const s = (this.streamsByUserNotif.get(userId) ?? 1) - 1;
+      if (s <= 0) this.streamsByUserNotif.delete(userId);
+      else this.streamsByUserNotif.set(userId, s);
       this.totalStreams--;
     };
   }

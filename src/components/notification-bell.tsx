@@ -43,7 +43,9 @@ export function NotificationBell({ initialUnread, className }: { initialUnread: 
   const rootRef = useRef<HTMLDivElement>(null);
   const lastActive = useRef(0);
   const openRef = useRef(open);
-  openRef.current = open;
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   // Angka dari server berubah (navigasi / revalidate) → ikuti, tanpa efek tambahan (pola "derived state" React).
   const [serverUnread, setServerUnread] = useState(initialUnread);
