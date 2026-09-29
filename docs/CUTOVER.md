@@ -32,6 +32,20 @@ Prinsip:
 Dilewati dengan sadar: Upstash Redis (rate limit bersama sudah lewat Postgres),
 OneSignal push (belum diimplementasi), R2 (migrasi nanti kalau perlu).
 
+### Estimasi biaya bulanan awal (cek 2026-09-29, bisa berubah)
+
+| Layanan | Paket | Estimasi |
+|---|---|---|
+| Vercel | Pro 1 seat — WAJIB untuk komersial (Hobby melarang komersial, risiko suspend) | $20/bln (termasuk kredit usage $20) |
+| Neon (DB prod) | Launch usage-based (Free tidak cocok: tidur otomatis + storage 0.5 GB) | ~$15/bln |
+| Resend | Free tier cukup untuk awal (verifikasi + struk volume kecil) | $0 |
+| Turnstile | Gratis | $0 |
+| Pakasir | Potongan per transaksi (cek dashboard Pakasir) | variabel |
+| Blob (gambar + file) | Termasuk kuota Vercel, lebihnya usage | kecil di awal |
+
+Total tetap awal: ±$35–50/bln (sekitar Rp600–800rb). Staging tetap $0
+(Hobby + Neon Free = pemakaian dev, bukan komersial — legal).
+
 ## Fase 1 — Proyek & env (±1 hari)
 
 1. Buat proyek Vercel `rilisin-prod`: region `sin1`, framework Next.js, cron
