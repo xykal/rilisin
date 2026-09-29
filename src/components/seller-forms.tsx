@@ -291,7 +291,7 @@ export function StoreForm({
   defaults,
 }: {
   mode: "activate" | "edit";
-  defaults?: { storeName: string; tagline: string | null; websiteUrl: string | null };
+  defaults?: { storeName: string; tagline: string | null; websiteUrl: string | null; phone: string | null; portfolioUrl: string | null };
 }) {
   const [state, action] = useActionState(mode === "activate" ? activateStoreAction : updateStoreAction, undefined);
   const fe = state?.fieldErrors ?? {};
@@ -308,6 +308,12 @@ export function StoreForm({
       </Field>
       <Field label="Website / portofolio" htmlFor="websiteUrl" optional error={fe.websiteUrl}>
         <input id="websiteUrl" name="websiteUrl" type="url" defaultValue={v?.websiteUrl ?? defaults?.websiteUrl ?? ""} className={inputStyles} placeholder="https://" />
+      </Field>
+      <Field label="No HP / WhatsApp" htmlFor="phone" error={fe.phone} hint="Untuk verifikasi admin, tidak tampil publik">
+        <input id="phone" name="phone" required maxLength={20} autoComplete="tel" defaultValue={v?.phone ?? defaults?.phone ?? ""} className={inputStyles} placeholder="08123456789" />
+      </Field>
+      <Field label="Link portofolio" htmlFor="portfolioUrl" error={fe.portfolioUrl} hint="GitHub, Play Store, Behance, sosmed — bukti karyamu">
+        <input id="portfolioUrl" name="portfolioUrl" type="url" required defaultValue={v?.portfolioUrl ?? defaults?.portfolioUrl ?? ""} className={inputStyles} placeholder="https://" />
       </Field>
       {mode === "activate" && (
         <label className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">

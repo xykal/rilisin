@@ -663,6 +663,14 @@ async function main() {
   await db
     .insert(schema.users)
     .values({ email: "calon@rilisin.test", username: "calon_toko", displayName: "Calon Toko", passwordHash, createdAt: ago(10), emailVerifiedAt: new Date(), bio: "Akun uji pengajuan toko." });
+  // Akun verifikasi segar: email terverifikasi TAPI umur < 3 hari (dipakai smoke test batas umur toko).
+  await db
+    .insert(schema.users)
+    .values({ email: "baru@rilisin.test", username: "calon_baru", displayName: "Calon Baru", passwordHash, createdAt: new Date(), emailVerifiedAt: new Date(), bio: "Akun uji umur minimum toko." });
+  // Akun uji validasi form toko: cukup umur + terverifikasi, belum mengajukan.
+  await db
+    .insert(schema.users)
+    .values({ email: "validasi@rilisin.test", username: "calon_validasi", displayName: "Calon Validasi", passwordHash, createdAt: ago(10), emailVerifiedAt: new Date(), bio: "Akun uji validasi pengajuan toko." });
 
   const sellerIds = new Map<string, string>();
   for (const s of SELLERS) {

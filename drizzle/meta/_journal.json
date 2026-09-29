@@ -85,6 +85,13 @@
       "when": 1790715629264,
       "tag": "0012_reply_quotes",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790721287291,
+      "tag": "0013_seller_verification",
+      "breakpoints": true
     }
   ]
 }

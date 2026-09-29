@@ -24,6 +24,8 @@ export default async function SellerQueuePage({ searchParams }: PageProps<"/admi
       storeName: sellerProfiles.storeName,
       tagline: sellerProfiles.tagline,
       websiteUrl: sellerProfiles.websiteUrl,
+      phone: sellerProfiles.phone,
+      portfolioUrl: sellerProfiles.portfolioUrl,
       activatedAt: sellerProfiles.activatedAt,
       username: users.username,
       email: users.email,
@@ -71,6 +73,8 @@ export default async function SellerQueuePage({ searchParams }: PageProps<"/admi
                   <span>akun dibuat {timeAgo(q.userCreatedAt)}</span>
                   <span>mengajukan {timeAgo(q.activatedAt)}</span>
                   {q.websiteUrl && <span className="break-all">situs: {q.websiteUrl}</span>}
+                  {q.phone && <span>HP: {q.phone}</span>}
+                  {q.portfolioUrl && <span className="break-all">portofolio: {q.portfolioUrl}</span>}
                 </div>
                 <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 lg:flex-row">
                   <form action={approveSellerAction} className="shrink-0">

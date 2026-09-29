@@ -329,6 +329,8 @@ let slug;
     storeName: "Toko Calon Uji",
     tagline: "Toko uji persetujuan",
     websiteUrl: "",
+    phone: "081234567890",
+    portfolioUrl: "https://github.com/tokocalon",
     agree: "on",
   });
   ok(applied.status === 303 && (applied.headers.get("location") ?? "").includes("/seller?diajukan=1"), "Pengajuan toko masuk antrean admin");
@@ -339,10 +341,44 @@ let slug;
   const upPending = await calon.upload("icon", "00000000-0000-0000-0000-000000000000", "x.png", Buffer.from("x"));
   ok(!upPending.ok && upPending.step === "init", "Seller pending tidak bisa upload");
 
+  const imut = new Session();
+  await imut.login("baru@rilisin.test");
+  const imutApply = await imut.submitForm("/seller", (await imut.html("/seller")).text, 'name="storeName"', {
+    storeName: "Toko Umur Sehari",
+    tagline: "",
+    websiteUrl: "",
+    phone: "08123456789",
+    portfolioUrl: "https://github.com/contoh",
+    agree: "on",
+  });
+  ok(clean(await imutApply.text()).includes("minimal berumur 3 hari"), "Pengajuan toko akun baru (< 3 hari) ditolak");
+  const val = new Session();
+  await val.login("validasi@rilisin.test");
+  const valPage = (await val.html("/seller")).text;
+  const badPhone = await val.submitForm("/seller", valPage, 'name="storeName"', {
+    storeName: "Toko Validasi",
+    tagline: "",
+    websiteUrl: "",
+    phone: "abc",
+    portfolioUrl: "https://github.com/contoh",
+    agree: "on",
+  });
+  ok(clean(await badPhone.text()).includes("No HP/WA tidak valid"), "Pengajuan toko: no HP asal ditolak");
+  const badPort = await val.submitForm("/seller", valPage, 'name="storeName"', {
+    storeName: "Toko Validasi",
+    tagline: "",
+    websiteUrl: "",
+    phone: "08123456789",
+    portfolioUrl: "bukan-url",
+    agree: "on",
+  });
+  ok(clean(await badPort.text()).includes("URL harus diawali"), "Pengajuan toko: portofolio bukan URL ditolak");
+
   const adm = new Session();
   await adm.login("admin@rilisin.test");
   const queue = await adm.html("/admin/penjual");
   ok(queue.res.status === 200 && queue.text.includes("Toko Calon Uji"), "Admin melihat pengajuan di antrean");
+  ok(queue.text.includes("081234567890") && queue.text.includes("github.com/tokocalon"), "Admin melihat HP + portofolio di antrean");
   const shortReject = await adm.submitForm("/admin/penjual", queue.text, 'name="reason"', { reason: "jelek" });
   ok(shortReject.status === 303 && (shortReject.headers.get("location") ?? "").includes("error=alasan"), "Tolak tanpa alasan jelas ditolak balik");
   const rejected = await adm.submitForm("/admin/penjual", queue.text, 'name="reason"', { reason: "Nama toko kurang jelas, perbaiki jadi nama usaha yang serius." });

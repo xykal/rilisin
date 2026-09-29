@@ -24,11 +24,29 @@ const optionalUrl = z
   .refine((v) => v === "" || /^https?:\/\/[^\s]+\.[^\s]+$/i.test(v), "URL harus diawali http:// atau https://")
   .transform((v) => (v === "" ? null : v));
 
+const requiredUrl = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((v) => /^https?:\/\/[^\s]+\.[^\s]+$/i.test(v), "URL harus diawali http:// atau https://");
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .max(20, "No HP maksimal 20 karakter")
+  .transform((v) => v.replace(/[\s\-.]/g, ""))
+  .refine((v) => /^(\+?62|0)\d{8,13}$/.test(v), "No HP/WA tidak valid (contoh: 08123456789)");
+
+/** Umur akun minimum untuk buka toko (anti akun tuyul). */
+const MIN_SELLER_AGE_MS = 3 * 24 * 3600_000;
+
 // ─── Aktifkan toko ────────────────────────────────────────────────────────────
 const storeSchema = z.object({
   storeName: z.string().trim().min(2, "Nama toko minimal 2 karakter").max(50, "Maksimal 50 karakter"),
   tagline: z.string().trim().max(120, "Maksimal 120 karakter").transform((v) => v || null),
   websiteUrl: optionalUrl,
+  phone: phoneSchema,
+  portfolioUrl: requiredUrl,
   agree: z.literal("on", { error: "Kamu perlu menyetujui aturan konten" }),
 });
 
@@ -40,9 +58,14 @@ export async function activateStoreAction(_prev: FormState, formData: FormData):
     storeName: String(formData.get("storeName") ?? ""),
     tagline: String(formData.get("tagline") ?? ""),
     websiteUrl: String(formData.get("websiteUrl") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    portfolioUrl: String(formData.get("portfolioUrl") ?? ""),
   };
   if (!user.emailVerifiedAt) {
     return { error: "Verifikasi email dulu sebelum buka toko — linknya ada di halaman Verifikasi email.", values };
+  }
+  if (Date.now() - user.createdAt.getTime() < MIN_SELLER_AGE_MS) {
+    return { error: "Akun minimal berumur 3 hari untuk buka toko (anti penipuan).", values };
   }
   const rl = await sharedLimit(`activate-store:${user.id}`, 5, 60 * 60_000);
   if (!rl.ok) return { error: "Terlalu sering mencoba. Tunggu sebentar lalu coba lagi.", values };
@@ -55,12 +78,12 @@ export async function activateStoreAction(_prev: FormState, formData: FormData):
   if (user.seller?.status === "rejected") {
     await db
       .update(sellerProfiles)
-      .set({ storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl, status: "pending", rejectionReason: null, reviewedAt: null, reviewedBy: null })
+      .set({ storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl, phone: parsed.data.phone, portfolioUrl: parsed.data.portfolioUrl, status: "pending", rejectionReason: null, reviewedAt: null, reviewedBy: null })
       .where(eq(sellerProfiles.userId, user.id));
   } else {
     await db
       .insert(sellerProfiles)
-      .values({ userId: user.id, storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl, status: "pending" })
+      .values({ userId: user.id, storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl, phone: parsed.data.phone, portfolioUrl: parsed.data.portfolioUrl, status: "pending" })
       .onConflictDoNothing();
   }
   revalidatePath("/", "layout");
@@ -533,12 +556,14 @@ export async function updateStoreAction(_prev: FormState, formData: FormData): P
     storeName: String(formData.get("storeName") ?? ""),
     tagline: String(formData.get("tagline") ?? ""),
     websiteUrl: String(formData.get("websiteUrl") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    portfolioUrl: String(formData.get("portfolioUrl") ?? ""),
   };
   const parsed = storeSchema.omit({ agree: true }).safeParse(values);
   if (!parsed.success) return { fieldErrors: fieldErrorsFrom(parsed.error), values };
   await db
     .update(sellerProfiles)
-    .set({ storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl })
+    .set({ storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl, phone: parsed.data.phone, portfolioUrl: parsed.data.portfolioUrl })
     .where(eq(sellerProfiles.userId, user.id));
   revalidatePath("/", "layout");
   return { success: "Profil toko disimpan." };

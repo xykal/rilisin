@@ -114,7 +114,7 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
             <Alert tone="danger" className="mt-4" title="Alasan dari tim Rilisin">{user.seller.rejectionReason}</Alert>
           )}
           <p className="mb-5 mt-4 text-sm text-slate-600">Perbaiki di bawah lalu ajukan ulang — pengajuan barumu masuk antrean lagi.</p>
-          <StoreForm mode="activate" defaults={{ storeName: row?.storeName ?? "", tagline: row?.tagline ?? null, websiteUrl: row?.websiteUrl ?? null }} />
+          <StoreForm mode="activate" defaults={{ storeName: row?.storeName ?? "", tagline: row?.tagline ?? null, websiteUrl: row?.websiteUrl ?? null, phone: row?.phone ?? null, portfolioUrl: row?.portfolioUrl ?? null }} />
         </Card>
       </div>
     );
@@ -252,7 +252,7 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
         <aside className="space-y-5">
           <Card className="p-6">
             <h2 className="mb-4 text-lg font-bold text-ink">Profil toko</h2>
-            <StoreForm mode="edit" defaults={{ storeName: profile!.storeName, tagline: profile!.tagline, websiteUrl: profile!.websiteUrl }} />
+            <StoreForm mode="edit" defaults={{ storeName: profile!.storeName, tagline: profile!.tagline, websiteUrl: profile!.websiteUrl, phone: profile!.phone ?? null, portfolioUrl: profile!.portfolioUrl ?? null }} />
           </Card>
           <Card className="p-6">
             <h2 className="flex items-center gap-2 font-bold text-ink"><Wallet className="h-5 w-5 text-brand-600" /> Saldo &amp; penjualan</h2>
