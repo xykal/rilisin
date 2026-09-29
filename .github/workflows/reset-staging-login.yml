@@ -1,0 +1,46 @@
+# Ops SEKALI PAKAI — HAPUS SETELAH DIPAKAI. Reset password akun staging (+ jadikan admin).
+# Tidak ada secret di repo: DATABASE_URL diambil live dari Vercel API pakai token environment staging.
+name: Reset login staging (sekali pakai)
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Email akun staging"
+        required: true
+        default: "admin@rilisin.test"
+      password:
+        description: "Password baru (min 8 karakter)"
+        required: true
+      make_admin:
+        description: "Jadikan admin"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - run: npm install --no-save --no-audit --no-fund postgres
+      - name: Reset password staging
+        env:
+          INPUT_EMAIL: ${{ inputs.email }}
+          INPUT_PASSWORD: ${{ inputs.password }}
+          INPUT_MAKE_ADMIN: ${{ inputs.make_admin }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "::add-mask::$INPUT_PASSWORD"
+          node scripts/ops/reset-staging-login.mjs
