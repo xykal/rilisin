@@ -58,15 +58,18 @@ export function proxy(request: NextRequest) {
   // Hibrida Cloudinary: gambar publik dari res.cloudinary.com (kalau env-nya terisi)
   // Cloudflare Turnstile: script (dimuat dengan nonce) + iframe tantangan dari challenges.cloudflare.com
   const cf = Boolean(process.env.TURNSTILE_SITE_KEY) ? " https://challenges.cloudflare.com" : "";
+  // OneSignal push: SDK dari CDN + API (hanya kalau app id terisi; kalau tidak, push mati-aman)
+  const pushCdn = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ? " https://cdn.onesignal.com" : "";
+  const pushApi = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ? " https://onesignal.com https://*.onesignal.com" : "";
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${cf}${dev ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${cf}${pushCdn}${dev ? " 'unsafe-eval'" : ""}`,
     // atribut style={...} dari React butuh 'unsafe-inline' (CSS tidak bisa menjalankan script)
     "style-src 'self' 'unsafe-inline'",
     // Vercel Blob: gambar dari store publik, upload presigned ke vercel.com/api/blob, download = redirect ke store privat
-    `img-src 'self' blob: data:${blob ? " https://*.public.blob.vercel-storage.com" : ""}${cloudinary ? " https://res.cloudinary.com" : ""}`,
+    `img-src 'self' blob: data:${blob ? " https://*.public.blob.vercel-storage.com" : ""}${cloudinary ? " https://res.cloudinary.com" : ""}${pushCdn}`,
     "font-src 'self'",
-    `connect-src 'self'${blob ? " https://vercel.com" : ""}${cf}`,
+    `connect-src 'self'${blob ? " https://vercel.com" : ""}${cf}${pushApi}`,
     "media-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
