@@ -21,9 +21,10 @@ export function apiError(status: number, error: string, extra: Record<string, un
  *  - Content-Type wajib application/json → form HTML dari situs lain tidak bisa mengirim ini
  *    tanpa preflight CORS (yang pasti kita tolak).
  */
-export function guardMutation(req: Request, opts: { contentType?: RegExp } = {}) {
+export function guardMutation(req: Request, opts: { contentType?: RegExp; allowEmpty?: boolean } = {}) {
   if (!isSameOrigin(req)) return apiError(403, "Origin tidak diizinkan");
   const ct = req.headers.get("content-type") ?? "";
+  if (ct === "" && opts.allowEmpty) return null;
   if (!(opts.contentType ?? /^application\/json\b/i).test(ct)) {
     return apiError(415, "Content-Type tidak didukung");
   }

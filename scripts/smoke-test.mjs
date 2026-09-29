@@ -1086,6 +1086,8 @@ async function register(s, username, password, extra = {}) {
   ok(clean(await badSite.text()).includes("URL harus diawali"), "Website tanpa http(s) ditolak");
   const delCov = await rina.req("/api/cover", { method: "DELETE" });
   ok(delCov.status === 200, "Hapus sampul");
+  const delAv = await rina.req("/api/avatar", { method: "DELETE" });
+  ok(delAv.status === 200, "Hapus avatar");
   const prof3 = (await rina.html("/akun/profil")).text;
   await rina.submitForm("/akun/profil", prof3, 'data-form="profil"', { displayName: "Rina Pratiwi", bio: "", location: "", websiteUrl: "" });
   await rina.submitForm("/akun/notifikasi", pref2, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on", email_komunitas: "on" });

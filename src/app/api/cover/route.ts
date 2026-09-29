@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
 /** Hapus gambar sampul (kembali ke gradien bawaan). */
 export async function DELETE(req: Request) {
-  const blocked = guardMutation(req);
+  const blocked = guardMutation(req, { allowEmpty: true });
   if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return apiError(401, "Silakan masuk dulu.");
