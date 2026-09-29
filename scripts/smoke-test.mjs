@@ -950,11 +950,12 @@ async function register(s, username, password, extra = {}) {
   ok(clean(await savedProf.text()).includes("Profil tersimpan"), "Edit profil (nama + bio) tersimpan");
   const prof2 = (await rina.html("/akun/profil")).text;
   ok(prof2.includes("Rina Tester") && prof2.includes("Bio uji otomatis"), "Perubahan profil tampil kembali");
-  const av = await rina.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: png });
+  const avPng = await sharp({ create: { width: 64, height: 64, channels: 3, background: "#5b43f5" } }).png().toBuffer();
+  const av = await rina.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: avPng });
   ok(av.status === 201 && (await av.json()).url?.endsWith(".webp"), "Upload avatar → 201 webp");
   const avBad = await rina.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: Buffer.from("bukan-gambar") });
   ok(avBad.status === 415, "Avatar bukan gambar ditolak (cek magic bytes)");
-  const avGuest = await guest.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: png });
+  const avGuest = await guest.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: avPng });
   ok(avGuest.status === 401, "Upload avatar wajib login");
   await rina.submitForm("/akun/notifikasi", pref2, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on", email_komunitas: "on" });
   const badUnsub = await guest.req("/api/notifications/unsubscribe?t=palsu", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" });
