@@ -13,6 +13,7 @@ import {
 } from "@/app/actions/payments";
 import { estimateFee, methodAllowed, PAYMENT_METHODS, PAYOUT_PROVIDERS, PRICE_LIMITS } from "@/lib/payments/methods";
 import { SubmitButton } from "./submit-button";
+import { PasswordInput } from "./password-input";
 import { Alert, cn, Field, inputStyles } from "./ui";
 
 const rp = (n: number) => `Rp${Math.max(0, Math.round(n)).toLocaleString("id-ID")}`;
@@ -263,7 +264,7 @@ export function PayoutAccountForm({
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Password akun" htmlFor="pa-password" error={fe.password} hint="Konfirmasi karena ini menyangkut uang">
-          <input id="pa-password" name="password" type="password" autoComplete="current-password" required className={inputStyles} />
+          <PasswordInput id="pa-password" name="password" autoComplete="current-password" />
         </Field>
         {mfaEnabled && (
           <Field label="Kode 2FA" htmlFor="pa-code" error={fe.code}>
@@ -302,7 +303,7 @@ export function PayoutRequestForm({ available, min, mfaEnabled }: { available: n
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Password akun" htmlFor="po-password" error={fe.password}>
-          <input id="po-password" name="password" type="password" autoComplete="current-password" required className={inputStyles} />
+          <PasswordInput id="po-password" name="password" autoComplete="current-password" />
         </Field>
         {mfaEnabled && (
           <Field label="Kode 2FA" htmlFor="po-code" error={fe.code}>

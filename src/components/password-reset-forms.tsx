@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { requestResetAction, resetPasswordAction } from "@/app/actions/password-reset";
 import { Honeypot } from "./auth-forms";
 import { SubmitButton } from "./submit-button";
+import { PasswordInput } from "./password-input";
 import { TurnstileWidget } from "./turnstile-widget";
 import { Alert, Field, inputStyles } from "./ui";
 
@@ -55,10 +56,10 @@ export function ResetPasswordForm({ username }: { username: string }) {
       <input type="text" name="username" autoComplete="username" value={username} readOnly hidden />
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
       <Field label="Password baru" htmlFor="password" error={fe.password} hint="Minimal 10 karakter, bukan password umum, tidak mengandung username/email.">
-        <input id="password" name="password" type="password" autoComplete="new-password" required minLength={10} maxLength={200} className={inputStyles} />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} maxLength={200} />
       </Field>
       <Field label="Ulangi password baru" htmlFor="confirm" error={fe.confirm}>
-        <input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={10} maxLength={200} className={inputStyles} />
+        <PasswordInput id="confirm" name="confirm" autoComplete="new-password" minLength={10} maxLength={200} />
       </Field>
       <SubmitButton className="w-full !py-3" pendingText="Menyimpan…">
         Simpan password baru

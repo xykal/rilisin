@@ -1118,6 +1118,7 @@ async function register(s, username, password, extra = {}) {
 
   // Lupa password
   ok((await guest.html("/masuk")).text.includes('href="/lupa-password"'), "Masuk: ada link Lupa password");
+  ok((await guest.html("/masuk")).text.includes("Tampilkan password"), "Masuk: ada tombol intip password");
   const askReset = async (email) => {
     const s = new Session();
     const page = await s.html("/lupa-password");

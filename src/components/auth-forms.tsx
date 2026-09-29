@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { loginAction, registerAction } from "@/app/actions/auth";
 import { SubmitButton } from "./submit-button";
+import { PasswordInput } from "./password-input";
 import { TurnstileWidget } from "./turnstile-widget";
 import { Alert, Field, inputStyles } from "./ui";
 
@@ -88,7 +89,7 @@ export function LoginForm({ next, turnstile = null, challenge = false, google = 
         />
       </Field>
       <Field label="Password" htmlFor="password">
-        <input id="password" name="password" type="password" autoComplete="current-password" required className={inputStyles} />
+        <PasswordInput id="password" name="password" autoComplete="current-password" />
       </Field>
       <p className="-mt-2 text-right text-sm">
         <Link href="/lupa-password" className="font-medium text-brand-700 hover:underline">
@@ -151,7 +152,7 @@ export function RegisterForm({ next, formToken, turnstile = null, google = false
         <input id="email" name="email" type="email" required autoComplete="email" defaultValue={state?.values?.email} className={inputStyles} placeholder="nama@email.com" />
       </Field>
       <Field label="Password" htmlFor="password" error={fe.password} hint="Minimal 10 karakter, jangan pakai password yang sama dengan akun lain">
-        <input id="password" name="password" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputStyles} />
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={10} maxLength={200} />
       </Field>
       {turnstile && <TurnstileWidget siteKey={turnstile.siteKey} action="daftar" resetKey={state} />}
       <SubmitButton className="w-full !py-3" pendingText="Membuat akun…">

@@ -13,6 +13,7 @@ import {
   type RecoveryState,
 } from "@/app/actions/security";
 import { SubmitButton } from "./submit-button";
+import { PasswordInput } from "./password-input";
 import { Alert, buttonStyles, cn, Field, inputStyles } from "./ui";
 
 const codeInput = `${inputStyles} text-center font-mono text-2xl tracking-[0.35em]`;
@@ -61,14 +62,14 @@ export function ChangePasswordForm() {
     <form action={action} className="space-y-4" key={state?.success}>
       {state?.success && <Alert tone="success">{state.success}</Alert>}
       <Field label="Password saat ini" htmlFor="currentPassword" error={fe.currentPassword}>
-        <input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password" className={inputStyles} />
+        <PasswordInput id="currentPassword" name="currentPassword" autoComplete="current-password" />
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Password baru" htmlFor="newPassword" error={fe.newPassword} hint="Min. 10 karakter, bukan password umum">
-          <input id="newPassword" name="newPassword" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputStyles} />
+          <PasswordInput id="newPassword" name="newPassword" autoComplete="new-password" minLength={10} maxLength={200} />
         </Field>
         <Field label="Ulangi password baru" htmlFor="confirmPassword" error={fe.confirmPassword}>
-          <input id="confirmPassword" name="confirmPassword" type="password" required autoComplete="new-password" className={inputStyles} />
+          <PasswordInput id="confirmPassword" name="confirmPassword" autoComplete="new-password" />
         </Field>
       </div>
       <SubmitButton pendingText="Menyimpan…">Ganti password</SubmitButton>
@@ -86,10 +87,10 @@ export function SetPasswordForm({ mfaEnabled }: { mfaEnabled: boolean }) {
       {state?.success && <Alert tone="success">{state.success}</Alert>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Password baru" htmlFor="newPassword" error={fe.newPassword} hint="Min. 10 karakter, bukan password umum">
-          <input id="newPassword" name="newPassword" type="password" required minLength={10} maxLength={200} autoComplete="new-password" className={inputStyles} />
+          <PasswordInput id="newPassword" name="newPassword" autoComplete="new-password" minLength={10} maxLength={200} />
         </Field>
         <Field label="Ulangi password baru" htmlFor="confirmPassword" error={fe.confirmPassword}>
-          <input id="confirmPassword" name="confirmPassword" type="password" required autoComplete="new-password" className={inputStyles} />
+          <PasswordInput id="confirmPassword" name="confirmPassword" autoComplete="new-password" />
         </Field>
       </div>
       {mfaEnabled && (
@@ -191,7 +192,7 @@ export function DisableTotpForm() {
     <form action={action} className="space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Password saat ini" htmlFor="disable-password" error={fe.password}>
-          <input id="disable-password" name="password" type="password" required autoComplete="current-password" className={inputStyles} />
+          <PasswordInput id="disable-password" name="password" autoComplete="current-password" />
         </Field>
         <Field label="Kode 2FA / kode cadangan" htmlFor="disable-code" error={fe.code}>
           <input id="disable-code" name="code" required autoComplete="one-time-code" className={inputStyles} placeholder="000000" />
