@@ -142,3 +142,16 @@ Lanjutan 2026-09-29 (kall: "gas" buat env Vercel):
   dan kredensial site-lock tidak ada di file kerja. Perlu kall buka sendiri.
 - Catatan bagus: `RESEND_API_KEY` + `EMAIL_FROM` sudah ada di env Vercel, jadi email
   verifikasi (dan reset password) akan benar-benar terkirim di staging, bukan cuma log.
+
+Verifikasi staging 2026-09-29 (pakai kredensial site-lock yang ditarik lewat Vercel CLI
+`env pull`, tidak disimpan ke repo):
+- `/masuk` → 200 dan BENAR-BENAR menampilkan tautan "Lanjutkan dengan Google" + teks
+  "Login Google aktif" (bukti env Vercel kebaca di runtime, bukan cuma terdaftar).
+- `/api/auth/google` → 307 ke `https://accounts.google.com/o/oauth2/v2/auth` dengan
+  client_id client Rilisin, `redirect_uri=https://rilisin.xyverse.my.id/api/auth/google/callback`,
+  `scope=openid email profile`, `code_challenge_method=S256`, state 43 karakter, dan cookie
+  tiket `__Secure-rilisin_oauth` → `Secure; HttpOnly; SameSite=lax; Max-Age=600; Path=/`.
+- Kelima halaman hukum (`/ketentuan` `/privasi` `/kuki` `/aup` `/refund`) → 200 dengan banner
+  "Masih draf", dan `/verifikasi-email` → 200.
+- Yang masih butuh manusia: klik tombol Google di staging lalu selesaikan consent Google
+  (butuh akun Google + sesi browser; tidak bisa dilakukan dari sandbox).

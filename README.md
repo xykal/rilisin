@@ -308,7 +308,7 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
   - pencairan ke seller masih **transfer manual** oleh admin (Pakasir tidak punya API disbursement); refund ke pembeli juga manual;
   - pajak (PMK 37/2025, PPh 22 marketplace) belum dihitung — baru relevan kalau ditunjuk DJP.
 - **Akun:**
-  - login Google sudah jadi & diuji di CI (memakai server Google palsu). OAuth client khusus Rilisin sudah dibuat dan **redirect URI `https://rilisin.xyverse.my.id/api/auth/google/callback` sudah terdaftar** di Google Cloud Console (2026-09-29); env `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` sudah diisi di Vercel + staging sudah di-deploy ulang (2026-09-29); yang belum: uji coba klik tombolnya oleh manusia (staging dikunci Basic Auth);
+  - login Google sudah jadi & diuji di CI (memakai server Google palsu). OAuth client khusus Rilisin sudah dibuat dan **redirect URI `https://rilisin.xyverse.my.id/api/auth/google/callback` sudah terdaftar** di Google Cloud Console (2026-09-29); env `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` sudah diisi di Vercel + staging sudah di-deploy ulang, dan diverifikasi 2026-09-29 (tombol muncul di `/masuk`, `/api/auth/google` → 307 ke Google dengan PKCE S256 + redirect URI yang benar); yang belum: klik consent Google oleh manusia;
   - verifikasi email mengikuti jalur email yang ada (Resend via env; tanpa `RESEND_API_KEY` email hanya tercatat di log — jadi link verifikasi tidak sampai ke pengguna sungguhan);
   - admin belum *wajib* 2FA di demo (`REQUIRE_STAFF_2FA=0`); di production set `1`.
 - **Realtime:**
