@@ -71,6 +71,13 @@
       "when": 1790712937461,
       "tag": "0010_scheduled_releases",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790714605963,
+      "tag": "0011_profile_expansion",
+      "breakpoints": true
     }
   ]
 }

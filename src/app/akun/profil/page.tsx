@@ -1,8 +1,8 @@
-import { Camera, UserRound } from "lucide-react";
+import { Camera, Image as ImageIcon, UserRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
-import { AvatarPanel, ProfileForm } from "@/components/profile-forms";
+import { AvatarPanel, CoverPanel, ProfileForm } from "@/components/profile-forms";
 import { Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Edit profil", robots: { index: false
 export default async function ProfilePage() {
   const user = await requireUser("/akun/profil");
   const [row] = await db
-    .select({ displayName: users.displayName, bio: users.bio, avatarKey: users.avatarKey })
+    .select({ displayName: users.displayName, bio: users.bio, avatarKey: users.avatarKey, location: users.location, websiteUrl: users.websiteUrl, coverKey: users.coverKey })
     .from(users)
     .where(eq(users.id, user.id))
     .limit(1);
@@ -34,7 +34,7 @@ export default async function ProfilePage() {
         <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-ink">
           <UserRound className="h-5 w-5 text-brand-600" /> Nama & bio
         </h2>
-        <ProfileForm initial={{ displayName: row?.displayName ?? "", bio: row?.bio ?? "" }} />
+        <ProfileForm initial={{ displayName: row?.displayName ?? "", bio: row?.bio ?? "", location: row?.location ?? "", websiteUrl: row?.websiteUrl ?? "" }} />
       </Card>
 
       <Card className="mt-6 p-5 sm:p-7">
@@ -42,6 +42,13 @@ export default async function ProfilePage() {
           <Camera className="h-5 w-5 text-brand-600" /> Foto profil
         </h2>
         <AvatarPanel currentUrl={mediaUrl(row?.avatarKey)} username={user.username} />
+      </Card>
+
+      <Card className="mt-6 p-5 sm:p-7">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-ink">
+          <ImageIcon className="h-5 w-5 text-brand-600" /> Gambar sampul
+        </h2>
+        <CoverPanel currentUrl={mediaUrl(row?.coverKey)} />
       </Card>
     </div>
   );

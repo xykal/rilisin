@@ -1,4 +1,4 @@
-import { BadgeCheck, CalendarDays, CheckCircle2, Download, ExternalLink, MessageCircle, MessagesSquare, Package, Star, Users } from "lucide-react";
+import { BadgeCheck, CalendarDays, CheckCircle2, Download, ExternalLink, MapPin, MessageCircle, MessagesSquare, Package, Star, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,6 +18,7 @@ import { formatCompact, formatDate, timeAgo } from "@/lib/format";
 import { getFollowState } from "@/lib/follows";
 import { getMemberActivity, getMemberStats, memberBadges } from "@/lib/profile";
 import { getSellerProfile } from "@/lib/queries";
+import { mediaUrl } from "@/lib/storage";
 import { eq } from "drizzle-orm";
 
 const getProfile = cache(getSellerProfile);
@@ -56,10 +57,17 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
   const badges = memberBadges({ role: extra?.role ?? "user", isSeller, isTrusted: Boolean(profile.isTrusted), stats });
   const activity = banned ? null : await getMemberActivity(profile.id);
   const path = `/@${profile.username}`;
+  const cover = mediaUrl(profile.coverKey);
+  const personalSite = profile.userWebsiteUrl && profile.userWebsiteUrl !== profile.websiteUrl ? profile.userWebsiteUrl : null;
 
   return (
     <div>
-      <div className="h-40 bg-gradient-to-r from-brand-600 via-violet-500 to-fuchsia-500 sm:h-52" />
+      {cover ? (
+        // eslint-disable-next-line @next/next/no-img-element -- URL sampul dinamis (driver storage apa pun)
+        <img src={cover} alt="" className="h-40 w-full object-cover sm:h-52" />
+      ) : (
+        <div className="h-40 bg-gradient-to-r from-brand-600 via-violet-500 to-fuchsia-500 sm:h-52" />
+      )}
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <Card className="-mt-16 p-6 sm:p-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
@@ -111,9 +119,19 @@ export default async function ProfilePage({ params }: PageProps<"/u/[username]">
             <span className="flex items-center gap-1.5 text-slate-500">
               <CalendarDays className="h-4 w-4" /> Bergabung {formatDate(profile.createdAt)}
             </span>
+            {!banned && profile.location && (
+              <span className="flex items-center gap-1.5 text-slate-500">
+                <MapPin className="h-4 w-4" /> {profile.location}
+              </span>
+            )}
             {profile.websiteUrl && (
               <a href={profile.websiteUrl} target="_blank" rel="noopener noreferrer nofollow" className="flex min-w-0 items-center gap-1.5 font-medium text-brand-700 hover:underline">
                 <ExternalLink className="h-4 w-4 shrink-0" /> <span className="truncate">{profile.websiteUrl.replace(/^https?:\/\//, "")}</span>
+              </a>
+            )}
+            {!banned && personalSite && (
+              <a href={personalSite} target="_blank" rel="noopener noreferrer nofollow" className="flex min-w-0 items-center gap-1.5 font-medium text-brand-700 hover:underline">
+                <ExternalLink className="h-4 w-4 shrink-0" /> <span className="truncate">{personalSite.replace(/^https?:\/\//, "")}</span>
               </a>
             )}
             {viewer && !self && !banned && <ReportDialog targetType="user" targetId={profile.id} label="Laporkan akun" className="ml-auto" />}
