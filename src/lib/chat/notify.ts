@@ -11,7 +11,8 @@ export const CHAT_CHANNEL = "rilisin_chat";
 export type ChatSignal =
   | { t: "m"; r: string; id: string; c?: 1 }
   | { t: "ty"; r: string; u: string; n: string }
-  | { t: "pin"; r: string; id: string | null };
+  | { t: "pin"; r: string; id: string | null }
+  | { t: "nt"; u: string };
 
 export async function signal(evt: ChatSignal) {
   try {
@@ -23,3 +24,6 @@ export async function signal(evt: ChatSignal) {
 
 export const signalMessage = (roomId: string, id: string, created = false) =>
   signal(created ? { t: "m", r: roomId, id, c: 1 } : { t: "m", r: roomId, id });
+
+/** Notifikasi in-app baru buat user (bel realtime ambil ulang jumlahnya). */
+export const signalUserNotified = (userId: string) => signal({ t: "nt", u: userId });

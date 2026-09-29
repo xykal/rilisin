@@ -17,7 +17,8 @@ export type BusEvent =
   | { type: "typing"; userId: string; name: string }
   | { type: "pin"; message: ChatMessageDTO | null }
   | { type: "presence"; online: number }
-  | { type: "activity"; activity: ChatActivity };
+  | { type: "activity"; activity: ChatActivity }
+  | { type: "notif" };
 
 type Handler = (e: BusEvent) => void;
 
@@ -27,6 +28,7 @@ const MAX_STREAMS_TOTAL = 2000;
 class ChatBus {
   private rooms = new Map<string, Set<Handler>>();
   private everywhere = new Set<Handler>();
+  private users = new Map<string, Set<Handler>>();
   private presence = new Map<string, Map<string, number>>();
   private streamsByUser = new Map<string, number>();
   private totalStreams = 0;
@@ -57,6 +59,10 @@ class ChatBus {
     try {
       s = JSON.parse(payload) as ChatSignal;
     } catch {
+      return;
+    }
+    if (s.t === "nt") {
+      this.emit(this.users.get(s.u), { type: "notif" });
       return;
     }
     const roomHandlers = this.rooms.get(s.r);
@@ -134,6 +140,28 @@ class ChatBus {
       else this.streamsByUser.set(userId, s);
       this.totalStreams--;
       this.broadcastPresence(roomId);
+    };
+  }
+
+  /** Daftar koneksi SSE bel notifikasi (per user, tanpa presence). Return null kalau batas tercapai. */
+  openUser(userId: string, handler: Handler) {
+    const mine = this.streamsByUser.get(userId) ?? 0;
+    if (mine >= MAX_STREAMS_PER_USER || this.totalStreams >= MAX_STREAMS_TOTAL) return null;
+    this.streamsByUser.set(userId, mine + 1);
+    this.totalStreams++;
+    const set = this.users.get(userId) ?? new Set<Handler>();
+    set.add(handler);
+    this.users.set(userId, set);
+    let closed = false;
+    return () => {
+      if (closed) return;
+      closed = true;
+      set.delete(handler);
+      if (!set.size) this.users.delete(userId);
+      const s = (this.streamsByUser.get(userId) ?? 1) - 1;
+      if (s <= 0) this.streamsByUser.delete(userId);
+      else this.streamsByUser.set(userId, s);
+      this.totalStreams--;
     };
   }
 

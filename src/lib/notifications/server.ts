@@ -2,6 +2,7 @@ import "server-only";
 import { and, count, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { after } from "next/server";
+import { signalUserNotified } from "@/lib/chat/notify";
 import { db } from "@/lib/db";
 import { notifications, users, type NotificationData, type NotifyPrefs } from "@/lib/db/schema";
 import { appUrl, emailConfigured, renderEmail, sendEmail, sendEmailBatch, type EmailMessage } from "@/lib/email";
@@ -67,6 +68,10 @@ export async function notify(input: NotifyInput | NotifyInput[], exec: Exec = db
       })
       .returning({ id: notifications.id });
     if (row) ids.push(row.id);
+  }
+  if (ids.length) {
+    // Ping realtime (awaited supaya tidak hilang saat respons langsung redirect): bel ambil ulang jumlah dari DB.
+    await Promise.all([...new Set(items.map((i) => i.userId))].map((userId) => signalUserNotified(userId)));
   }
   return ids;
 }

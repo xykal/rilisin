@@ -42,6 +42,8 @@ export function NotificationBell({ initialUnread, className }: { initialUnread: 
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const lastActive = useRef(0);
+  const openRef = useRef(open);
+  openRef.current = open;
 
   // Angka dari server berubah (navigasi / revalidate) → ikuti, tanpa efek tambahan (pola "derived state" React).
   const [serverUnread, setServerUnread] = useState(initialUnread);
@@ -66,7 +68,34 @@ export function NotificationBell({ initialUnread, className }: { initialUnread: 
     }
   }, []);
 
-  // Polling hemat: hanya saat tab terlihat & user masih aktif.
+  const refreshUnread = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications/unread", { cache: "no-store" });
+      if (res.ok) setUnread(((await res.json()) as { unread: number }).unread);
+    } catch {
+      /* jaringan putus — coba lagi di siklus berikutnya */
+    }
+  }, []);
+
+  // Realtime: server mendorong event "notif" saat ada notifikasi baru (SSE, satu koneksi per tab).
+  // Tamu dapat 401 → EventSource berhenti sendiri (HTTP error tidak di-retry browser).
+  useEffect(() => {
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource("/api/notifications/stream");
+    } catch {
+      return;
+    }
+    const onNotif = () => {
+      if (openRef.current) void loadList();
+      else void refreshUnread();
+    };
+    es.addEventListener("notif", onNotif);
+    es.addEventListener("ready", onNotif);
+    return () => es?.close();
+  }, [loadList, refreshUnread]);
+
+  // Polling hemat sebagai jaring pengaman (kalau SSE mati diam-diam): hanya saat tab terlihat & user masih aktif.
   useEffect(() => {
     lastActive.current = Date.now();
     const mark = () => {
@@ -74,12 +103,7 @@ export function NotificationBell({ initialUnread, className }: { initialUnread: 
     };
     const poll = async () => {
       if (document.visibilityState !== "visible" || Date.now() - lastActive.current > IDLE_MS) return;
-      try {
-        const res = await fetch("/api/notifications/unread", { cache: "no-store" });
-        if (res.ok) setUnread(((await res.json()) as { unread: number }).unread);
-      } catch {
-        /* jaringan putus — coba lagi di siklus berikutnya */
-      }
+      await refreshUnread();
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") {
@@ -97,7 +121,7 @@ export function NotificationBell({ initialUnread, className }: { initialUnread: 
       window.removeEventListener("keydown", mark);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, []);
+  }, [refreshUnread]);
 
   useEffect(() => {
     if (!open) return;

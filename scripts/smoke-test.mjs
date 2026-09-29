@@ -968,6 +968,28 @@ async function register(s, username, password, extra = {}) {
   ok(qrep.status === 303 && Boolean(qid), "Kutip: balasan dengan kutipan tersimpan");
   ok((await guest.html(threadUrl)).text.includes(`?balasan=${replyId}#b-${replyId}`), "Kutip: kutipan tampil dengan link ke balasan induk");
 
+  // Bel realtime: Rina membuka SSE, Oki membalas → Rina menerima event notif
+  const nac = new AbortController();
+  const nstream = await rina.req("/api/notifications/stream", { signal: nac.signal, headers: { accept: "text/event-stream" } });
+  ok(nstream.status === 200 && (nstream.headers.get("content-type") ?? "").startsWith("text/event-stream"), "Stream notifikasi (SSE) tersambung");
+  const nreader = nstream.body.getReader();
+  const ndec = new TextDecoder();
+  let nbuf = "";
+  const waitNotif = async (needle, ms = 8000) => {
+    const deadline = Date.now() + ms;
+    while (!nbuf.includes(needle) && Date.now() < deadline) {
+      const r = await Promise.race([nreader.read(), new Promise((res) => setTimeout(() => res({ timeout: true }), deadline - Date.now()))]);
+      if (r.done || r.timeout) break;
+      nbuf += ndec.decode(r.value, { stream: true });
+    }
+    return nbuf.includes(needle);
+  };
+  ok(await waitNotif("event: ready"), "SSE notifikasi mengirim event ready");
+  await oki.submitForm(threadUrl, (await oki.html(threadUrl)).text, 'data-form="reply"', { body: "Ikut nimbrung soal printer struk." });
+  ok(await waitNotif("event: notif"), "Notifikasi balasan diterima realtime lewat SSE");
+  nac.abort();
+  ok((await guest.req("/api/notifications/stream")).status === 401, "Stream notifikasi wajib login");
+
   // Thread terkunci
   const lockedHref = home.text.match(/href="(\/forum\/t\/[0-9a-f-]{36})"[^>]*>Mulai 30 September 2026/)?.[1];
   const lockedPage = await rina.html(lockedHref);
