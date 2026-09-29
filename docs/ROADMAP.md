@@ -32,7 +32,7 @@ Estimates are working-day counts from the start date 2026-09-27.
 | 2026-10-05 | ~~Legal DRAFT: Terms, Privacy, Cookie, AUP, Refund~~ | **SELESAI 2026-09-28** (docs/legal/, DRAFT-marked, bilingual) | — |
 | 2026-10-05 | Review pengacar dokumen legal + isi placeholder entitas | draft engineer ≠ nasihat hukum | M |
 | 2026-10-05 | ZAP baseline (DAST) di CI | celah runtime (header, cookie, injeksi) ketahuan sebelum deploy | M |
-| 2026-10-05 | Daftarkan redirect URI Google `https://rilisin.xyverse.my.id/api/auth/google/callback` + isi env `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` | login Google belum bisa dipakai tanpa ini (tidak bisa diverifikasi dari sandbox) | S |
+| 2026-10-05 | Isi env Vercel `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` lalu deploy ulang staging | redirect URI sudah terdaftar (2026-09-29); tinggal env supaya login Google nyala di staging | S |
 | 2026-10-12 | Onboarding seller 3 langkah + checklist verifikasi | aktivasi seller = metrik stage MVP | M |
 | 2026-10-19 | Cutover produksi: domain, rotasi secret, budget alert, runbook | hentikan ketergantungan staging | L |
 | 2026-11-02 | Gerbang launch publik: legal reviewed, proving test hijau, support live | tidak launch tanpa syarat ini | L |
@@ -53,6 +53,9 @@ Estimates are working-day counts from the start date 2026-09-27.
   `drizzle/0006_auth_oauth.sql`, halaman hukum publik (`/ketentuan`, `/privasi`, `/kuki`,
   `/aup`, `/refund`) yang isinya di-generate dari `docs/legal/*.md` + cek sinkron di CI,
   dan tes Google palsu di CI (`tests/security/fake-google.mjs`)
+- OAuth client khusus Rilisin dibuat di Google Cloud Console (project `dykal-5e2b9`) dengan
+  redirect URI `https://rilisin.xyverse.my.id/api/auth/google/callback` — kredensial hanya di
+  file lokal kall, tidak masuk repo
 
 ## Parkir (belum dijadwalkan)
 

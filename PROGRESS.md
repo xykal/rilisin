@@ -118,3 +118,13 @@ session, alur penuh membuat session, email_verified=false ditolak, pra-pendaftar
 identitas yang sama bisa dipakai ulang, tiket sekali pakai, kelima halaman hukum 200.
 Commit perbaikan tes: 6b8847c (fitur) → 8caf8b6 (BASE import) → 92c6689 (nama cookie) →
 604d04c (tunggu form guard) → 735c2ff (status halaman verifikasi).
+
+2026-09-29 — kredensial Google Rilisin:
+- kall kirim OAuth client KHUSUS Rilisin (project dykal-5e2b9,
+  client_id ...p9h48et6vp9msa35s1hgf6o61jecnklv.apps.googleusercontent.com) dengan
+  redirect URI https://rilisin.xyverse.my.id/api/auth/google/callback SUDAH terdaftar.
+  Kredensial masuk file kerja lokal kall (uploads/ini-buat-kerja.txt — file .json-nya
+  dikonversi ke format teks polos, 61 nilai terverifikasi pindah utuh), TIDAK masuk repo.
+- Sisa satu langkah biar login Google nyala di staging: isi env Vercel
+  GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET, lalu deploy ulang (CI deploy otomatis jalan
+  saat push ke main, tapi env baru butuh redeploy).
