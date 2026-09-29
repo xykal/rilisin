@@ -1,0 +1,6 @@
+# HTTPS otomatis (Let's Encrypt) untuk domain produksi. DOMAIN diisi dari
+# environment service caddy (lihat docker-compose.yml). Sertifikat terbit
+# sendiri setelah DNS A record menunjuk ke IP VPS.
+{$DOMAIN} {
+	reverse_proxy app:3000
+}

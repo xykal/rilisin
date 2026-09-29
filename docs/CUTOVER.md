@@ -10,6 +10,9 @@ Prinsip:
 - Deploy produksi HANYA via CI manual (`workflow_dispatch` → job `deploy-prod`),
   tidak pernah auto-deploy dari push. Jangan hubungkan proyek Vercel produksi ke
   GitHub auto-deploy (atau matikan production branch-nya).
+
+> **Tanpa anggaran?** Jalur ini butuh ±$35–50/bln. Jalur $0/bulan (Docker di
+> VPS gratis Oracle / Hetzner murah, kode sama): **`docs/SELFHOST.md`**.
 - Data produksi = data asli. Seed/smoke menambah data → hanya dengan akun uji
   bernama jelas, lalu bersihkan (Fase 2).
 - Migrasi: skema harus backward-compatible (kode lama + skema baru harus tetap

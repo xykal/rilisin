@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.local
+coverage
+*.log
+zap-out/
+.env*
+!.env.example
+.vercel
+server.log
+fake-google.log

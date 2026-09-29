@@ -16,6 +16,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Self-host (Docker): hasilkan server mandiri di .next/standalone. Vercel &
+  // `next start` tetap jalan normal (dibuktikan CI tiap run).
+  output: "standalone",
   // Preview sandbox diakses lewat domain *.e2b.app (proxy). Di production, ganti dengan domain asli.
   allowedDevOrigins: ["*.e2b.app"],
   experimental: {

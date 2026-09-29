@@ -1,0 +1,70 @@
+# Produksi $0: seluruh Rilisin dalam satu VPS. Panduan lengkap: docs/SELFHOST.md
+#   - app      : Next.js standalone (migrasi otomatis tiap deploy via service `migrate`)
+#   - db       : Postgres 17 (pengganti Neon; backup terenkripsi tetap jalan)
+#   - clamd+scanner : antivirus selalu-nyala (pengganti workflow terjadwal)
+#   - caddy    : HTTPS otomatis (pengganti Vercel edge)
+# Rahasia: .env.prod (app+db+scanner) dan .env (DOMAIN untuk Caddy) — keduanya
+# gitignored, JANGAN commit. Contoh nilai: .env.example + docs/SELFHOST.md.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: [.env.prod]
+    environment:
+      POSTGRES_USER: rilisin
+      POSTGRES_DB: rilisin
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rilisin -d rilisin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build: { context: ., target: migrator }
+    depends_on: { db: { condition: service_healthy } }
+    env_file: [.env.prod]
+    restart: "no"
+
+  app:
+    build: { context: ., target: runner }
+    restart: unless-stopped
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    env_file: [.env.prod]
+    ports: ["127.0.0.1:3000:3000"] # localhost saja (cron host + debug; publik lewat Caddy)
+    volumes: [appdata:/app/data]
+
+  clamd:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    expose: ["3310"]
+    volumes: [clamdb:/var/lib/clamav] # database signature menetap (unduhan pertama ±2-3 mnt)
+
+  scanner:
+    image: node:24-bookworm-slim
+    restart: unless-stopped
+    depends_on: [app, clamd]
+    working_dir: /worker
+    volumes: ["./scanner:/worker:ro"] # worker.mjs mandiri, tanpa npm install
+    env_file: [.env.prod]
+    environment:
+      RILISIN_URL: http://app:3000
+      CLAMD_HOST: clamd
+      WORKER_NAME: compose-scanner
+    command: ["node", "worker.mjs"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", caddy_data:/data, caddy_config:/config]
+    environment:
+      DOMAIN: "${DOMAIN:?isi DOMAIN di file .env (contoh: DOMAIN=rilisin.id)}"
+
+volumes:
+  pgdata:
+  appdata: # file upload + backup .rlsbak — cadangkan keluar VPS berkala (SELFHOST.md)
+  clamdb:
+  caddy_data:
+  caddy_config:

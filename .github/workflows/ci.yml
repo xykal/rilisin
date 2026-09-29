@@ -2,6 +2,7 @@
 # Job test tanpa secret apa pun (APP_SECRET dibuat acak per run, pembayaran mode simulasi, gateway palsu).
 # Job deploy: push ke main yang LULUS test -> deploy staging ke Vercel (build di Vercel, env tetap di Vercel).
 # Job deploy-prod: MANUAL (workflow_dispatch) -> deploy produksi ke proyek Vercel terpisah (butuh environment 'production', lihat docs/CUTOVER.md).
+# Job docker: build image app+migrator tiap run (tanpa push) -> Dockerfile self-host (docs/SELFHOST.md) tidak bisa busuk diam-diam.
 # Token = secret environment "staging" yang dibatasi ke branch main; PR & Dependabot tidak bisa membacanya.
 name: CI
 
@@ -197,3 +198,18 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx --yes vercel@60.1.3 deploy --prod --yes --token "$VERCEL_TOKEN"
+
+  docker:
+    name: Docker image (self-host)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Buktikan Dockerfile tidak busuk (tanpa push registry). Env build kosong
+      # dengan sengaja: build harus murni kompilasi, tanpa akses DB/servis.
+      - name: Build image app + migrator
+        run: |
+          docker build -t rilisin-app:test .
+          docker build -t rilisin-migrate:test --target migrator .

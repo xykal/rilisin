@@ -254,3 +254,17 @@ Persiapan cutover produksi 2026-09-29 (gas dari kall; eksekusi menunggu akun):
   vars/secrets belum diisi — tidak setengah jalan.
 - Jujur: happy path kedua job ini BELUM teruji (butuh proyek prod) — diuji
   saat cutover Fase 2 sesuai runbook.
+
+Jalur $0/bulan (self-host Docker) 2026-09-29 (kall: belum ada anggaran):
+- Masalah: Vercel Pro ±$20 + Neon Launch ±$15 = produksi berbayar ±$35–50/bln.
+  Jawaban: seluruh stack jalan di SATU VPS gratis (Oracle Always Free ARM;
+  cadangan Hetzner ±€4) — kode sama, beda deploy. Runbook: `docs/SELFHOST.md`.
+- `Dockerfile` (multi-stage, base Debian karena `sharp`): deps → build →
+  `migrator` (service compose, jalan tiap deploy = auto-migrate) + `runner`
+  non-root (standalone). `docker-compose.yml`: app + db (Postgres 17) + clamd
+  + scanner daemon + caddy (HTTPS otomatis). `.dockerignore` + `Caddyfile`.
+- `next.config.ts`: `output: "standalone"` (Vercel & `next start` tetap normal —
+  dibuktikan CI). Tanpa runtime edge di kode → portabel penuh.
+- CI job baru `docker`: `docker build` app + migrator tiap run (tanpa push) —
+  Dockerfile tidak bisa busuk diam-diam. Compose/cron/sertifikat diuji saat
+  deploy VPS pertama (butuh akun Oracle kall) — jujur belum terverifikasi.
