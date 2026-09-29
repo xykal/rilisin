@@ -31,7 +31,7 @@ Estimates are working-day counts from the start date 2026-09-27.
 |---|---|---|---|
 | 2026-10-05 | ~~Legal DRAFT: Terms, Privacy, Cookie, AUP, Refund~~ | **SELESAI 2026-09-28** (docs/legal/, DRAFT-marked, bilingual) | — |
 | 2026-10-05 | Review pengacar dokumen legal + isi placeholder entitas | draft engineer ≠ nasihat hukum | M |
-| 2026-10-05 | ZAP baseline (DAST) di CI | celah runtime (header, cookie, injeksi) ketahuan sebelum deploy | M |
+| 2026-09-29 | ZAP baseline (DAST) di CI | SELESAI: jalan tiap run (spider + pasif, image pin digest); baseline pertama 0 High / 4 Medium (false positive desain) / 4 Low / 7 Info | — |
 | 2026-09-29 | Verifikasi staging login Google | SELESAI: env kebaca runtime, redirect 307 ke Google dengan PKCE S256 + redirect URI benar; sisa klik consent Google oleh manusia | — |
 | 2026-09-29 | Onboarding seller 3 langkah + checklist verifikasi | SELESAI: wizard `/seller/mulai` (info → upload & harga → publish) + kartu aktivasi toko di dashboard; editor biasa tetap ada sebagai jalur cepat | — |
 | 2026-10-19 | Cutover produksi: domain, rotasi secret, budget alert, runbook | hentikan ketergantungan staging | L |

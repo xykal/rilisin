@@ -40,7 +40,8 @@ plus a community (group chat + forum) and reviews from verified owners only.
   (Indonesian PDP law), encrypted database backups.
 - **Tests in CI:** lint → typecheck → seed → backup/restore → build → 143-check
   end-to-end smoke test → security proving tests (429 after threshold, injection,
-  traversal, XSS, IDOR, CSRF) → `npm audit` (high/critical) → deploy staging.
+  traversal, XSS, IDOR, CSRF) → ZAP baseline (DAST, temuan High = gagal) →
+  `npm audit` (high/critical) → deploy staging.
   CodeQL (SAST) runs on every push plus a weekly scan. All GitHub Actions are
   pinned to commit SHAs.
 - **Docs:** [`docs/PRD.md`](docs/PRD.md) (product & business),

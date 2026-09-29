@@ -215,3 +215,24 @@ Onboarding seller 3 langkah 2026-09-29 (IDEAS: aktivasi seller = metrik MVP):
   karena checklist belum lengkap). Penyelesaian penuh wizard tidak dites
   end-to-end (pakai action & API upload yang sama dengan editor biasa — sudah
   dites di smoke section 3).
+
+ZAP baseline (DAST) di CI 2026-09-29 (ROADMAP 2026-10-05, dimajukan):
+- Step baru sesudah contract test (commit ccae168): docker zaproxy stable yang
+  di-pin by digest (sha256:781a2bda…, diverifikasi via ghcr API 2026-09-29),
+  `zap-baseline.py -t http://localhost:3000 -m 2` = spider + scan PASIF saja
+  (tanpa serangan aktif, tidak mengubah data). Timeout job test 20 → 30 menit.
+- Penilai `scripts/qa/zap-baseline-check.mjs`: temuan HIGH = gagal; Medium ke
+  bawah dilaporkan; fail-closed kalau laporan hilang/rusak/format tak dikenal.
+- Dua fix sebelum hijau: (1) container ZAP non-root tidak bisa menulis volume
+  repo (AccessDeniedException) → laporan ke `zap-out/` (chmod 777, gitignore);
+  (2) riskdesc ZAP baru berformat "Risiko (Keyakinan)" → parser sempat buta
+  (semua Unknown) → diperbaiki + dites lokal dua arah (High = exit 1).
+- Hijau: CI 36519230190 + CodeQL 36519230199
+  (https://github.com/xykal/rilisin/actions/runs/36519230190).
+  Baseline pertama: 15 jenis temuan — 0 High, 4 Medium, 4 Low, 7 Info.
+- Triage 4 Medium (diterima, bukan bug): 10202 token CSRF (desain kita origin +
+  fetch-metadata + SameSite, keyakinan ZAP sendiri Low); 10055 `style-src
+  unsafe-inline` (dibutuhkan atribut style React; script-src tetap nonce ketat);
+  90003 SRI hilang (script same-origin Next — SRI hanya relevan cross-origin);
+  10038 tanpa CSP di 404 `/api/*` (respons JSON tanpa konten tereksekusi;
+  satu-satunya route API ber-HTML sudah punya CSP ketat sendiri).
