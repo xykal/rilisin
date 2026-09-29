@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { disablePush, enablePush, getPushState, type PushState } from "@/lib/push-client";
+import { disablePush, enablePush, getPushState, getSdkState, type PushState } from "@/lib/push-client";
 import { Alert } from "./ui";
 
 /**
@@ -35,6 +35,9 @@ export function PushDevicePanel() {
       setSt(await getPushState());
     } else if (r === "denied") {
       setMsg("Izin ditolak — buka gembok/info di address bar browser, izinkan Notifikasi, lalu coba lagi.");
+      setSt(await getPushState());
+    } else if (r === "dismissed") {
+      setMsg("Popup izin ditutup tanpa memilih — tekan Aktifkan lagi lalu pilih Izinkan.");
       setSt(await getPushState());
     } else {
       setMsg("SDK push gagal dimuat (koneksi / pemblokir iklan?). Coba lagi nanti.");
@@ -77,6 +80,16 @@ export function PushDevicePanel() {
           </button>
         )}
       </div>
+      <details className="text-xs text-slate-500">
+        <summary className="inline-flex min-h-[44px] cursor-pointer items-center font-semibold text-slate-600">
+          Detail teknis (screenshot ini kalau gagal)
+        </summary>
+        <ul className="mt-1 space-y-0.5 font-mono text-[11px]">
+          <li>SDK: {getSdkState()}</li>
+          <li>Izin: {st.permission}</li>
+          <li>Langganan: {st.subscribed ? "ya" : "tidak"}</li>
+        </ul>
+      </details>
       <p className="text-xs text-slate-500">
         iPhone: install dulu via Bagikan → “Add to Home Screen”, lalu aktifkan push dari ikon Home Screen (syarat iOS 16.4+). Safari Mac butuh
         sertifikat Apple berbayar — belum didukung.

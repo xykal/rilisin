@@ -312,3 +312,13 @@ Fase C (2/2: kunci live) 2026-09-29:
   bukan repo) + dipasang ke Vercel env (production+preview; App ID plain, REST
   key sensitive) via API. Commit ini memicu deploy staging yang memanggang
   App ID ke client. Sisa: uji E2E dari HP kelvin.
+
+Fix push Android 2026-09-29 (kelvin: sudah nyalain tapi belum bisa; OneSignal 0 perangkat):
+- Kemungkinan: cuma nyalain toggle kategori (tanpa langganan perangkat), prompt
+  ditutup/ditolak, atau SDK diblokir. Perbaikan: timeout SDK 15 dtk (tidak bisa
+  gantung), bedakan "ditolak" vs "ditutup", panel "Detail teknis" (SDK/izin/
+  langganan) untuk screenshot debug, unsupported dibedakan dari denied.
+- Alur PR disepakati: fitur chat-2.0 bertahap via PR → merge main = publish
+  STAGING (deploy job hanya di main; PR dapat CI penuh tanpa deploy). Preview
+  Vercel per branch kemungkinan otomatis (env preview = DB staging + site-lock
+  sama; push tidak bisa dites di preview karena origin OneSignal = staging).
