@@ -128,3 +128,17 @@ Commit perbaikan tes: 6b8847c (fitur) → 8caf8b6 (BASE import) → 92c6689 (nam
 - Sisa satu langkah biar login Google nyala di staging: isi env Vercel
   GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET, lalu deploy ulang (CI deploy otomatis jalan
   saat push ke main, tapi env baru butuh redeploy).
+
+Lanjutan 2026-09-29 (kall: "gas" buat env Vercel):
+- Env Vercel project `rilisin` (prj_iadpXfsAy8ah0OaBQAhAaU8BBrpD) diisi lewat REST API
+  pakai token Vercel dari file kerja lokal: `GOOGLE_CLIENT_ID` +
+  `GOOGLE_CLIENT_SECRET` (type encrypted, target production + preview). Nilai TIDAK
+  masuk repo/chat — cuma dicek lewat API (201 Created, lalu terdaftar di daftar env).
+- Redeploy produksi dipicu lewat API (deployment dpl_DqgZ8dUdecaLBcdyRrP8f7WAUoHU,
+  commit 4333ca9) → readyState READY. Staging rilisin.xyverse.my.id menjawab lagi
+  (region sin1) dengan 401 site-lock seperti biasa.
+- BELUM terverifikasi dari sandbox: tombol "Lanjutkan dengan Google" di halaman
+  /masuk staging dan putaran penuh ke Google sungguhan — staging dikunci Basic Auth
+  dan kredensial site-lock tidak ada di file kerja. Perlu kall buka sendiri.
+- Catatan bagus: `RESEND_API_KEY` + `EMAIL_FROM` sudah ada di env Vercel, jadi email
+  verifikasi (dan reset password) akan benar-benar terkirim di staging, bukan cuma log.

@@ -32,7 +32,7 @@ Estimates are working-day counts from the start date 2026-09-27.
 | 2026-10-05 | ~~Legal DRAFT: Terms, Privacy, Cookie, AUP, Refund~~ | **SELESAI 2026-09-28** (docs/legal/, DRAFT-marked, bilingual) | — |
 | 2026-10-05 | Review pengacar dokumen legal + isi placeholder entitas | draft engineer ≠ nasihat hukum | M |
 | 2026-10-05 | ZAP baseline (DAST) di CI | celah runtime (header, cookie, injeksi) ketahuan sebelum deploy | M |
-| 2026-10-05 | Isi env Vercel `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` lalu deploy ulang staging | redirect URI sudah terdaftar (2026-09-29); tinggal env supaya login Google nyala di staging | S |
+| 2026-10-05 | Verifikasi manual login Google di staging (klik tombol, putaran penuh ke Google) | env + deploy sudah jalan 2026-09-29; butuh mata manusia karena staging dikunci Basic Auth | S |
 | 2026-10-12 | Onboarding seller 3 langkah + checklist verifikasi | aktivasi seller = metrik stage MVP | M |
 | 2026-10-19 | Cutover produksi: domain, rotasi secret, budget alert, runbook | hentikan ketergantungan staging | L |
 | 2026-11-02 | Gerbang launch publik: legal reviewed, proving test hijau, support live | tidak launch tanpa syarat ini | L |
