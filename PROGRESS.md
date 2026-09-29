@@ -338,3 +338,27 @@ Edit profil 2026-09-29 (kelvin: kembangkan profil; sebelumnya NOL edit):
   (upload PNG/JPG/WebP → persegi 256 WebP, hapus file lama, DELETE reset) +
   panel foto dgn pratinjau. Username disengaja permanen (URL & mention).
 - Smoke +6 cek: halaman, simpan, tampil-kembali, avatar 201/415/401.
+
+## 2026-09-29 — hari kerja ke-2
+
+Done:
+- Seller registration ketat (level standar): email wajib terverifikasi +
+  antrean persetujuan admin (/admin/penjual, khusus admin) + rate limit
+  5x/jam. Status pending/approved/rejected (migrasi 0009 — sengaja idx 9
+  karena idx 8 dipakai 0008_voice di branch fitur/voice-notes; saat PR #7
+  merge, gabung kedua entri journal manual). requireSeller + init upload
+  hanya untuk approved; profil publik menyembunyikan toko pending; notifikasi
+  seller_approved/seller_rejected (+email) ke pemohon. Tanpa gate umur akun:
+  antrean manusia sudah menghentikan bot, gate umur cuma mengusir seller
+  legit hari pertama.
+- Smoke 284 → 296 cek: blok 3b ditulis ulang (pemohon tanpa verifikasi
+  ditolak; siklus pending → tolak → ajukan ulang → setujui → wizard 3
+  langkah; seller pending diblokir dari wizard & upload). Seed: akun
+  calon@rilisin.test (terverifikasi, non-seller khusus uji ini).
+
+Blocked:
+- Tidak ada.
+
+Next:
+- Cloudinary hibrida: gambar public/* via Cloudinary (decorator driver,
+  tanpa dependency baru), file privat tetap.

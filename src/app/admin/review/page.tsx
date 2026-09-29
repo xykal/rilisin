@@ -31,6 +31,8 @@ const ACTION_LABELS: Record<string, string> = {
   restore: "memulihkan",
   trust_seller: "menjadikan seller terpercaya",
   untrust_seller: "mencabut status terpercaya",
+  approve_seller: "menyetujui pengajuan toko",
+  reject_seller: "menolak pengajuan toko",
   android_checked: "mengecek bukti verifikasi Android",
   auto_publish_trusted: "tayang otomatis (seller terpercaya)",
   delete_message: "menghapus pesan chat",

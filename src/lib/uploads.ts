@@ -69,6 +69,7 @@ export async function initUpload(
   input: { purpose: string; targetId: string; filename: string; size: number; platform?: string },
 ) {
   if (!user.seller) throw new UploadError("Aktifkan toko dulu untuk upload.", 403);
+  if (user.seller.status !== "approved") throw new UploadError("Toko kamu masih menunggu persetujuan admin.", 403);
   const { purpose, targetId, filename, size } = input;
   if (!["icon", "cover", "screenshot", "release_file"].includes(purpose)) throw new UploadError("Jenis upload tidak dikenal");
   if (!/^[0-9a-f-]{36}$/i.test(targetId)) throw new UploadError("Target tidak valid");

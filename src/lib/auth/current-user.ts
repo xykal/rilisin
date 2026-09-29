@@ -77,7 +77,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     emailVerifiedAt: row.emailVerifiedAt ?? null,
     sessionId,
     seller: row.storeName
-      ? { storeName: row.storeName, tagline: row.tagline, isTrusted: row.isTrusted ?? false }
+      ? { storeName: row.storeName, tagline: row.tagline, isTrusted: row.isTrusted ?? false, status: row.sellerStatus ?? "pending", rejectionReason: row.rejectionReason ?? null }
       : null,
   };
 });

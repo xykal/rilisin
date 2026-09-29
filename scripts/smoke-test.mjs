@@ -292,8 +292,9 @@ let slug;
   ok(hidden.res.status === 404, "Produk yang direview belum tampil ke publik");
 }
 
-// ─── 3b. Onboarding seller: aktivasi toko + wizard 3 langkah ─────────────────
+// ─── 3b. Onboarding seller: pengajuan toko + approve admin + wizard ──────────
 {
+  // Akun baru tanpa verifikasi email tidak bisa mengajukan toko.
   const fresh = new Session();
   const tag = Date.now().toString(36).slice(-6);
   const uname = `wzd${tag}`;
@@ -307,26 +308,66 @@ let slug;
     next: "/",
   });
   ok(reg.status === 303 && fresh.hasSession(), "Daftar akun seller baru untuk wizard");
-
   const actPage = await fresh.html("/seller");
   ok(actPage.res.status === 200 && actPage.text.includes("Aktifkan toko"), "Seller baru melihat form aktivasi toko");
-  const act = await fresh.submitForm("/seller", actPage.text, 'name="storeName"', {
+  const denied = await fresh.submitForm("/seller", actPage.text, 'name="storeName"', {
     storeName: "Toko Wizard Uji",
     tagline: "Toko uji otomatis",
     websiteUrl: "",
     agree: "on",
   });
-  ok(act.status === 303 && (act.headers.get("location") ?? "").includes("/seller?baru=1"), "Aktivasi toko berhasil");
+  ok(denied.status === 200 && clean(await denied.text()).includes("Verifikasi email dulu"), "Pengajuan toko tanpa verifikasi email ditolak jujur");
+  ok((await fresh.html("/seller")).text.includes("Aktifkan toko"), "Akun yang ditolak tetap bukan seller");
+  ok((await fresh.html("/admin/penjual")).res.status === 404, "User biasa tidak bisa membuka antrean toko (404)");
 
-  const dash = await fresh.html("/seller");
+  // Akun terverifikasi: mengajukan → pending → ditolak → ajukan ulang → disetujui.
+  const calon = new Session();
+  await calon.login("calon@rilisin.test");
+  const cap = await calon.html("/seller");
+  const applied = await calon.submitForm("/seller", cap.text, 'name="storeName"', {
+    storeName: "Toko Calon Uji",
+    tagline: "Toko uji persetujuan",
+    websiteUrl: "",
+    agree: "on",
+  });
+  ok(applied.status === 303 && (applied.headers.get("location") ?? "").includes("/seller?diajukan=1"), "Pengajuan toko masuk antrean admin");
+  const waiting = await calon.html("/seller");
+  ok(waiting.text.includes("sedang ditinjau") && waiting.text.includes("Toko Calon Uji"), "Pemohon melihat status menunggu review");
+  const mulaiPending = await calon.html("/seller/mulai");
+  ok([302, 303, 307, 308].includes(mulaiPending.res.status), "Seller pending tidak bisa membuka wizard (dialihkan)");
+  const upPending = await calon.upload("icon", "00000000-0000-0000-0000-000000000000", "x.png", Buffer.from("x"));
+  ok(!upPending.ok && upPending.step === "init", "Seller pending tidak bisa upload");
+
+  const adm = new Session();
+  await adm.login("admin@rilisin.test");
+  const queue = await adm.html("/admin/penjual");
+  ok(queue.res.status === 200 && queue.text.includes("Toko Calon Uji"), "Admin melihat pengajuan di antrean");
+  const shortReject = await adm.submitForm("/admin/penjual", queue.text, 'name="reason"', { reason: "jelek" });
+  ok(shortReject.status === 303 && (shortReject.headers.get("location") ?? "").includes("error=alasan"), "Tolak tanpa alasan jelas ditolak balik");
+  const rejected = await adm.submitForm("/admin/penjual", queue.text, 'name="reason"', { reason: "Nama toko kurang jelas, perbaiki jadi nama usaha yang serius." });
+  ok(rejected.status === 303 && (rejected.headers.get("location") ?? "").includes("hasil=ditolak"), "Admin menolak pengajuan");
+  const rejPage = await calon.html("/seller");
+  ok(rejPage.text.includes("belum disetujui") && rejPage.text.includes("kurang jelas"), "Pemohon melihat alasan penolakan + form ajukan ulang");
+  const reapplied = await calon.submitForm("/seller", rejPage.text, 'name="storeName"', {
+    storeName: "Toko Calon Serius",
+    tagline: "Toko uji persetujuan",
+    websiteUrl: "",
+    agree: "on",
+  });
+  ok(reapplied.status === 303 && (reapplied.headers.get("location") ?? "").includes("/seller?diajukan=1"), "Pemohon bisa mengajukan ulang");
+  const queue2 = await adm.html("/admin/penjual");
+  const approved = await adm.submitForm("/admin/penjual", queue2.text, "Setujui toko", {});
+  ok(approved.status === 303 && (approved.headers.get("location") ?? "").includes("hasil=disetujui"), "Admin menyetujui pengajuan toko");
+
+  const dash = await calon.html("/seller");
   ok(
     dash.text.includes("Aktivasi toko") && dash.text.includes("Ikuti panduan 3 langkah"),
     "Dashboard menampilkan kartu aktivasi + CTA wizard",
   );
 
-  const step1 = await fresh.html("/seller/mulai");
+  const step1 = await calon.html("/seller/mulai");
   ok(step1.res.status === 200 && step1.text.includes("Langkah 1"), "Wizard langkah 1 tampil");
-  const created = await fresh.submitForm("/seller/mulai", step1.text, 'name="title"', {
+  const created = await calon.submitForm("/seller/mulai", step1.text, 'name="title"', {
     title: "Karya Wizard Smoke",
     summary: "Karya uji otomatis dari smoke test wizard onboarding seller.",
     category: "aplikasi",
@@ -341,18 +382,18 @@ let slug;
   const draftId = loc.match(/\/seller\/mulai\?id=([0-9a-f-]{36})&langkah=2/)?.[1];
   ok(created.status === 303 && Boolean(draftId), "Langkah 1 membuat draft → lanjut langkah 2");
 
-  const step2 = await fresh.html(`/seller/mulai?id=${draftId}&langkah=2`);
+  const step2 = await calon.html(`/seller/mulai?id=${draftId}&langkah=2`);
   ok(step2.res.status === 200 && step2.text.includes('name="pricingModel"'), "Langkah 2 tampil dengan form harga");
-  const priced = await fresh.submitForm(`/seller/mulai?id=${draftId}&langkah=2`, step2.text, 'name="pricingModel"', {
+  const priced = await calon.submitForm(`/seller/mulai?id=${draftId}&langkah=2`, step2.text, 'name="pricingModel"', {
     pricingModel: "fixed",
     priceIdr: "49000",
     minPriceIdr: "0",
   });
   ok(priced.status === 200 && clean(await priced.text()).includes("Harga disimpan"), "Harga wizard disimpan");
 
-  const step3 = await fresh.html(`/seller/mulai?id=${draftId}&langkah=3`);
+  const step3 = await calon.html(`/seller/mulai?id=${draftId}&langkah=3`);
   ok(step3.res.status === 200 && step3.text.includes("Checklist verifikasi"), "Langkah 3 tampil dengan checklist");
-  const blocked = await fresh.submitForm(`/seller/mulai?id=${draftId}&langkah=3`, step3.text, "Kirim ke review", {});
+  const blocked = await calon.submitForm(`/seller/mulai?id=${draftId}&langkah=3`, step3.text, "Kirim ke review", {});
   ok(
     blocked.status === 303 && (blocked.headers.get("location") ?? "").includes("error=checklist"),
     "Submit dengan checklist belum lengkap ditolak jujur",

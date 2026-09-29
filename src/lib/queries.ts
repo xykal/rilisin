@@ -211,7 +211,7 @@ export async function getSellerProfile(username: string) {
       isTrusted: sellerProfiles.isTrusted,
     })
     .from(users)
-    .leftJoin(sellerProfiles, eq(sellerProfiles.userId, users.id))
+    .leftJoin(sellerProfiles, and(eq(sellerProfiles.userId, users.id), eq(sellerProfiles.status, "approved")))
     .where(sql`lower(${users.username}) = ${username.toLowerCase()}`)
     .limit(1);
   if (!row) return null;

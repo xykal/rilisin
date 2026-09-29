@@ -1,14 +1,15 @@
 "use client";
 
-import { Flag, Inbox, MessagesSquare, Server, ShieldCheck, Wallet } from "lucide-react";
+import { Flag, Inbox, MessagesSquare, Server, ShieldCheck, Store, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "./ui";
 
-export function AdminTabs({ reviews, reports, contentReports, finance }: { reviews: number; reports: number; contentReports: number; finance: number | null }) {
+export function AdminTabs({ reviews, reports, contentReports, finance, sellers }: { reviews: number; reports: number; contentReports: number; finance: number | null; sellers: number | null }) {
   const pathname = usePathname();
   const tabs = [
     { href: "/admin/review", label: "Review karya", icon: Inbox, count: reviews },
+    ...(sellers !== null ? [{ href: "/admin/penjual", label: "Pengajuan toko", icon: Store, count: sellers }] : []),
     { href: "/admin/laporan", label: "Laporan chat", icon: Flag, count: reports },
     { href: "/admin/laporan/konten", label: "Laporan konten", icon: MessagesSquare, count: contentReports },
     ...(finance !== null ? [{ href: "/admin/keuangan", label: "Keuangan", icon: Wallet, count: finance }] : []),

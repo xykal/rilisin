@@ -11,10 +11,15 @@ export async function requireUser(nextPath = "/"): Promise<CurrentUser> {
   return user;
 }
 
-/** Wajib sudah mengaktifkan toko. */
+/** Toko sudah disetujui admin (pending/rejected dibuang ke halaman /seller yang menjelaskan statusnya). */
+export function isApprovedSeller(user: Pick<CurrentUser, "seller"> | null | undefined): user is SellerUser {
+  return (user?.seller as { status?: string } | null)?.status === "approved";
+}
+
+/** Wajib toko yang sudah disetujui admin. */
 export async function requireSeller(nextPath = "/seller"): Promise<SellerUser> {
   const user = await requireUser(nextPath);
-  if (!user.seller) redirect("/seller");
+  if (!isApprovedSeller(user)) redirect("/seller");
   return user as SellerUser;
 }
 

@@ -659,6 +659,10 @@ async function main() {
     .insert(schema.users)
     .values({ email: "user@rilisin.test", username: "rina", displayName: "Rina Pratiwi", passwordHash, createdAt: ago(40), bio: "Pemilik warung kopi kecil di Bekasi, suka coba aplikasi baru." })
     .returning();
+  // Calon seller: email terverifikasi tapi belum punya toko (dipakai smoke test pengajuan toko).
+  await db
+    .insert(schema.users)
+    .values({ email: "calon@rilisin.test", username: "calon_toko", displayName: "Calon Toko", passwordHash, createdAt: ago(10), emailVerifiedAt: new Date(), bio: "Akun uji pengajuan toko." });
 
   const sellerIds = new Map<string, string>();
   for (const s of SELLERS) {

@@ -3,7 +3,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireStaff } from "@/lib/auth/guards";
+import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { blockedHashes, moderationActions, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";
 import { announceProductPublished, announceReleasePublished } from "@/lib/follows";
@@ -193,4 +193,40 @@ export async function setTrustedAction(formData: FormData) {
   await db.update(sellerProfiles).set({ isTrusted: trusted }).where(eq(sellerProfiles.userId, userId));
   await log(staff.id, "user", userId, trusted ? "trust_seller" : "untrust_seller");
   revalidatePath("/", "layout");
+}
+
+/** Setujui pengajuan toko (admin saja — keputusan ini membuka akses uang/saldo). */
+export async function approveSellerAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const userId = str(formData, "userId");
+  if (!UUID_RE.test(userId)) return;
+  const [p] = await db.select().from(sellerProfiles).where(eq(sellerProfiles.userId, userId)).limit(1);
+  if (!p || p.status !== "pending") redirect("/admin/penjual");
+  await db
+    .update(sellerProfiles)
+    .set({ status: "approved", reviewedAt: new Date(), reviewedBy: admin.id, rejectionReason: null })
+    .where(eq(sellerProfiles.userId, userId));
+  await log(admin.id, "seller", userId, "approve_seller", p.storeName);
+  await notifyAndEmail({ userId, type: "seller_approved", actorId: admin.id, url: "/seller", data: { storeName: p.storeName } });
+  revalidatePath("/", "layout");
+  redirect("/admin/penjual?hasil=disetujui");
+}
+
+/** Tolak pengajuan toko (admin saja). Alasan wajib — dilihat pemohon. */
+export async function rejectSellerAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const userId = str(formData, "userId");
+  const reason = str(formData, "reason", 500);
+  if (!UUID_RE.test(userId)) return;
+  if (reason.length < 10) redirect("/admin/penjual?error=alasan");
+  const [p] = await db.select().from(sellerProfiles).where(eq(sellerProfiles.userId, userId)).limit(1);
+  if (!p || p.status !== "pending") redirect("/admin/penjual");
+  await db
+    .update(sellerProfiles)
+    .set({ status: "rejected", reviewedAt: new Date(), reviewedBy: admin.id, rejectionReason: reason })
+    .where(eq(sellerProfiles.userId, userId));
+  await log(admin.id, "seller", userId, "reject_seller", reason);
+  await notifyAndEmail({ userId, type: "seller_rejected", actorId: admin.id, url: "/seller", data: { storeName: p.storeName, reason } });
+  revalidatePath("/", "layout");
+  redirect("/admin/penjual?hasil=ditolak");
 }

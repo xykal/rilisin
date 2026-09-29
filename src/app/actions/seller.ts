@@ -33,23 +33,37 @@ const storeSchema = z.object({
 
 export async function activateStoreAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser("/seller");
-  if (user.seller) redirect("/seller");
+  if (user.seller?.status === "approved") redirect("/seller");
+  if (user.seller?.status === "pending") redirect("/seller?diajukan=1");
   const values = {
     storeName: String(formData.get("storeName") ?? ""),
     tagline: String(formData.get("tagline") ?? ""),
     websiteUrl: String(formData.get("websiteUrl") ?? ""),
   };
+  if (!user.emailVerifiedAt) {
+    return { error: "Verifikasi email dulu sebelum buka toko — linknya ada di halaman Verifikasi email.", values };
+  }
+  const rl = await sharedLimit(`activate-store:${user.id}`, 5, 60 * 60_000);
+  if (!rl.ok) return { error: "Terlalu sering mencoba. Tunggu sebentar lalu coba lagi.", values };
   const parsed = storeSchema.safeParse({ ...values, agree: formData.get("agree") ?? "" });
   if (!parsed.success) return { fieldErrors: fieldErrorsFrom(parsed.error), values };
   if (RESERVED_USERNAMES.has(parsed.data.storeName.toLowerCase())) {
     return { fieldErrors: { storeName: "Nama toko ini tidak bisa dipakai" }, values };
   }
-  await db
-    .insert(sellerProfiles)
-    .values({ userId: user.id, storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl })
-    .onConflictDoNothing();
+  // Pengajuan baru (atau daftar ulang setelah ditolak) selalu mulai dari antrean admin.
+  if (user.seller?.status === "rejected") {
+    await db
+      .update(sellerProfiles)
+      .set({ storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl, status: "pending", rejectionReason: null, reviewedAt: null, reviewedBy: null })
+      .where(eq(sellerProfiles.userId, user.id));
+  } else {
+    await db
+      .insert(sellerProfiles)
+      .values({ userId: user.id, storeName: parsed.data.storeName, tagline: parsed.data.tagline, websiteUrl: parsed.data.websiteUrl, status: "pending" })
+      .onConflictDoNothing();
+  }
   revalidatePath("/", "layout");
-  redirect("/seller?baru=1");
+  redirect("/seller?diajukan=1");
 }
 
 // ─── Produk ───────────────────────────────────────────────────────────────────

@@ -44,6 +44,8 @@ export const NOTIFICATION_TYPES = {
   payout_rejected: { category: "transaksi", email: true },
   product_approved: { category: "karya", email: true },
   product_rejected: { category: "karya", email: true },
+  seller_approved: { category: "karya", email: true },
+  seller_rejected: { category: "karya", email: true },
   review_new: { category: "karya", email: true },
   review_reply: { category: "karya", email: true },
   forum_reply: { category: "komunitas", email: true },

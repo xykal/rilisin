@@ -57,6 +57,13 @@
       "when": 1790693678752,
       "tag": "0007_push",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790708455698,
+      "tag": "0009_seller_status",
+      "breakpoints": true
     }
   ]
 }

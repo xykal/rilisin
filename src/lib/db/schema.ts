@@ -182,6 +182,11 @@ export const sellerProfiles = pgTable("seller_profiles", {
   storeName: text("store_name").notNull(),
   tagline: text("tagline"),
   websiteUrl: text("website_url"),
+  /** Pending = menunggu persetujuan admin; hanya approved yang boleh jualan. */
+  status: sellerStatus("status").notNull().default("pending"),
+  reviewedAt: tsz("reviewed_at"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  rejectionReason: text("rejection_reason"),
   /** Seller terpercaya: produk & rilis baru langsung tayang tanpa antre review. */
   isTrusted: boolean("is_trusted").notNull().default(false),
   /** Komisi dalam basis poin (1000 = 10%). Dipakai mulai Fase 2. */
@@ -189,7 +194,8 @@ export const sellerProfiles = pgTable("seller_profiles", {
   /** Promo seller awal: sebelum tanggal ini komisi 0% (snapshot ke pesanan saat checkout). */
   zeroCommissionUntil: tsz("zero_commission_until"),
   activatedAt: tsz("activated_at").notNull().defaultNow(),
-});
+},
+(t) => [index("seller_profiles_status_idx").on(t.status)]);
 
 // ─── Katalog ─────────────────────────────────────────────────────────────────
 export const products = pgTable(

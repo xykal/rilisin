@@ -32,7 +32,7 @@ export const metadata: Metadata = { title: "Seller Center" };
 
 export default async function SellerPage({ searchParams }: PageProps<"/seller">) {
   const user = await requireUser("/seller");
-  const { baru } = await searchParams;
+  const { diajukan } = await searchParams;
 
   if (!user.seller) {
     return (
@@ -86,14 +86,7 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      {baru && (
-        <Alert tone="success" className="mb-6" title="Toko kamu sudah aktif!">
-          Langkah berikutnya: tambahkan karya pertamamu.{" "}
-          <Link href="/seller/mulai" className="font-bold underline">
-            Ikuti panduan 3 langkah →
-          </Link>
-        </Alert>
-      )}
+
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-brand-700">Seller Center</p>
