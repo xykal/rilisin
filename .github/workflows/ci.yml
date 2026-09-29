@@ -22,7 +22,7 @@ jobs:
   test:
     name: Build & test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17-alpine
@@ -101,6 +101,20 @@ jobs:
         run: npm run test:security
       - name: Contract test Pakasir v2
         run: npm run test:pakasir
+      # DAST: ZAP baseline = spider + scan pasif ke server uji (TANPA serangan
+      # aktif — tidak ada fuzzing yang mengubah data). Image di-pin by digest
+      # (stable per 2026-09-29, diverifikasi via ghcr API). Kebijakan
+      # (scripts/qa/zap-baseline-check.mjs): temuan HIGH = gagal; Medium ke
+      # bawah dilaporkan tapi tidak menggagalkan (aturan generik scan pasif
+      # tidak paham pola origin + fetch-metadata kita → banyak false positive).
+      - name: ZAP baseline (DAST)
+        run: |
+          code=0
+          docker run --rm --network host -v "$(pwd):/zap/wrk:rw" \
+            "ghcr.io/zaproxy/zaproxy@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef" \
+            zap-baseline.py -t http://localhost:3000 -m 2 -J zap-baseline.json -r zap-baseline.html || code=$?
+          if [ "$code" -gt 2 ]; then echo "ZAP error (exit $code)"; exit 1; fi
+          node scripts/qa/zap-baseline-check.mjs
       - name: Log server (kalau gagal)
         if: failure()
         run: |
