@@ -109,12 +109,15 @@ jobs:
       # tidak paham pola origin + fetch-metadata kita → banyak false positive).
       - name: ZAP baseline (DAST)
         run: |
+          # Container ZAP jalan sebagai user non-root → direktori laporan khusus
+          # yang bisa ditulis siapa pun (repo checkout milik user runner).
+          mkdir -p zap-out && chmod 777 zap-out
           code=0
-          docker run --rm --network host -v "$(pwd):/zap/wrk:rw" \
+          docker run --rm --network host -v "$(pwd)/zap-out:/zap/wrk:rw" \
             "ghcr.io/zaproxy/zaproxy@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef" \
             zap-baseline.py -t http://localhost:3000 -m 2 -J zap-baseline.json -r zap-baseline.html || code=$?
           if [ "$code" -gt 2 ]; then echo "ZAP error (exit $code)"; exit 1; fi
-          node scripts/qa/zap-baseline-check.mjs
+          node scripts/qa/zap-baseline-check.mjs zap-out/zap-baseline.json
       - name: Log server (kalau gagal)
         if: failure()
         run: |

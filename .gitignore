@@ -54,4 +54,4 @@ skills-lock.json
 server.log
 fake-google.log
 # laporan ZAP baseline (dibuat tiap run CI, dibaca lalu dibuang)
-zap-baseline.*
+zap-out/
