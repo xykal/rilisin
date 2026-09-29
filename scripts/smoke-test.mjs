@@ -1305,6 +1305,10 @@ async function register(s, username, password, extra = {}) {
   if (testKeys) {
     const csp = daftar.res.headers.get("content-security-policy") ?? "";
     ok(csp.includes("frame-src https://challenges.cloudflare.com") && daftar.text.includes("challenges.cloudflare.com/turnstile/v0/api.js"), "Turnstile: script & iframe Cloudflare diizinkan CSP di halaman daftar");
+    const sw = await guest.html("/OneSignalSDKWorker.js");
+    const swCsp = sw.res.headers.get("content-security-policy") ?? "";
+    ok(sw.res.status === 200 && sw.text.includes("OneSignalSDK.sw.js"), "Push: service worker OneSignal tersaji di root");
+    ok(swCsp.includes("script-src 'self'") && !swCsp.includes("strict-dynamic") && !swCsp.includes("nonce-"), "Push: CSP worker pakai allowlist host (tanpa strict-dynamic/nonce)");
     const bot = new Session();
     const page = await bot.html("/daftar");
     await sleep(1600);

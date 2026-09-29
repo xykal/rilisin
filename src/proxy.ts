@@ -50,6 +50,22 @@ export function proxy(request: NextRequest) {
     return res;
   }
 
+  // OneSignal push: SDK dari CDN + API (hanya kalau app id terisi; kalau tidak, push mati-aman)
+  const pushCdn = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ? " https://cdn.onesignal.com" : "";
+  const pushApi = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ? " https://onesignal.com https://*.onesignal.com" : "";
+
+  // Service worker OneSignal: JANGAN diberi CSP halaman! Nonce/strict-dynamic tidak berlaku di konteks
+  // worker (importScripts tidak bisa bawa nonce) → SDK worker selalu diblokir. Beri allowlist host biasa.
+  if (path === "/OneSignalSDKWorker.js") {
+    const res = NextResponse.next();
+    res.headers.set(
+      "Content-Security-Policy",
+      [`default-src 'none'`, `script-src 'self'${pushCdn}`, `connect-src 'self'${pushApi}`, `img-src 'self' data: blob:${pushCdn}`].join("; "),
+    );
+    if (locked) res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return res;
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const dev = process.env.NODE_ENV === "development";
   const frameAncestors = process.env.FRAME_ANCESTORS?.trim() || "'none'";
@@ -58,9 +74,7 @@ export function proxy(request: NextRequest) {
   // Hibrida Cloudinary: gambar publik dari res.cloudinary.com (kalau env-nya terisi)
   // Cloudflare Turnstile: script (dimuat dengan nonce) + iframe tantangan dari challenges.cloudflare.com
   const cf = Boolean(process.env.TURNSTILE_SITE_KEY) ? " https://challenges.cloudflare.com" : "";
-  // OneSignal push: SDK dari CDN + API (hanya kalau app id terisi; kalau tidak, push mati-aman)
-  const pushCdn = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ? " https://cdn.onesignal.com" : "";
-  const pushApi = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ? " https://onesignal.com https://*.onesignal.com" : "";
+  // (pushCdn/pushApi didefinisikan di atas — dipakai blok service worker + CSP halaman)
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${cf}${pushCdn}${dev ? " 'unsafe-eval'" : ""}`,
