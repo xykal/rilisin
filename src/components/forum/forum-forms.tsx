@@ -128,13 +128,26 @@ export function ThreadForm({
   );
 }
 
-export function ReplyComposer({ threadId }: { threadId: string }) {
+export function ReplyComposer({ threadId, quote }: { threadId: string; quote?: { id: string; authorName: string; snippet: string } | null }) {
   const [state, action] = useActionState(replyAction, undefined);
   const [body, setBody] = useState(state?.values?.body ?? "");
+  const [q, setQ] = useState(quote ?? null);
   return (
     <form action={action} className="space-y-3" data-form="reply">
       <input type="hidden" name="threadId" value={threadId} />
+      {q && <input type="hidden" name="parentId" value={q.id} />}
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
+      {q && (
+        <div className="flex items-start justify-between gap-2 rounded-xl border-l-4 border-brand-300 bg-slate-50 px-3 py-2 text-sm">
+          <p className="min-w-0">
+            <span className="font-semibold text-ink">Mengutip {q.authorName}: </span>
+            <span className="text-slate-600">{q.snippet}</span>
+          </p>
+          <button type="button" onClick={() => setQ(null)} className="shrink-0 font-semibold text-slate-500 hover:text-ink">
+            Batal
+          </button>
+        </div>
+      )}
       <label htmlFor="reply-body" className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-800">
         <span>Tulis balasan</span>
         <Counter value={body} max={FORUM_LIMITS.replyMax} />

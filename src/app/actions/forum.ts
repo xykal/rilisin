@@ -102,9 +102,10 @@ export async function replyAction(_prev: FormState, formData: FormData): Promise
   const threadId = uuid.safeParse(formData.get("threadId"));
   if (!threadId.success) return { error: "Thread tidak valid." };
   const body = String(formData.get("body") ?? "").slice(0, 12_000);
+  const parentId = uuid.safeParse(formData.get("parentId"));
   let url: string;
   try {
-    ({ url } = await createReply(user, threadId.data, body));
+    ({ url } = await createReply(user, threadId.data, body, parentId.success ? parentId.data : null));
   } catch (e) {
     return fail(e, { body });
   }

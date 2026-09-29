@@ -958,6 +958,16 @@ async function register(s, username, password, extra = {}) {
   const afterDel = await guest.html(threadUrl);
   ok(Boolean(mid) && afterDel.text.includes("Balasan ini dihapus penulisnya") && !afterDel.text.includes("printer yang sama"), "Hapus balasan: diganti keterangan, isinya hilang dari publik");
 
+  // Kutip balasan
+  const qp = await sel.html(`${threadUrl}?kutip=${replyId}`);
+  ok(qp.text.includes("Mengutip") && qp.text.includes(`name="parentId" value="${replyId}"`), "Kutip: composer menampilkan pratinjau + parentId");
+  const qbad = await rina.submitForm(threadUrl, (await rina.html(threadUrl)).text, 'data-form="reply"', { body: "Kutipan palsu yang cukup panjang isinya.", parentId: "00000000-0000-0000-0000-000000000000" });
+  ok(clean(await qbad.text()).includes("dikutip tidak ditemukan"), "Kutip: parentId asal ditolak");
+  const qrep = await rina.submitForm(threadUrl, (await rina.html(threadUrl)).text, 'data-form="reply"', { body: "Setuju, pairing ulang biasanya manjur.", parentId: replyId });
+  const qid = (qrep.headers.get("location") ?? "").match(/balasan=([0-9a-f-]{36})/)?.[1];
+  ok(qrep.status === 303 && Boolean(qid), "Kutip: balasan dengan kutipan tersimpan");
+  ok((await guest.html(threadUrl)).text.includes(`?balasan=${replyId}#b-${replyId}`), "Kutip: kutipan tampil dengan link ke balasan induk");
+
   // Thread terkunci
   const lockedHref = home.text.match(/href="(\/forum\/t\/[0-9a-f-]{36})"[^>]*>Mulai 30 September 2026/)?.[1];
   const lockedPage = await rina.html(lockedHref);

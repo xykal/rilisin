@@ -9,6 +9,7 @@ import {
   PencilLine,
   Pin,
   PinOff,
+  Reply,
   RotateCcw,
   ShieldAlert,
   Trash2,
@@ -28,7 +29,7 @@ import { Alert, ButtonLink, Card, buttonStyles, cn, inputStyles } from "@/compon
 import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
 import { plainSnippet, replyPath, threadPath } from "@/lib/community/shared";
 import { formatDateTime, timeAgo } from "@/lib/format";
-import { getAcceptedReply, getThread, listReplies, productBadges, replyPageOf, viewerVotes, type ReplyDTO } from "@/lib/forum";
+import { getAcceptedReply, getQuoteTarget, getThread, listReplies, productBadges, replyPageOf, viewerVotes, type ReplyDTO } from "@/lib/forum";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const loadThread = cache(async (id: string) => {
@@ -66,6 +67,7 @@ export default async function ThreadPage({ params, searchParams }: PageProps<"/f
   const target = typeof sp.balasan === "string" && UUID_RE.test(sp.balasan) ? sp.balasan : null;
   const page = target ? await replyPageOf(thread.id, target) : Math.max(1, Number.parseInt(typeof sp.hal === "string" ? sp.hal : "1", 10) || 1);
   const [replies, accepted] = await Promise.all([listReplies(thread.id, { viewer: user, page }), getAcceptedReply(thread.id, thread.acceptedReplyId)]);
+  const quoteTarget = t.canReply && typeof sp.kutip === "string" && UUID_RE.test(sp.kutip) ? await getQuoteTarget(thread.id, sp.kutip, user) : null;
   const replyIds = [...replies.items.map((r) => r.id), ...(accepted ? [accepted.reply.id] : [])];
   const [votes, badges] = await Promise.all([
     viewerVotes(user?.id, thread.id, replyIds),
@@ -131,6 +133,12 @@ export default async function ThreadPage({ params, searchParams }: PageProps<"/f
                 : "Disembunyikan otomatis — dilaporkan beberapa anggota."}
           </p>
         )}
+        {r.quoted && (
+          <Link href={replyPath(thread.id, r.quoted.id)} className="mt-3 block rounded-xl border-l-4 border-brand-300 bg-slate-50 px-3 py-2 text-sm hover:bg-slate-100">
+            <span className="font-semibold text-ink">{r.quoted.authorName}</span>
+            <span className="mt-0.5 line-clamp-2 block text-slate-600">{r.quoted.snippet}</span>
+          </Link>
+        )}
         <div className="mt-3 min-w-0">
           <Markdown mentions compact>
             {r.body}
@@ -150,6 +158,11 @@ export default async function ThreadPage({ params, searchParams }: PageProps<"/f
             </form>
           )}
           <div className="ml-auto flex flex-wrap items-center gap-1">
+            {user && r.state === "visible" && !thread.lockedAt && (
+              <Link href={`${threadPath(thread.id)}?kutip=${r.id}#balas`} className={cn(buttonStyles.ghost, "!px-2 !py-1 !text-xs")}>
+                <Reply className="h-3.5 w-3.5" /> Balas
+              </Link>
+            )}
             {(mine || staff) && r.state !== "deleted" && (!thread.lockedAt || staff) && (
               <Link href={`/forum/balasan/${r.id}/ubah`} className={cn(buttonStyles.ghost, "!px-2 !py-1 !text-xs")}>
                 <PencilLine className="h-3.5 w-3.5" /> Ubah
@@ -348,9 +361,10 @@ export default async function ThreadPage({ params, searchParams }: PageProps<"/f
         )}
       </section>
 
+      <div id="balas" className="scroll-mt-24">
       <Card className="mt-6 p-5 sm:p-6">
         {t.canReply ? (
-          <ReplyComposer threadId={thread.id} />
+          <ReplyComposer threadId={thread.id} quote={quoteTarget} />
         ) : !user ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-600">Masuk untuk membalas, upvote, atau menandai jawaban.</p>
@@ -364,6 +378,7 @@ export default async function ThreadPage({ params, searchParams }: PageProps<"/f
           <p className="text-sm text-slate-600">Thread ini sedang ditinjau moderator.</p>
         )}
       </Card>
+      </div>
     </div>
   );
 }

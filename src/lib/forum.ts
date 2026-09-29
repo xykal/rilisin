@@ -215,6 +215,8 @@ export type ReplyDTO = {
   createdAt: Date;
   editedAt: Date | null;
   author: { id: string; username: string; displayName: string; avatarKey: string | null; role: string };
+  /** Kutipan balasan induk (null kalau tidak mengutip / induk tak terlihat oleh viewer). */
+  quoted: { id: string; authorName: string; snippet: string } | null;
 };
 
 export async function listReplies(threadId: string, opts: { viewer: Viewer; page?: number; pageSize?: number }) {
@@ -234,9 +236,24 @@ export async function listReplies(threadId: string, opts: { viewer: Viewer; page
     .limit(pageSize)
     .offset((page - 1) * pageSize);
   const staff = isStaff(opts.viewer);
+  const parentIds = [...new Set(rows.map(({ reply: r }) => r.parentId).filter((v): v is string => Boolean(v)))];
+  const parentRows = parentIds.length
+    ? await db
+        .select({ reply: forumReplies, displayName: users.displayName })
+        .from(forumReplies)
+        .innerJoin(users, eq(users.id, forumReplies.authorId))
+        .where(and(eq(forumReplies.threadId, threadId), inArray(forumReplies.id, parentIds)))
+    : [];
+  const parents = new Map(parentRows.map(({ reply: p, displayName }) => [p.id, { reply: p, displayName }]));
   const items: ReplyDTO[] = rows.map(({ reply: r, author }) => {
     const state = r.deletedAt ? "deleted" : r.hiddenAt ? "hidden" : r.reportHiddenAt ? "auto_hidden" : "visible";
     const canSee = state === "visible" || staff || (state !== "deleted" && opts.viewer?.id === r.authorId);
+    const pq = r.parentId ? parents.get(r.parentId) : null;
+    const pstate = pq ? (pq.reply.deletedAt ? "deleted" : pq.reply.hiddenAt ? "hidden" : pq.reply.reportHiddenAt ? "auto_hidden" : "visible") : null;
+    const quoted =
+      pq && (pstate === "visible" || staff || (pstate !== "deleted" && opts.viewer?.id === pq.reply.authorId))
+        ? { id: pq.reply.id, authorName: pq.displayName, snippet: plainSnippet(pq.reply.body, 200) }
+        : null;
     return {
       id: r.id,
       body: canSee ? r.body : null,
@@ -246,9 +263,26 @@ export async function listReplies(threadId: string, opts: { viewer: Viewer; page
       createdAt: r.createdAt,
       editedAt: r.editedAt,
       author,
+      quoted,
     };
   });
   return { items, total: total?.n ?? 0, page, pages, pageSize };
+}
+
+/** Target kutipan buat composer (?kutip=): null kalau tak ada / tak terlihat oleh viewer. */
+export async function getQuoteTarget(threadId: string, replyId: string, viewer: Viewer) {
+  const [row] = await db
+    .select({ reply: forumReplies, displayName: users.displayName })
+    .from(forumReplies)
+    .innerJoin(users, eq(users.id, forumReplies.authorId))
+    .where(and(eq(forumReplies.id, replyId), eq(forumReplies.threadId, threadId)))
+    .limit(1);
+  if (!row) return null;
+  const r = row.reply;
+  const state = r.deletedAt ? "deleted" : r.hiddenAt ? "hidden" : r.reportHiddenAt ? "auto_hidden" : "visible";
+  const canSee = state === "visible" || isStaff(viewer) || (state !== "deleted" && viewer?.id === r.authorId);
+  if (!canSee) return null;
+  return { id: r.id, authorName: row.displayName, snippet: plainSnippet(r.body, 200) };
 }
 
 /** Halaman tempat balasan tertentu berada (dipakai link notifikasi ?balasan=). */
@@ -461,7 +495,7 @@ export async function moderateThread(staff: CurrentUser, id: string, action: "pi
 }
 
 // ─── Balasan ────────────────────────────────────────────────────────────────
-export async function createReply(actor: CurrentUser, threadId: string, rawBody: string) {
+export async function createReply(actor: CurrentUser, threadId: string, rawBody: string, parentId?: string | null) {
   await assertCanPost(actor);
   const { thread } = await loadThreadForWrite(threadId);
   const staff = isStaff(actor);
@@ -487,13 +521,27 @@ export async function createReply(actor: CurrentUser, threadId: string, rawBody:
     throw new ContentError("Balasan yang sama sudah kamu kirim barusan.", "body");
   }
 
-  const [row] = await db.insert(forumReplies).values({ threadId, authorId: actor.id, body }).returning({ id: forumReplies.id });
+  let parent: { id: string; authorId: string } | null = null;
+  if (parentId) {
+    const [prow] = await db
+      .select({ id: forumReplies.id, authorId: forumReplies.authorId })
+      .from(forumReplies)
+      .where(and(eq(forumReplies.id, parentId), eq(forumReplies.threadId, threadId), isNull(forumReplies.deletedAt)))
+      .limit(1);
+    if (!prow) throw new ContentError("Balasan yang dikutip tidak ditemukan.", "body");
+    parent = prow;
+  }
+
+  const [row] = await db.insert(forumReplies).values({ threadId, authorId: actor.id, body, parentId: parent?.id ?? null }).returning({ id: forumReplies.id });
   const replyId = row!.id;
   const url = replyPath(threadId, replyId);
   const data = { threadTitle: thread.title, snippet: plainSnippet(body, 140) };
   const notes: NotifyInput[] = [];
   if (thread.authorId !== actor.id) {
     notes.push({ userId: thread.authorId, type: "forum_reply", actorId: actor.id, url, data, groupKey: `forum_reply:${threadId}` });
+  }
+  if (parent && parent.authorId !== actor.id && parent.authorId !== thread.authorId) {
+    notes.push({ userId: parent.authorId, type: "forum_reply", actorId: actor.id, url, data, groupKey: `forum_reply:${threadId}` });
   }
   for (const userId of await mentionTargets(body, [actor.id, thread.authorId])) {
     notes.push({ userId, type: "forum_mention", actorId: actor.id, url, data, groupKey: `forum_mention:${threadId}` });

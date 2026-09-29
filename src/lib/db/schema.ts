@@ -678,6 +678,8 @@ export const forumReplies = pgTable(
     threadId: uuid("thread_id")
       .notNull()
       .references(() => forumThreads.id, { onDelete: "cascade" }),
+    /** Balasan yang dikutip (satu level, tanpa nesting). */
+    parentId: uuid("parent_id").references((): AnyPgColumn => forumReplies.id, { onDelete: "set null" }),
     authorId: uuid("author_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
