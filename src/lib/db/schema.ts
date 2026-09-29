@@ -186,6 +186,10 @@ export const sellerProfiles = pgTable("seller_profiles", {
   storeName: text("store_name").notNull(),
   tagline: text("tagline"),
   websiteUrl: text("website_url"),
+  /** No HP/WA penjual (verifikasi level 2, dilihat admin). */
+  phone: text("phone"),
+  /** Link portofolio/sosmed penjual (verifikasi level 2, dilihat admin). */
+  portfolioUrl: text("portfolio_url"),
   /** Pending = menunggu persetujuan admin; hanya approved yang boleh jualan. */
   status: sellerStatus("status").notNull().default("pending"),
   reviewedAt: tsz("reviewed_at"),
