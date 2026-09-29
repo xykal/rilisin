@@ -675,6 +675,8 @@ async function main() {
       storeName: s.store,
       tagline: s.tagline,
       isTrusted: Boolean(s.trusted),
+      status: "approved",
+      reviewedAt: ago(s.daysAgo - 1),
       activatedAt: ago(s.daysAgo - 1),
     });
     sellerIds.set(s.username, u!.id);
