@@ -49,6 +49,14 @@ export function ProductForm({
   return (
     <form action={action} className="space-y-5">
       {product?.id && <input type="hidden" name="productId" value={product.id} />}
+      {onboarding && (
+        <>
+          <input type="hidden" name="pricingModel" value={product?.pricingModel ?? "free"} />
+          <input type="hidden" name="priceIdr" value={product?.priceIdr ? String(product.priceIdr) : "0"} />
+          <input type="hidden" name="minPriceIdr" value={product?.minPriceIdr ? String(product.minPriceIdr) : "0"} />
+          {!isEdit && <input type="hidden" name="onboarding" value="1" />}
+        </>
+      )}
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
       {state?.success && <Alert tone="success">{state.success}</Alert>}
 
@@ -120,6 +128,7 @@ export function ProductForm({
           </Field>
         </div>
 
+        {!onboarding && (
         <Field label="Harga" error={fe.priceIdr ?? fe.minPriceIdr}>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {([
@@ -191,11 +200,14 @@ export function ProductForm({
             </div>
           )}
         </Field>
+        )}
       </fieldset>
 
       {!locked && (
         <div className="flex justify-end border-t border-slate-100 pt-5">
-          <SubmitButton pendingText="Menyimpan…">{isEdit ? "Simpan perubahan" : "Buat draft & lanjut upload"}</SubmitButton>
+          <SubmitButton pendingText="Menyimpan…">
+            {isEdit ? "Simpan perubahan" : onboarding ? "Simpan & lanjut ke langkah 2" : "Buat draft & lanjut upload"}
+          </SubmitButton>
         </div>
       )}
     </form>

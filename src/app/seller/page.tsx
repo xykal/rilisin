@@ -81,12 +81,17 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
   const published = items.filter((p) => p.status === "published");
   const inReview = items.filter((p) => p.status === "review").length + items.flatMap((p) => p.releases).filter((r) => r.status === "review").length;
   const totalDownloads = items.reduce((s, p) => s + p.downloadCount, 0);
+  const submittedOnce = items.some((p) => p.status !== "draft");
+  const activationDone = 1 + (user.emailVerifiedAt ? 1 : 0);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       {baru && (
         <Alert tone="success" className="mb-6" title="Toko kamu sudah aktif!">
-          Langkah berikutnya: tambahkan karya pertamamu.
+          Langkah berikutnya: tambahkan karya pertamamu.{" "}
+          <Link href="/seller/mulai" className="font-bold underline">
+            Ikuti panduan 3 langkah →
+          </Link>
         </Alert>
       )}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -106,6 +111,40 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
           </ButtonLink>
         </div>
       </div>
+
+      {!submittedOnce && (
+        <Card className="mb-8 border-brand-100 bg-gradient-to-br from-brand-50/60 to-white p-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-ink">Aktivasi toko: {activationDone} dari 3</h2>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li className="flex items-center gap-2.5 text-slate-700">
+                  <CircleCheck className="h-4 w-4 shrink-0 text-emerald-600" /> Toko aktif
+                </li>
+                <li className={user.emailVerifiedAt ? "flex items-center gap-2.5 text-slate-700" : "flex items-center gap-2.5 text-slate-500"}>
+                  {user.emailVerifiedAt ? (
+                    <CircleCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                  ) : (
+                    <Circle className="h-4 w-4 shrink-0 text-slate-300" />
+                  )}
+                  Verifikasi email
+                  {!user.emailVerifiedAt && (
+                    <Link href="/verifikasi-email" className="font-semibold text-brand-700 hover:underline">
+                      Verifikasi sekarang →
+                    </Link>
+                  )}
+                </li>
+                <li className="flex items-center gap-2.5 text-slate-500">
+                  <Circle className="h-4 w-4 shrink-0 text-slate-300" /> Karya pertama dikirim ke review
+                </li>
+              </ul>
+            </div>
+            <ButtonLink href="/seller/mulai" className="shrink-0">
+              Ikuti panduan 3 langkah
+            </ButtonLink>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -131,8 +170,11 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
           {items.length === 0 ? (
             <EmptyState icon={<Package className="h-10 w-10" />} title="Belum ada karya">
               Mulai dengan menambahkan karya pertamamu — bisa disimpan sebagai draft dulu.
-              <div className="mt-5">
-                <ButtonLink href="/seller/produk/baru"><Plus className="h-4 w-4" /> Tambah karya</ButtonLink>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <ButtonLink href="/seller/mulai"><Plus className="h-4 w-4" /> Ikuti panduan 3 langkah</ButtonLink>
+                <Link href="/seller/produk/baru" className="py-1 text-sm font-semibold text-brand-700 hover:underline">
+                  atau pakai editor biasa →
+                </Link>
               </div>
             </EmptyState>
           ) : (

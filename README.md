@@ -351,7 +351,9 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
 1. **Domain:** cek ketersediaan nama + merek di DJKI.
 2. **Database — Neon** (sudah dipakai staging):
    - `DATABASE_URL` = pooler, `DATABASE_URL_UNPOOLED` = koneksi langsung (dipakai LISTEN chat realtime); keduanya diisi otomatis oleh integrasi Vercel;
-   - jalankan `npm run db:migrate`. Produksi = proyek/branch Neon terpisah dari staging.
+   - tiap deploy Vercel otomatis menjalankan migrasi dulu (`vercel-build` → `db:migrate`,
+     lalu `next build`); migrasi manual (`npm run db:migrate`) hanya untuk DB di luar
+     Vercel. Produksi = proyek/branch Neon terpisah dari staging.
 3. **File — Vercel Blob** (sudah jalan: store publik + privat, presigned upload/download). Pindah ke **Cloudflare R2** kalau trafik unduhan besar (egress R2 gratis).
 4. **Hosting — Vercel Pro** (Hobby dilarang untuk komersial):
    - isi env: `APP_SECRET` (acak ≥ 32 karakter), `ALLOWED_ORIGINS=domainkamu`, `REQUIRE_STAFF_2FA=1`, `TRUSTED_PROXY_HOPS=1`;

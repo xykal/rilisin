@@ -56,6 +56,29 @@ export async function activateStoreAction(_prev: FormState, formData: FormData):
 const CATEGORY_SLUGS = CATEGORIES.map((c) => c.slug) as [string, ...string[]];
 const PLATFORM_SLUGS = PLATFORMS.map((p) => p.slug) as [string, ...string[]];
 
+// Aturan harga dipakai dua skema: form produk utuh & form harga wizard (langkah 2).
+// Satu fungsi supaya aturannya tidak pernah beda diam-diam.
+function refinePricing(d: { pricingModel: string; priceIdr: number; minPriceIdr: number }, ctx: z.RefinementCtx) {
+  if (d.pricingModel === "fixed" && d.priceIdr < 10_000) {
+    ctx.addIssue({ code: "custom", path: ["priceIdr"], message: "Harga minimal Rp10.000" });
+  }
+  if (d.pricingModel === "pwyw") {
+    if (d.minPriceIdr > 0 && d.minPriceIdr < 1_000)
+      ctx.addIssue({ code: "custom", path: ["minPriceIdr"], message: "Minimal Rp0 (boleh gratis) atau mulai Rp1.000" });
+    if (d.priceIdr > 0 && d.priceIdr < d.minPriceIdr)
+      ctx.addIssue({ code: "custom", path: ["priceIdr"], message: "Harga saran tidak boleh di bawah minimal" });
+  }
+}
+
+/** Skema khusus langkah 2 wizard: harga saja, tanpa mengutak-atik info lain. */
+const pricingSchema = z
+  .object({
+    pricingModel: z.enum(["free", "fixed", "pwyw"]),
+    priceIdr: z.coerce.number().int().min(0).max(10_000_000, "Maksimal Rp10.000.000"),
+    minPriceIdr: z.coerce.number().int().min(0).max(10_000_000, "Maksimal Rp10.000.000"),
+  })
+  .superRefine(refinePricing);
+
 const productSchema = z
   .object({
     title: z.string().trim().min(3, "Judul minimal 3 karakter").max(80, "Judul maksimal 80 karakter"),
@@ -190,6 +213,37 @@ export async function updateProductAction(_prev: FormState, formData: FormData):
 
   revalidatePath("/", "layout");
   return { success: "Perubahan disimpan." };
+}
+
+/** Langkah 2 wizard: simpan harga saja. Batas yang sama dengan editor biasa. */
+export async function updatePricingAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireSeller();
+  const product = await loadOwnedProduct(String(formData.get("productId")), user.id);
+  if (!product) return { error: "Produk tidak ditemukan." };
+  const locked = lockedMessage(product.status);
+  if (locked) return { error: locked };
+
+  const values = {
+    pricingModel: String(formData.get("pricingModel") ?? "free"),
+    priceIdr: String(formData.get("priceIdr") ?? "0").replace(/[^\d]/g, "") || "0",
+    minPriceIdr: String(formData.get("minPriceIdr") ?? "0").replace(/[^\d]/g, "") || "0",
+  };
+  const parsed = pricingSchema.safeParse(values);
+  if (!parsed.success) return { fieldErrors: fieldErrorsFrom(parsed.error), values };
+  const d = parsed.data;
+
+  await db
+    .update(products)
+    .set({
+      pricingModel: d.pricingModel,
+      priceIdr: d.pricingModel === "free" ? 0 : d.priceIdr,
+      minPriceIdr: d.pricingModel === "pwyw" ? d.minPriceIdr : 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(products.id, product.id));
+
+  revalidatePath("/", "layout");
+  return { success: "Harga disimpan. Lanjut ke langkah 3 untuk review & kirim." };
 }
 
 const androidSchema = z.object({

@@ -3,7 +3,8 @@
  * Smoke test end-to-end (tanpa browser): jalankan server dulu (npm run start), lalu
  *   node scripts/smoke-test.mjs [http://localhost:3000]
  * Menguji: header keamanan, halaman publik, login, download (signed URL), library, alur seller
- * (buat produk → upload gambar & file → kirim review), approve admin, komunitas chat
+ * (buat produk → upload gambar & file → kirim review), wizard onboarding 3 langkah + aktivasi toko,
+ * approve admin, komunitas chat
  * (kirim/balas/edit/hapus/reaksi/lapor/bisukan/realtime SSE/gambar), dan keamanan akun
  * (anti-bot, password policy, 2FA + kode cadangan, kunci akun, ganti password), pembayaran (Fase 2), serta
  * forum, ulasan, notifikasi & reset password (Fase 3), serta ikuti, devlog, lapor produk/akun & profil (Fase 3b).
