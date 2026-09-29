@@ -71,11 +71,13 @@ export async function enablePush(): Promise<"ok" | "denied" | "unavailable"> {
   } catch (e) {
     console.warn("[push] optIn gagal", e);
   }
-  if (Notification.permission === "denied") return "denied";
+  // Baca ulang sebagai string biasa (izin bisa berubah akibat prompt optIn di atas).
+  const after: string = Notification.permission;
+  if (after === "denied") return "denied";
   try {
     return os.User.PushSubscription.optedIn ? "ok" : "denied";
   } catch {
-    return Notification.permission === "granted" ? "ok" : "denied";
+    return after === "granted" ? "ok" : "denied";
   }
 }
 
