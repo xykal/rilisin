@@ -279,7 +279,7 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
       ${unreadExpr} as unread
     from ${chatRooms} r
     left join lateral (
-      select m.body, m.image_key, m.deleted_at, m.report_hidden_at, m.created_at, m.author_id
+      select m.body, m.image_key, m.audio_key, m.deleted_at, m.report_hidden_at, m.created_at, m.author_id
       from ${chatMessages} m where m.room_id = r.id order by m.seq desc limit 1
     ) lm on true
     left join ${users} lu on lu.id = lm.author_id
