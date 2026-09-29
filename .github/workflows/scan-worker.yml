@@ -1,0 +1,43 @@
+# Worker antivirus staging (ClamAV): cron tiap 2 jam memindai antrean upload.
+# Tanpa server sendiri — repo publik (menit Actions gratis) + scanner/worker.mjs mode ONCE.
+# Prasyarat sekali saja: repo secret SCAN_WORKER_TOKEN (≥32 karakter acak) + env Vercel
+# bernama sama di project staging. Setelah 1-2 siklus hijau, aktifkan REQUIRE_CLEAN_SCAN=1
+# di Vercel staging supaya file pending tidak bisa diunduh publik. (Produksi belum ada;
+# saat cutover, duplikat job ini dengan RILISIN_URL produksi.)
+name: Scan antrean staging (ClamAV)
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Pindai antrean staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      clamav:
+        image: clamav/clamav:stable
+        ports: ["3310:3310"]
+    env:
+      RILISIN_URL: https://rilisin.xyverse.my.id
+      SCAN_WORKER_TOKEN: ${{ secrets.SCAN_WORKER_TOKEN }}
+      CLAMD_HOST: localhost
+      ONCE: "1"
+      WORKER_NAME: actions-cron
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Pindai antrean (ClamAV)
+        run: |
+          if [ -z "$SCAN_WORKER_TOKEN" ]; then
+            echo "::warning::SCAN_WORKER_TOKEN belum diisi — isi repo secret + env Vercel staging, lalu run ulang manual."
+            exit 0
+          fi
+          node scanner/worker.mjs

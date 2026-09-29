@@ -371,3 +371,12 @@ Lanjutan hari yang sama (Cloudinary hibrida):
   perilaku lama. Key storage tidak berubah (URL yang berganti).
 - Jalur Cloudinary UNVERIFIED di CI (tanpa kredensial) — butuh tes staging:
   isi env di Vercel, upload avatar, pastikan URL res.cloudinary.com.
+
+Lanjutan hari yang sama (antivirus jalan sungguhan):
+- Worker ClamAV sudah ada tapi tidak pernah jalan di staging/prod (server
+  sendiri tidak ada). Fix: cron scan-worker.yml tiap 2 jam (ClamAV service +
+  scanner/worker.mjs ONCE) ke staging. Butuh repo secret SCAN_WORKER_TOKEN +
+  env Vercel sama + REQUIRE_CLEAN_SCAN=1 setelah 1-2 siklus hijau.
+- [CRIT] CSP img-src memblokir res.cloudinary.com — diperbaiki (kondisional
+  env) sebelum env dipasang. CI set CLOUDINARY_CLOUD_NAME uji + 1 cek CSP
+  (smoke 297). Tanpa key/secret, decorator tetap nonaktif di CI.

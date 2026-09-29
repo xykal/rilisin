@@ -146,6 +146,7 @@ const guest = new Session();
   const nonce = csp.match(/'nonce-([^']+)'/)?.[1];
   ok(Boolean(nonce) && csp.includes("'strict-dynamic'") && csp.includes("object-src 'none'"), "CSP dengan nonce aktif");
   ok(html.includes(`nonce="${nonce}"`), "Script Next.js memakai nonce yang sama dengan header CSP");
+  ok(csp.includes("https://res.cloudinary.com"), "CSP mengizinkan gambar Cloudinary");
   ok(res.headers.get("x-content-type-options") === "nosniff" && res.headers.get("referrer-policy") === "strict-origin-when-cross-origin", "Header nosniff & Referrer-Policy");
   ok(/frame-ancestors/.test(csp) && Boolean(res.headers.get("permissions-policy")), "frame-ancestors & Permissions-Policy terpasang");
   const sec = await guest.req("/.well-known/security.txt");

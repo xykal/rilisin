@@ -1,6 +1,6 @@
 # Uji worker antivirus dengan ClamAV sungguhan + file uji EICAR (bukan malware sungguhan).
 # Terpisah dari CI utama karena ClamAV perlu mengunduh database signature (±2–3 menit). Ini PENGUJIAN kode —
-# pemindaian produksi berjalan di server worker sendiri (lihat scanner/), bukan di GitHub Actions.
+# Uji integrasi worker (EICAR). Pemindaian staging berjalan via cron scan-worker.yml (bisa juga server sendiri, lihat scanner/).
 name: Antivirus (ClamAV)
 
 on:

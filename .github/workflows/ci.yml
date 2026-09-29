@@ -1,4 +1,4 @@
-# CI Rilisin: lint → typecheck → seed DB → build → smoke test end-to-end (296 cek) → contract test Pakasir v2.
+# CI Rilisin: lint → typecheck → seed DB → build → smoke test end-to-end (297 cek) → contract test Pakasir v2.
 # Job test tanpa secret apa pun (APP_SECRET dibuat acak per run, pembayaran mode simulasi, gateway palsu).
 # Job deploy: push ke main yang LULUS test -> deploy staging ke Vercel (build di Vercel, env tetap di Vercel).
 # Job deploy-prod: MANUAL (workflow_dispatch) -> deploy produksi ke proyek Vercel terpisah (butuh environment 'production', lihat docs/CUTOVER.md).
@@ -44,6 +44,8 @@ jobs:
       REQUIRE_STAFF_2FA: "0"
       APP_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: "1"
+      # Nama cloud UJI (bukan rahasia — tanpa key/secret, decorator Cloudinary tetap nonaktif; hanya CSP yang diuji)
+      CLOUDINARY_CLOUD_NAME: test-cloud
       # Kunci UJI resmi Cloudflare Turnstile (publik, selalu lolos dengan token dummy) — mode ketat
       TURNSTILE_SITE_KEY: 1x00000000000000000000AA
       TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
