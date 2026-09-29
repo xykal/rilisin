@@ -1,8 +1,9 @@
 # Push HP (OneSignal Web Push) + PWA
 
 Status kode: TERPASANG, mati-aman (tanpa kunci = push nonaktif, aplikasi normal).
-Status live: MENUNGGU kunci dari kelvin (lihat bawah). Belum ada pengiriman yang
-terverifikasi end-to-end.
+Status live: KUNCI TERPASANG di Vercel (production+preview) 2026-09-29 — App ID
+publik + REST key sensitif. Sisa: uji end-to-end dari HP kelvin (langganan +
+picu notif, lihat langkah 6).
 
 ## Cara kerja (ringkas)
 

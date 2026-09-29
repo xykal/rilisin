@@ -305,3 +305,10 @@ Fase C (1/2: kode push + PWA) 2026-09-29 (kelvin: gas OneSignal, akun sudah ada)
 - LIVE BELUM terverifikasi: butuh App ID (kelvin kirim via chat) + REST key
   (kelvin pasang sendiri di Vercel env). Safari Mac tidak didukung (butuh
   sertifikat Apple $99); iPhone butuh install Home Screen.
+
+Fase C (2/2: kunci live) 2026-09-29:
+- kelvin bikin app OneSignal `Rilisin` (app id cocok chat vs file) + kirim REST
+  key format os_v2_app_*. Kunci disimpan di `onesignal.rilisin.*` (file lokal,
+  bukan repo) + dipasang ke Vercel env (production+preview; App ID plain, REST
+  key sensitive) via API. Commit ini memicu deploy staging yang memanggang
+  App ID ke client. Sisa: uji E2E dari HP kelvin.
