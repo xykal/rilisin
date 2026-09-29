@@ -374,7 +374,7 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
           </button>
         )}
         {msg.pending === "failed" && !p.staticClone && (
-          <button type="button" onClick={() => p.onRetry?.(msg)} className="mt-1 block w-full text-right text-[11.5px] font-semibold text-red-600">
+          <button type="button" onClick={() => p.onRetry?.(msg)} className="mt-1 block w-full px-1 py-2 text-right text-[11.5px] font-semibold text-red-600">
             {msg.error ? `${msg.error} · ` : ""}Ketuk untuk kirim ulang / hapus
           </button>
         )}

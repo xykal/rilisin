@@ -361,3 +361,15 @@ details > summary::-webkit-details-marker {
 @keyframes drawer-out { from { transform: translateX(0) } to { transform: translateX(100%) } }
 .anim-drawer-in { animation: drawer-in .28s cubic-bezier(.2,.9,.25,1) both }
 .anim-drawer-out { animation: drawer-out .2s ease-in both }
+
+/*
+ * Standar sentuh (Fase A "gampang dipencet"): target ketuk ≥44px.
+ * - manipulation = tanpa jeda double-tap-zoom di tombol/link.
+ * - .tap-hit = area ketuk tak terlihat ±10px (visual tetap kecil/rapi).
+ * - chevron & pil reaksi chat: diperluas via ::after (tak terlihat).
+ */
+button, a, [role="button"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.tap-hit { position: relative; }
+.tap-hit::after { content: ""; position: absolute; inset: -10px; }
+.chat-chevron::after { content: ""; position: absolute; inset: -12px; }
+.chat-reactions::after { content: ""; position: absolute; inset: -8px; }

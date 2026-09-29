@@ -182,7 +182,7 @@ export function Composer(p: Props) {
                 p.onCancelEdit();
               } else p.onCancelReply();
             }}
-            className="rounded-full p-1.5 text-slate-500 hover:bg-slate-200"
+            className="tap-hit rounded-full p-1.5 text-slate-500 hover:bg-slate-200"
           >
             <X className="h-4 w-4" />
           </button>
@@ -198,7 +198,7 @@ export function Composer(p: Props) {
               <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${Math.round(image.progress * 100)}%` }} />
             </div>
           </div>
-          <button type="button" aria-label="Hapus gambar" onClick={() => setImage(null)} className="rounded-full p-1.5 text-slate-500 hover:bg-slate-200">
+          <button type="button" aria-label="Hapus gambar" onClick={() => setImage(null)} className="tap-hit rounded-full p-1.5 text-slate-500 hover:bg-slate-200">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -222,7 +222,7 @@ export function Composer(p: Props) {
               aria-label="Kirim gambar"
               disabled={!!image}
               onClick={() => fileRef.current?.click()}
-              className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-600 disabled:opacity-40"
+              className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-600 disabled:opacity-40"
             >
               <ImagePlus className="h-[22px] w-[22px]" />
             </button>
@@ -257,7 +257,7 @@ export function Composer(p: Props) {
                 } else if (p.replyTo) p.onCancelReply();
               }
             }}
-            className="block max-h-[166px] w-full resize-none rounded-[22px] bg-transparent px-3.5 py-[9px] text-[15px] leading-[22px] text-ink placeholder:text-slate-400 focus:outline-none"
+            className="block max-h-[166px] w-full resize-none rounded-[22px] bg-transparent px-3.5 py-[9px] text-base leading-[24px] text-ink placeholder:text-slate-400 focus:outline-none"
           />
         </div>
         <button
@@ -266,7 +266,7 @@ export function Composer(p: Props) {
           disabled={!canSend}
           onPointerDown={(e) => e.preventDefault() /* keyboard HP tidak tertutup */}
           onClick={() => void submit()}
-          className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-md shadow-brand-600/30 transition hover:bg-brand-700 active:scale-95 disabled:bg-slate-300 disabled:shadow-none"
+          className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-md shadow-brand-600/30 transition hover:bg-brand-700 active:scale-95 disabled:bg-slate-300 disabled:shadow-none"
         >
           {uploading ? (
             <Loader2 className="h-5 w-5 animate-spin" />

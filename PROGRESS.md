@@ -278,3 +278,14 @@ Keputusan hosting 2026-09-29 (kelvin: tetap Vercel Hobby dulu):
   Risiko disadari: suspend sewaktu-waktu (komersial di Hobby). Parasut siap:
   backup .rlsbak, docs/SELFHOST.md (VPS $0), docs/CLOUDFLARE.md (audit penuh +
   langkah resume). Tidak ada kode diubah hari ini.
+
+Fase A "gampang dipencet" (1/3: chat) 2026-09-29 (kelvin: "semua" — seller super-lengkap + UI sentuh + push/PWA):
+- Urutan disepakati sepihak (kelvin bisa veto): A UI sentuh → B seller bertahap
+  (kupon → statistik → chat pesanan → sengketa → export) → C PWA + push
+  (butuh kunci OneSignal kelvin) → D E2EE chat (termahal, terakhir).
+- Standar sentuh global di `globals.css`: `touch-action: manipulation` +
+  utilitas `.tap-hit` (area ketuk tak terlihat ±10px) + perluasan ::after untuk
+  `.chat-chevron` & `.chat-reactions`. Tombol kirim & lampirkan composer 40→44px,
+  textarea 15→16px (bunuh auto-zoom iOS), tombol kirim-ulang bubble +padding.
+- Sisa Fase A (sesi berikut): tombol ikon global (site-header, lonceng, forum),
+  cek font input <16px se-aplikasi, poles breakpoint tablet (md: tipis).
