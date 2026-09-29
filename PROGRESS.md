@@ -180,3 +180,19 @@ Chrome "500 Internal Server Error" dari rilisin.xyverse.my.id sesudah klik):
   produksi Google ditambah catatan JS origins tidak perlu + migrasi wajib manual.
 - Sisa: kall klik ulang tombol Google di staging (harusnya sekarang lolos sampai
   consent Google / langsung masuk).
+
+Auto-migrate saat deploy 2026-09-29 (tindak lanjut insiden 500 login Google):
+- `package.json` dapat script `vercel-build` = `npm run db:migrate && next build`.
+  Vercel otomatis memakai script ini sebagai build command (vercel.json tidak
+  mengeset buildCommand, jadi tidak perlu diubah). Deploy gagal = build gagal =
+  migrasi gagal ikut menggagalkan deploy (fail-closed, bukan 500 diam-diam).
+- `scripts/migrate.ts` sekarang memilih `DATABASE_URL_UNPOOLED` (koneksi langsung,
+  aman untuk DDL) dengan cadangan `DATABASE_URL`, error jelas kalau keduanya kosong,
+  dan mencatat jenis koneksi di log (tanpa nilai secret).
+- Job deploy CI (`vercel deploy --prod`, build remote) otomatis memakai jalur ini —
+  tanpa perubahan workflow deploy. Step Build di CI diganti ke `npm run vercel-build`
+  supaya jalur persis deploy ikut diuji tiap run (di CI jadi no-op migrate + build).
+- `.vercelignore` sudah benar: `drizzle/` + `scripts/` tetap ter-upload saat deploy
+  CLI, jadi migrator punya file SQL-nya.
+- Bukti jalan: log build deployment Vercel berikutnya harus memuat baris
+  "Migrasi database via koneksi langsung…" + "✓ Migrasi database selesai".

@@ -81,8 +81,8 @@ jobs:
         run: npx tsx scripts/seed.ts
       - name: Uji backup & restore (enkripsi, pulih, cocokkan data)
         run: npx tsx scripts/test-backup.ts
-      - name: Build
-        run: npm run build
+      - name: Build (jalur deploy Vercel: migrate + build)
+        run: npm run vercel-build
       # Server OAuth Google PALSU: dipakai tes login Google end-to-end (PKCE, state, penolakan).
       # Tidak ada kredensial Google sungguhan di CI — kalau tidak, token bisa terpakai orang lain.
       - name: Google OAuth palsu (untuk tes login Google)
