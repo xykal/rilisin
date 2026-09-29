@@ -196,3 +196,22 @@ Auto-migrate saat deploy 2026-09-29 (tindak lanjut insiden 500 login Google):
   CLI, jadi migrator punya file SQL-nya.
 - Bukti jalan: log build deployment Vercel berikutnya harus memuat baris
   "Migrasi database via koneksi langsung…" + "✓ Migrasi database selesai".
+
+Onboarding seller 3 langkah 2026-09-29 (IDEAS: aktivasi seller = metrik MVP):
+- Wizard `/seller/mulai`: langkah 1 info karya (buat draft) → langkah 2 upload
+  (ikon/cover/screenshot, rilis + file, info Android) & harga → langkah 3 review
+  checklist + kirim. Stepper bisa diklik; langkah 2–3 wajib membawa draft milik
+  sendiri (draft asing/tidak ada/sudah lewat wizard dialihkan, tanpa bocoran).
+- `updatePricingAction` baru (validasi harga SATU fungsi `refinePricing` dengan
+  editor biasa supaya tidak pernah beda); `createProductAction` redirect ke
+  langkah 2 kalau dipanggil dari wizard; `ProductForm` dapat prop `onboarding`
+  (sembunyikan harga di langkah 1, tanpa mengubah editor biasa).
+- Dashboard seller: kartu "Aktivasi toko" (toko aktif, verifikasi email, karya
+  pertama dikirim) + CTA wizard, tampil sampai seller pernah submit; empty-state
+  dan alert toko-baru mengarah ke wizard; editor biasa tetap ada (jalur cepat).
+- Tes: proving test section 10 (batas tamu/non-seller, gating langkah, buat
+  draft, tolak harga invalid & produk asing, checklist terkunci) + smoke 3b
+  (daftar → aktivasi → kartu aktivasi → 3 langkah → submit diblokir jujur
+  karena checklist belum lengkap). Penyelesaian penuh wizard tidak dites
+  end-to-end (pakai action & API upload yang sama dengan editor biasa — sudah
+  dites di smoke section 3).

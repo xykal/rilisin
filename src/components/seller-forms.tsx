@@ -29,7 +29,16 @@ type ProductDefaults = {
   minPriceIdr?: number;
 };
 
-export function ProductForm({ product, locked }: { product?: ProductDefaults; locked?: boolean }) {
+export function ProductForm({
+  product,
+  locked,
+  onboarding,
+}: {
+  product?: ProductDefaults;
+  locked?: boolean;
+  /** Dipakai wizard langkah 1: harga disembunyikan (diatur di langkah 2). */
+  onboarding?: boolean;
+}) {
   const isEdit = Boolean(product?.id);
   const [state, action] = useActionState(isEdit ? updateProductAction : createProductAction, undefined);
   const v = state?.values;

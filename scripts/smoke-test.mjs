@@ -291,6 +291,76 @@ let slug;
   ok(hidden.res.status === 404, "Produk yang direview belum tampil ke publik");
 }
 
+// ─── 3b. Onboarding seller: aktivasi toko + wizard 3 langkah ─────────────────
+{
+  const fresh = new Session();
+  const tag = Date.now().toString(36).slice(-6);
+  const uname = `wzd${tag}`;
+  const regPage = await fresh.html("/daftar");
+  await new Promise((r) => setTimeout(r, 1800));
+  const reg = await fresh.submitForm("/daftar", regPage.text, 'name="username"', {
+    displayName: "Seller Wizard",
+    username: uname,
+    email: `${uname}@uji.test`,
+    password: "KataSandiKuat#2026",
+    next: "/",
+  });
+  ok(reg.status === 303 && fresh.hasSession(), "Daftar akun seller baru untuk wizard");
+
+  const actPage = await fresh.html("/seller");
+  ok(actPage.res.status === 200 && actPage.text.includes("Aktifkan toko"), "Seller baru melihat form aktivasi toko");
+  const act = await fresh.submitForm("/seller", actPage.text, 'name="storeName"', {
+    storeName: "Toko Wizard Uji",
+    tagline: "Toko uji otomatis",
+    websiteUrl: "",
+    agree: "on",
+  });
+  ok(act.status === 303 && (act.headers.get("location") ?? "").includes("/seller?baru=1"), "Aktivasi toko berhasil");
+
+  const dash = await fresh.html("/seller");
+  ok(
+    dash.text.includes("Aktivasi toko") && dash.text.includes("Ikuti panduan 3 langkah"),
+    "Dashboard menampilkan kartu aktivasi + CTA wizard",
+  );
+
+  const step1 = await fresh.html("/seller/mulai");
+  ok(step1.res.status === 200 && step1.text.includes("Langkah 1"), "Wizard langkah 1 tampil");
+  const created = await fresh.submitForm("/seller/mulai", step1.text, 'name="title"', {
+    title: "Karya Wizard Smoke",
+    summary: "Karya uji otomatis dari smoke test wizard onboarding seller.",
+    category: "aplikasi",
+    license: "MIT",
+    platforms: "windows",
+    tags: "",
+    descriptionMd: "Deskripsi uji wizard yang sengaja dibuat cukup panjang supaya lolos checklist delapan puluh karakter.",
+    websiteUrl: "",
+    sourceUrl: "",
+  });
+  const loc = created.headers.get("location") ?? "";
+  const draftId = loc.match(/\/seller\/mulai\?id=([0-9a-f-]{36})&langkah=2/)?.[1];
+  ok(created.status === 303 && Boolean(draftId), "Langkah 1 membuat draft → lanjut langkah 2");
+
+  const step2 = await fresh.html(`/seller/mulai?id=${draftId}&langkah=2`);
+  ok(step2.res.status === 200 && step2.text.includes('name="pricingModel"'), "Langkah 2 tampil dengan form harga");
+  const priced = await fresh.submitForm(`/seller/mulai?id=${draftId}&langkah=2`, step2.text, 'name="pricingModel"', {
+    pricingModel: "fixed",
+    priceIdr: "49000",
+    minPriceIdr: "0",
+  });
+  ok(priced.status === 200 && clean(await priced.text()).includes("Harga disimpan"), "Harga wizard disimpan");
+
+  const step3 = await fresh.html(`/seller/mulai?id=${draftId}&langkah=3`);
+  ok(step3.res.status === 200 && step3.text.includes("Checklist verifikasi"), "Langkah 3 tampil dengan checklist");
+  const blocked = await fresh.submitForm(`/seller/mulai?id=${draftId}&langkah=3`, step3.text, "Kirim ke review", {});
+  ok(
+    blocked.status === 303 && (blocked.headers.get("location") ?? "").includes("error=checklist"),
+    "Submit dengan checklist belum lengkap ditolak jujur",
+  );
+
+  const sellerDash = await seller.html("/seller");
+  ok(!sellerDash.text.includes("Aktivasi toko"), "Seller yang sudah pernah submit tidak melihat kartu aktivasi");
+}
+
 // ─── 4. Admin approve ───────────────────────────────────────────────────────
 {
   const userTriesAdmin = await user.html("/admin/review");

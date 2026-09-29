@@ -33,7 +33,7 @@ Estimates are working-day counts from the start date 2026-09-27.
 | 2026-10-05 | Review pengacar dokumen legal + isi placeholder entitas | draft engineer ≠ nasihat hukum | M |
 | 2026-10-05 | ZAP baseline (DAST) di CI | celah runtime (header, cookie, injeksi) ketahuan sebelum deploy | M |
 | 2026-09-29 | Verifikasi staging login Google | SELESAI: env kebaca runtime, redirect 307 ke Google dengan PKCE S256 + redirect URI benar; sisa klik consent Google oleh manusia | — |
-| 2026-10-12 | Onboarding seller 3 langkah + checklist verifikasi | aktivasi seller = metrik stage MVP | M |
+| 2026-09-29 | Onboarding seller 3 langkah + checklist verifikasi | SELESAI: wizard `/seller/mulai` (info → upload & harga → publish) + kartu aktivasi toko di dashboard; editor biasa tetap ada sebagai jalur cepat | — |
 | 2026-10-19 | Cutover produksi: domain, rotasi secret, budget alert, runbook | hentikan ketergantungan staging | L |
 | 2026-11-02 | Gerbang launch publik: legal reviewed, proving test hijau, support live | tidak launch tanpa syarat ini | L |
 

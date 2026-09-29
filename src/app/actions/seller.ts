@@ -76,15 +76,7 @@ const productSchema = z
     priceIdr: z.coerce.number().int().min(0).max(10_000_000, "Maksimal Rp10.000.000"),
     minPriceIdr: z.coerce.number().int().min(0).max(10_000_000, "Maksimal Rp10.000.000"),
   })
-  .superRefine((d, ctx) => {
-    if (d.pricingModel === "fixed" && d.priceIdr < 10_000) {
-      ctx.addIssue({ code: "custom", path: ["priceIdr"], message: "Harga minimal Rp10.000" });
-    }
-    if (d.pricingModel === "pwyw") {
-      if (d.minPriceIdr > 0 && d.minPriceIdr < 1_000) ctx.addIssue({ code: "custom", path: ["minPriceIdr"], message: "Minimal Rp0 (boleh gratis) atau mulai Rp1.000" });
-      if (d.priceIdr > 0 && d.priceIdr < d.minPriceIdr) ctx.addIssue({ code: "custom", path: ["priceIdr"], message: "Harga saran tidak boleh di bawah minimal" });
-    }
-  });
+  .superRefine(refinePricing);
 
 function readProductForm(formData: FormData) {
   const values = {
@@ -145,6 +137,8 @@ export async function createProductAction(_prev: FormState, formData: FormData):
     .returning({ id: products.id });
 
   revalidatePath("/seller", "layout");
+  // Dari wizard onboarding (langkah 1): lanjut ke langkah 2, bukan ke editor biasa.
+  if (formData.get("onboarding") === "1") redirect(`/seller/mulai?id=${product!.id}&langkah=2`);
   redirect(`/seller/produk/${product!.id}?dibuat=1`);
 }
 

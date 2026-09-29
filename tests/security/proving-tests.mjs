@@ -380,4 +380,103 @@ async function loginDemo(label, session, identifier = "user@rilisin.test") {
   }
 }
 
+// ─── 10. Onboarding seller: batas akses wizard + validasi harga ─────────────
+{
+  const guest = new Session();
+  const g = await guest.html("/seller/mulai");
+  ok(
+    g.res.status !== 200 && (g.res.headers.get("location") ?? "").includes("/masuk"),
+    "Tamu buka /seller/mulai → diarahkan ke login",
+  );
+
+  const user = new Session();
+  await loginDemo("onboarding-user", user);
+  const u = await user.html("/seller/mulai");
+  ok(
+    u.res.status !== 200 && (u.res.headers.get("location") ?? "").endsWith("/seller"),
+    "User non-seller buka /seller/mulai → diarahkan ke /seller",
+  );
+
+  const seller = new Session();
+  await seller.login("seller@rilisin.test");
+  ok(seller.hasSession(), "Login seller untuk tes onboarding");
+
+  const noId = await seller.html("/seller/mulai?langkah=2");
+  ok(
+    noId.res.status !== 200 && (noId.res.headers.get("location") ?? "").endsWith("/seller/mulai"),
+    "Langkah 2 tanpa id draft → kembali ke langkah 1",
+  );
+  const badId = await seller.html(`/seller/mulai?id=${uuid()}&langkah=3`);
+  ok(
+    badId.res.status !== 200 && (badId.res.headers.get("location") ?? "").endsWith("/seller/mulai"),
+    "Draft asing/tidak ada → kembali ke langkah 1 (tanpa bocoran)",
+  );
+
+  const step1 = await seller.html("/seller/mulai");
+  ok(step1.res.status === 200 && step1.text.includes("Langkah 1"), "Langkah 1 tampil untuk seller");
+  const created = await seller.submitForm("/seller/mulai", step1.text, 'name="title"', {
+    title: `Karya Wizard ${Date.now().toString(36)}`,
+    summary: "Karya uji otomatis dari proving test onboarding seller tiga langkah.",
+    category: "aplikasi",
+    license: "MIT",
+    platforms: "windows",
+    tags: "",
+    descriptionMd:
+      "Deskripsi uji onboarding yang sengaja dibuat cukup panjang supaya lolos checklist minimal delapan puluh karakter.",
+    websiteUrl: "",
+    sourceUrl: "",
+  });
+  const loc = created.headers.get("location") ?? "";
+  const draftId = loc.match(/\/seller\/mulai\?id=([0-9a-f-]{36})&langkah=2/)?.[1];
+  ok(created.status === 303 && Boolean(draftId), "Langkah 1 membuat draft → redirect ke langkah 2");
+
+  const step2 = await seller.html(`/seller/mulai?id=${draftId}&langkah=2`);
+  ok(
+    step2.res.status === 200 && step2.text.includes("Langkah 2") && step2.text.includes('name="pricingModel"'),
+    "Langkah 2 tampil dengan form harga",
+  );
+
+  const badPrice = await seller.submitForm(`/seller/mulai?id=${draftId}&langkah=2`, step2.text, 'name="pricingModel"', {
+    productId: draftId,
+    pricingModel: "fixed",
+    priceIdr: "5000",
+    minPriceIdr: "0",
+  });
+  ok(
+    badPrice.status === 200 && clean(await badPrice.text()).includes("Harga minimal Rp10.000"),
+    "Harga fixed di bawah minimum ditolak dengan pesan jelas",
+  );
+
+  const foreign = await seller.submitForm(`/seller/mulai?id=${draftId}&langkah=2`, step2.text, 'name="pricingModel"', {
+    productId: uuid(),
+    pricingModel: "free",
+    priceIdr: "0",
+    minPriceIdr: "0",
+  });
+  ok(
+    foreign.status === 200 && clean(await foreign.text()).includes("Produk tidak ditemukan"),
+    "Harga produk asing/tidak ada ditolak (cek kepemilikan)",
+  );
+
+  const goodPrice = await seller.submitForm(
+    `/seller/mulai?id=${draftId}&langkah=2`,
+    step2.text,
+    'name="pricingModel"',
+    { productId: draftId, pricingModel: "fixed", priceIdr: "49000", minPriceIdr: "0" },
+  );
+  ok(goodPrice.status === 200 && clean(await goodPrice.text()).includes("Harga disimpan"), "Harga valid disimpan");
+
+  const step3 = await seller.html(`/seller/mulai?id=${draftId}&langkah=3`);
+  ok(
+    step3.res.status === 200 &&
+      step3.text.includes("Langkah 3") &&
+      step3.text.includes("Checklist verifikasi") &&
+      step3.text.includes("Tombol aktif setelah semua checklist centang hijau"),
+    "Langkah 3 tampil dengan checklist yang belum lengkap (submit terkunci)",
+  );
+
+  const intruder = await user.html(`/seller/mulai?id=${draftId}&langkah=2`);
+  ok(intruder.res.status !== 200, "User non-seller tidak bisa membuka draft milik seller (redirect)");
+}
+
 console.log(`\nSemua proving test keamanan lolos.`);

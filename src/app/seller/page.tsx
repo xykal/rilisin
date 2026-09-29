@@ -1,6 +1,8 @@
 import {
   ArrowRight,
   BadgeCheck,
+  Circle,
+  CircleCheck,
   Clock,
   Download,
   Eye,
