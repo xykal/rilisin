@@ -1,7 +1,7 @@
 import { Bell, Mail, Smartphone } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { NotificationPrefsForm, PushPrefsForm, TestEmailForm } from "@/components/notification-forms";
+import { NotificationPrefsForm, PushPrefsForm, TestEmailForm, TestPushForm } from "@/components/notification-forms";
 import { PushDevicePanel } from "@/components/push-settings";
 import { Alert, Card } from "@/components/ui";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
@@ -78,6 +78,11 @@ export default async function NotificationSettingsPage() {
         </h2>
         <p className="mb-4 text-sm text-slate-500">Kirim email uji ke alamatmu untuk memastikan email kami tidak masuk folder spam.</p>
         <TestEmailForm enabled={configured && !demoAddress} />
+        <div className="mt-6 border-t border-slate-100 pt-6">
+          <h3 className="mb-2 font-bold text-ink">Push HP</h3>
+          <p className="mb-4 text-sm text-slate-500">Kirim push uji ke perangkatmu sendiri. Kalau tidak masuk, cek status “Push aktif” di kartu atas.</p>
+          <TestPushForm enabled={pushOn} />
+        </div>
       </Card>
     </div>
   );

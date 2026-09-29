@@ -942,6 +942,8 @@ async function register(s, username, password, extra = {}) {
   ok(man.status === 200 && (await man.text()).includes("Rilisin"), "Manifest PWA tersaji");
   const psw = await fetch(`${BASE}/OneSignalSDKWorker.js`, { headers: authHeaders() });
   ok(psw.status === 200 && (await psw.text()).includes("OneSignalSDK"), "Service worker OneSignal tersaji");
+  const testPush = await rina.submitForm("/akun/notifikasi", pref3, 'data-form="test-push"', {});
+  ok(clean(await testPush.text()).includes("Push belum diaktifkan di server ini"), "Push uji tanpa kunci: pesan jelas (tidak crash)");
   await rina.submitForm("/akun/notifikasi", pref2, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on", email_komunitas: "on" });
   const badUnsub = await guest.req("/api/notifications/unsubscribe?t=palsu", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" });
   ok(badUnsub.status === 400 && (await guest.html("/notifikasi/berhenti?t=palsu")).text.includes("Link tidak valid"), "Berhenti berlangganan: token palsu ditolak");

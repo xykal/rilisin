@@ -99,10 +99,10 @@ async function deliverNotificationPush(ids: number[]) {
 
 /**
  * Kirim via OneSignal REST API. Pesan identik (mis. versi baru ke semua pengikut)
- * digabung jadi satu request. Tidak pernah melempar (kegagalan = log saja).
+ * digabung jadi satu request. Tidak pernah melempar (kegagalan = log saja). Kembalian: total penerima.
  */
-export async function sendPush(items: PushItem[]) {
-  if (!items.length || !pushConfigured()) return;
+export async function sendPush(items: PushItem[]): Promise<number> {
+  if (!items.length || !pushConfigured()) return 0;
   const groups = new Map<string, { title: string; body: string; url: string; externalIds: string[] }>();
   for (const m of items) {
     const k = `${m.title}\n${m.body}\n${m.url}`;
@@ -110,7 +110,7 @@ export async function sendPush(items: PushItem[]) {
     if (!g.externalIds.includes(m.externalId)) g.externalIds.push(m.externalId);
     groups.set(k, g);
   }
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     [...groups.values()].map(async (g) => {
       const res = await fetch("https://api.onesignal.com/notifications", {
         method: "POST",
@@ -124,7 +124,17 @@ export async function sendPush(items: PushItem[]) {
           url: g.url,
         }),
       });
-      if (!res.ok) console.error("[notif] push ditolak", res.status, (await res.text()).slice(0, 300));
+      if (!res.ok) {
+        console.error("[notif] push ditolak", res.status, (await res.text()).slice(0, 300));
+        return 0;
+      }
+      try {
+        const j = (await res.json()) as { recipients?: number };
+        return typeof j.recipients === "number" ? j.recipients : 0;
+      } catch {
+        return 0;
+      }
     }),
   );
+  return results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value : 0), 0);
 }

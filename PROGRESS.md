@@ -322,3 +322,9 @@ Fix push Android 2026-09-29 (kelvin: sudah nyalain tapi belum bisa; OneSignal 0 
   STAGING (deploy job hanya di main; PR dapat CI penuh tanpa deploy). Preview
   Vercel per branch kemungkinan otomatis (env preview = DB staging + site-lock
   sama; push tidak bisa dites di preview karena origin OneSignal = staging).
+
+Tombol Tes Push 2026-09-29 (kelvin: taruh tes push di pengaturan notif):
+- Kartu "Cek pengiriman" + bagian Push HP: `TestPushForm` → `sendTestPushAction`
+  (rate-limit 3/jam, cerminan email uji). `sendPush()` kini mengembalikan total
+  penerima OneSignal: 0 = pesan "belum langganan" (diagnosa mandiri).
+- Smoke +1 cek: tanpa kunci → pesan jelas, tidak crash.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveNotificationPrefsAction, savePushPrefsAction, sendTestEmailAction } from "@/app/actions/notifications";
+import { saveNotificationPrefsAction, savePushPrefsAction, sendTestEmailAction, sendTestPushAction } from "@/app/actions/notifications";
 import { NOTIFICATION_CATEGORIES, type NotificationCategory } from "@/lib/notifications/shared";
 import { SubmitButton } from "./submit-button";
 import { Alert } from "./ui";
@@ -62,6 +62,19 @@ export function PushPrefsForm({ prefs }: { prefs: Record<NotificationCategory, b
         ))}
       </ul>
       <SubmitButton pendingText="Menyimpan…">Simpan pengaturan push</SubmitButton>
+    </form>
+  );
+}
+
+export function TestPushForm({ enabled }: { enabled: boolean }) {
+  const [state, action] = useActionState(sendTestPushAction, undefined);
+  return (
+    <form action={action} className="space-y-3" data-form="test-push">
+      {state?.success && <Alert tone="success">{state.success}</Alert>}
+      {state?.error && <Alert tone="danger">{state.error}</Alert>}
+      <SubmitButton variant="secondary" disabled={!enabled} pendingText="Mengirim…">
+        Kirim push uji
+      </SubmitButton>
     </form>
   );
 }

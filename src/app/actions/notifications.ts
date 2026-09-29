@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { emailConfigured, isUndeliverableAddress, renderEmail, sendEmail, appUrl } from "@/lib/email";
 import { markAllRead, readUnsubscribeToken, setEmailPrefs } from "@/lib/notifications/server";
-import { setPushPrefs } from "@/lib/notifications/push";
+import { pushConfigured, sendPush, setPushPrefs } from "@/lib/notifications/push";
 import { NOTIFICATION_CATEGORIES } from "@/lib/notifications/shared";
 import { sharedLimit } from "@/lib/rate-limit";
 import type { FormState } from "./form-state";
@@ -56,4 +56,19 @@ export async function sendTestEmailAction(): Promise<FormState> {
   });
   const r = await sendEmail({ to: user.email, subject: "Email uji dari Rilisin", html, text });
   return r.ok ? { success: `Email uji dikirim ke ${user.email}. Cek inbox (dan folder spam).` } : { error: "Email gagal dikirim. Coba lagi beberapa saat lagi." };
+}
+
+/** Kirim push uji ke perangkat sendiri (diagnosa: 0 penerima = belum langganan). */
+export async function sendTestPushAction(): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Masuk dulu." };
+  if (!pushConfigured()) return { error: "Push belum diaktifkan di server ini." };
+  const rl = await sharedLimit(`push:test:${user.id}`, 3, 60 * 60_000);
+  if (!rl.ok) return { error: "Maksimal 3 push uji per jam." };
+  const n = await sendPush([
+    { externalId: user.id, title: "Push uji dari Rilisin", body: "Kalau HP bergetar, push sudah berjalan.", url: `${appUrl()}/akun/notifikasi` },
+  ]).catch(() => -1);
+  if (n < 0) return { error: "Push gagal dikirim. Coba lagi beberapa saat lagi." };
+  if (n === 0) return { error: "Terkirim tapi 0 perangkat menerima — pastikan status di atas “Push aktif”, lalu coba lagi." };
+  return { success: `Push uji dikirim ke ${n} perangkat. Cek HP-mu.` };
 }
