@@ -36,6 +36,7 @@ const tsz = (name: string) => timestamp(name, { withTimezone: true });
 
 // ─── Enum ────────────────────────────────────────────────────────────────────
 export const userRole = pgEnum("user_role", ["user", "moderator", "admin"]);
+export const sellerStatus = pgEnum("seller_status", ["pending", "approved", "rejected"]);
 export const productStatus = pgEnum("product_status", [
   "draft",
   "review",

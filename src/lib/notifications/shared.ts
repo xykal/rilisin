@@ -117,6 +117,10 @@ export function describeNotification(n: Describable): { title: string; body: str
       return { title: `${str(d.productTitle)} sudah tayang`, body: "Lolos review moderator dan sekarang muncul di katalog." };
     case "product_rejected":
       return { title: `${str(d.productTitle)} perlu perbaikan`, body: str(d.reason, 200) || null };
+    case "seller_approved":
+      return { title: `Toko ${str(d.storeName)} disetujui`, body: "Toko kamu sudah aktif — tambahkan karya pertamamu lewat panduan 3 langkah." };
+    case "seller_rejected":
+      return { title: `Pengajuan toko ${str(d.storeName)} ditolak`, body: str(d.reason, 200) || null };
     case "review_new":
       return many
         ? { title: `${n.count} ulasan baru untuk ${str(d.productTitle)}`, body: `Terakhir dari ${who}: ${"★".repeat(Number(d.rating) || 0)}` }

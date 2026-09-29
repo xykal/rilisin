@@ -19,7 +19,7 @@ export type CurrentUser = {
   emailVerifiedAt: Date | null;
   /** Hash token session yang sedang dipakai (untuk label "perangkat ini"). */
   sessionId: string;
-  seller: { storeName: string; tagline: string | null; isTrusted: boolean } | null;
+  seller: { storeName: string; tagline: string | null; isTrusted: boolean; status: "pending" | "approved" | "rejected"; rejectionReason: string | null } | null;
 };
 
 const TOUCH_EVERY_MS = 5 * 60 * 1000;
@@ -47,6 +47,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       storeName: sellerProfiles.storeName,
       tagline: sellerProfiles.tagline,
       isTrusted: sellerProfiles.isTrusted,
+      sellerStatus: sellerProfiles.status,
+      rejectionReason: sellerProfiles.rejectionReason,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))

@@ -41,7 +41,7 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
           <p className="text-sm font-semibold text-brand-700">Seller Center</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">Rilis karyamu ke ribuan pengguna Indonesia</h1>
           <p className="mt-4 text-slate-600">
-            Buka toko gratis dalam 1 menit. Bagikan aplikasi, game, source code, template, aset desain, atau e-book — gratis atau berbayar.
+            Buka toko gratis: isi form, kami tinjau dulu (biasanya &lt; 1 hari), lalu kamu bisa membagikan aplikasi, game, source code, template, aset desain, atau e-book — gratis atau berbayar.
           </p>
           <ul className="mt-8 space-y-5">
             {[
@@ -66,6 +66,55 @@ export default async function SellerPage({ searchParams }: PageProps<"/seller">)
           <h2 className="text-lg font-bold text-ink">Aktifkan toko</h2>
           <p className="mb-5 mt-1 text-sm text-slate-500">Nama toko tampil di halaman produk & profil publik kamu.</p>
           <StoreForm mode="activate" />
+        </Card>
+      </div>
+    );
+  }
+
+  if (user.seller.status === "pending") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
+        {diajukan && (
+          <Alert tone="success" className="mb-6" title="Pengajuan toko diterima!">
+            {user.seller.storeName} masuk antrean review. Kami kabari lewat notifikasi & email setelah dicek (biasanya &lt; 1 hari).
+          </Alert>
+        )}
+        <Card className="p-6 sm:p-8">
+          <p className="text-sm font-semibold text-brand-700">Seller Center</p>
+          <h1 className="mt-2 flex items-center gap-2 text-2xl font-extrabold tracking-tight text-ink">
+            <Clock className="h-6 w-6 shrink-0 text-amber-500" /> Toko kamu sedang ditinjau
+          </h1>
+          <p className="mt-3 text-slate-600">
+            <b>{user.seller.storeName}</b> menunggu persetujuan tim Rilisin. Fitur seller (tambah karya, upload, saldo) terbuka otomatis setelah disetujui.
+          </p>
+          <ul className="mt-5 space-y-2 text-sm">
+            <li className="flex items-center gap-2.5 text-slate-700">
+              <CircleCheck className="h-4 w-4 shrink-0 text-emerald-600" /> Pengajuan diterima
+            </li>
+            <li className="flex items-center gap-2.5 text-slate-500">
+              <Circle className="h-4 w-4 shrink-0 text-slate-300" /> Ditinjau tim Rilisin (nama toko & rekam akun dicek)
+            </li>
+            <li className="flex items-center gap-2.5 text-slate-500">
+              <Circle className="h-4 w-4 shrink-0 text-slate-300" /> Toko aktif + panduan 3 langkah terbuka
+            </li>
+          </ul>
+        </Card>
+      </div>
+    );
+  }
+
+  if (user.seller.status === "rejected") {
+    const [row] = await db.select().from(sellerProfiles).where(eq(sellerProfiles.userId, user.id)).limit(1);
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
+        <Card className="p-6 sm:p-8">
+          <p className="text-sm font-semibold text-brand-700">Seller Center</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink">Pengajuan toko belum disetujui</h1>
+          {user.seller.rejectionReason && (
+            <Alert tone="danger" className="mt-4" title="Alasan dari tim Rilisin">{user.seller.rejectionReason}</Alert>
+          )}
+          <p className="mb-5 mt-4 text-sm text-slate-600">Perbaiki di bawah lalu ajukan ulang — pengajuan barumu masuk antrean lagi.</p>
+          <StoreForm mode="activate" defaults={{ storeName: row?.storeName ?? "", tagline: row?.tagline ?? null, websiteUrl: row?.websiteUrl ?? null }} />
         </Card>
       </div>
     );

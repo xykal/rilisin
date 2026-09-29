@@ -2,7 +2,7 @@ import "server-only";
 import { and, count, countDistinct, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { countOpenContentReports } from "@/lib/community/reports";
-import { products, releases, reports } from "@/lib/db/schema";
+import { products, releases, reports, sellerProfiles } from "@/lib/db/schema";
 
 /** Jumlah pekerjaan moderator: karya/rilis menunggu review + pesan chat, postingan forum & ulasan yang dilaporkan. */
 export async function getModerationCounts() {
@@ -22,5 +22,5 @@ export async function getModerationCounts() {
   ]);
   const reviews = (p?.n ?? 0) + (r?.n ?? 0);
   const openReports = rep?.n ?? 0;
-  return { reviews, reports: openReports, contentReports: content, total: reviews + openReports + content };
+  return { reviews, reports: openReports, contentReports: content, sellers: s?.n ?? 0, total: reviews + openReports + content };
 }
