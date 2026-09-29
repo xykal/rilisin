@@ -957,6 +957,8 @@ async function register(s, username, password, extra = {}) {
   ok(avBad.status === 415, "Avatar bukan gambar ditolak (cek magic bytes)");
   const avGuest = await guest.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: avPng });
   ok(avGuest.status === 401, "Upload avatar wajib login");
+  const prof3 = (await rina.html("/akun/profil")).text;
+  await rina.submitForm("/akun/profil", prof3, 'data-form="profil"', { displayName: "Rina Pratiwi", bio: "" });
   await rina.submitForm("/akun/notifikasi", pref2, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on", email_komunitas: "on" });
   const badUnsub = await guest.req("/api/notifications/unsubscribe?t=palsu", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" });
   ok(badUnsub.status === 400 && (await guest.html("/notifikasi/berhenti?t=palsu")).text.includes("Link tidak valid"), "Berhenti berlangganan: token palsu ditolak");
