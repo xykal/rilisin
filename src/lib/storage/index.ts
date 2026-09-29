@@ -1,5 +1,6 @@
 import "server-only";
 import { blobDriver } from "./blob";
+import { isCloudinaryEnabled, withCloudinaryPublic } from "./cloudinary";
 import { localDriver } from "./local";
 import type { StorageDriver } from "./types";
 
@@ -7,14 +8,19 @@ export const storageDriverName = () => (process.env.STORAGE_DRIVER ?? "local") a
 
 export function storage(): StorageDriver {
   const driver = storageDriverName();
+  let inner: StorageDriver;
   switch (driver) {
     case "local":
-      return localDriver;
+      inner = localDriver;
+      break;
     case "vercel-blob":
-      return blobDriver;
+      inner = blobDriver;
+      break;
     default:
       throw new Error(`Storage driver "${driver}" belum tersedia`);
   }
+  // Hibrida: gambar publik ke Cloudinary kalau env-nya terisi, tanpa itu 100% perilaku lama.
+  return isCloudinaryEnabled() ? withCloudinaryPublic(inner) : inner;
 }
 
 export function mediaUrl(key: string | null | undefined): string | null {

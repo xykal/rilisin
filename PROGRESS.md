@@ -362,3 +362,12 @@ Blocked:
 Next:
 - Cloudinary hibrida: gambar public/* via Cloudinary (decorator driver,
   tanpa dependency baru), file privat tetap.
+
+Lanjutan hari yang sama (Cloudinary hibrida):
+- Gambar public/* (avatar, ikon, cover, screenshot, chat) via Cloudinary
+  dengan decorator withCloudinaryPublic (Upload API + Basic Auth, tanpa
+  dependency baru); tmp/* & private/* tetap di driver lama. Aktif hanya
+  kalau CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET terisi, kalau tidak 100%
+  perilaku lama. Key storage tidak berubah (URL yang berganti).
+- Jalur Cloudinary UNVERIFIED di CI (tanpa kredensial) — butuh tes staging:
+  isi env di Vercel, upload avatar, pastikan URL res.cloudinary.com.
