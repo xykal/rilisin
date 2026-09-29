@@ -359,7 +359,7 @@ Lengkapnya di [`SECURITY.md`](./SECURITY.md).
    - ganti kontak di `public/.well-known/security.txt`.
 5. **Upstash Redis:** rate limit & presence lintas server.
 6. **Pakasir (pembayaran):** buat proyek baru "rilisin" (otomatis mode sandbox) → isi Webhook URL `https://DOMAIN/api/payments/pakasir/webhook` → isi env `PAYMENT_PROVIDER=pakasir`, `PAKASIR_SLUG`, `PAKASIR_API_KEY`, `PAKASIR_WEBHOOK_SECRET`. Go live: KYC akun + KYC proyek di Pakasir, lalu `PAKASIR_ALLOW_SANDBOX=0`.
-7. **Login Google:** Google Cloud Console → Credentials → OAuth client ID (Web application) → tambahkan **Authorized redirect URI** `https://DOMAIN/api/auth/google/callback` → isi env `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET` (Vercel, jangan di repo). Kosong = tombol Google tidak muncul dan pendaftaran email tetap jalan.
+7. **Login Google:** Google Cloud Console → Credentials → OAuth client ID (Web application) → tambahkan **Authorized redirect URI** `https://DOMAIN/api/auth/google/callback` → isi env `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET` (Vercel, jangan di repo). Kosong = tombol Google tidak muncul dan pendaftaran email tetap jalan. **Authorized JavaScript origins TIDAK perlu diisi** — alur kita server-side redirect, bukan popup JS. Tiap deploy yang membawa migrasi baru wajib `npm run db:migrate` ke DB staging/prod (Vercel build tidak menjalankannya otomatis).
 
 ---
 

@@ -155,3 +155,28 @@ Verifikasi staging 2026-09-29 (pakai kredensial site-lock yang ditarik lewat Ver
   "Masih draf", dan `/verifikasi-email` → 200.
 - Yang masih butuh manusia: klik tombol Google di staging lalu selesaikan consent Google
   (butuh akun Google + sesi browser; tidak bisa dilakukan dari sandbox).
+
+Perbaikan 500 saat klik Google di staging 2026-09-29 (laporan kall: halaman error
+Chrome "500 Internal Server Error" dari rilisin.xyverse.my.id sesudah klik):
+- BUKAN soal "Authorized JavaScript origins" (kall sempat tanya). JS origins hanya
+  untuk popup Google Identity Services; alur kita server-side redirect, jadi yang
+  dipakai cuma Authorized redirect URI — dan itu sudah terdaftar benar.
+- Akar masalah: migrasi `0006_auth_oauth` (tabel `oauth_accounts` +
+  `email_verifications`, kolom `email_verified_at`, `password_hash` nullable) belum
+  pernah jalan di DB staging. CI selalu hijau karena CI migrate ke DB uji yang fresh
+  tiap run; Vercel build tidak menjalankan migrasi; tidak ada langkah migrate manual
+  ke staging sesudah commit 6b8847c. Callback menabrak tabel yang tidak ada → 500.
+- Sempat terkecoh: kolom `id` (SERIAL, mulai dari 1) di `__drizzle_migrations`
+  dikira nomor migrasi, padahal migrator drizzle hanya membandingkan `created_at`
+  vs `when` di journal. Baris 1..6 = migrasi 0000..0005 (hash sha256 cocok semua),
+  0006 memang belum ada. Tidak ada migrasi misterius.
+- Perbaikan: `npx tsx scripts/migrate.ts` dijalankan ke DB staging pakai
+  `DATABASE_URL_UNPOOLED` (diambil sementara via `vercel env pull`, lalu dihapus;
+  tidak masuk repo). Hasil: baris 7 = hash 0006_auth_oauth, kedua tabel + kolom ada,
+  `password_hash` nullable. Dependensi migrator diinstal di /tmp (bukan di repo).
+- Pengaman tambahan (commit ini): `src/app/api/auth/google/callback/route.ts`
+  dibungkus try/catch penuh — gangguan backend sesaat tidak akan pernah jadi
+  halaman 500 lagi, selalu redirect ke `/masuk?oauth=gagal`. README langkah
+  produksi Google ditambah catatan JS origins tidak perlu + migrasi wajib manual.
+- Sisa: kall klik ulang tombol Google di staging (harusnya sekarang lolos sampai
+  consent Google / langsung masuk).
