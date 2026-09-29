@@ -332,3 +332,9 @@ Tombol Tes Push 2026-09-29 (kelvin: taruh tes push di pengaturan notif):
 Fix pesan Tes Push 2026-09-29: "0 perangkat" ternyata = OneSignal MENOLAK
 (audience kosong, bukan terkirim). `sendPush()` kini null saat ditolak; pesan
 uji dibedakan: belum langganan vs terkirim-0. Data: 0 notif + 0 perangkat.
+
+Edit profil 2026-09-29 (kelvin: kembangkan profil; sebelumnya NOL edit):
+- Baru: `/akun/profil` (nama tampil + bio, link di menu header) + `/api/avatar`
+  (upload PNG/JPG/WebP → persegi 256 WebP, hapus file lama, DELETE reset) +
+  panel foto dgn pratinjau. Username disengaja permanen (URL & mention).
+- Smoke +6 cek: halaman, simpan, tampil-kembali, avatar 201/415/401.

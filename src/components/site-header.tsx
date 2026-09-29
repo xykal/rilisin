@@ -1,4 +1,4 @@
-import { Bell, BellRing, ChevronDown, KeyRound, Library, LogOut, ReceiptText, Search, ShieldCheck, Store, UserRound } from "lucide-react";
+import { Bell, BellRing, ChevronDown, KeyRound, Library, LogOut, ReceiptText, Search, ShieldCheck, Store, UserRound, PencilLine} from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { logoutAction } from "@/app/actions/auth";
@@ -108,6 +108,9 @@ export async function SiteHeader() {
                     </Link>
                     <Link href={`/@${user.username}`} className={menuItem}>
                       <UserRound className="h-4 w-4" /> Profil publik
+                    </Link>
+                    <Link href="/akun/profil" className={menuItem}>
+                      <PencilLine className="h-4 w-4" /> Edit profil
                     </Link>
                     <Link href="/akun/keamanan" className={menuItem}>
                       <KeyRound className="h-4 w-4" /> Keamanan akun

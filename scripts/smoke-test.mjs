@@ -944,6 +944,18 @@ async function register(s, username, password, extra = {}) {
   ok(psw.status === 200 && (await psw.text()).includes("OneSignalSDK"), "Service worker OneSignal tersaji");
   const testPush = await rina.submitForm("/akun/notifikasi", pref3, 'data-form="test-push"', {});
   ok(clean(await testPush.text()).includes("Push belum diaktifkan di server ini"), "Push uji tanpa kunci: pesan jelas (tidak crash)");
+  const prof = await rina.html("/akun/profil");
+  ok(prof.res.status === 200 && prof.text.includes('data-form="profil"'), "Halaman edit profil tampil");
+  const savedProf = await rina.submitForm("/akun/profil", prof.text, 'data-form="profil"', { displayName: "Rina Tester", bio: "Bio uji otomatis" });
+  ok(clean(await savedProf.text()).includes("Profil tersimpan"), "Edit profil (nama + bio) tersimpan");
+  const prof2 = (await rina.html("/akun/profil")).text;
+  ok(prof2.includes("Rina Tester") && prof2.includes("Bio uji otomatis"), "Perubahan profil tampil kembali");
+  const av = await rina.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: png });
+  ok(av.status === 201 && (await av.json()).url?.endsWith(".webp"), "Upload avatar → 201 webp");
+  const avBad = await rina.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: Buffer.from("bukan-gambar") });
+  ok(avBad.status === 415, "Avatar bukan gambar ditolak (cek magic bytes)");
+  const avGuest = await guest.req("/api/avatar", { method: "POST", headers: { "content-type": "image/png" }, body: png });
+  ok(avGuest.status === 401, "Upload avatar wajib login");
   await rina.submitForm("/akun/notifikasi", pref2, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on", email_komunitas: "on" });
   const badUnsub = await guest.req("/api/notifications/unsubscribe?t=palsu", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" });
   ok(badUnsub.status === 400 && (await guest.html("/notifikasi/berhenti?t=palsu")).text.includes("Link tidak valid"), "Berhenti berlangganan: token palsu ditolak");
