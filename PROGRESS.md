@@ -268,3 +268,13 @@ Jalur $0/bulan (self-host Docker) 2026-09-29 (kall: belum ada anggaran):
 - CI job baru `docker`: `docker build` app + migrator tiap run (tanpa push) —
   Dockerfile tidak bisa busuk diam-diam. Compose/cron/sertifikat diuji saat
   deploy VPS pertama (butuh akun Oracle kall) — jujur belum terverifikasi.
+
+Keputusan hosting 2026-09-29 (kelvin: tetap Vercel Hobby dulu):
+- Konteks: tanpa duit, tanpa VPS, tanpa laptop → kelvin minta jalur Cloudflare.
+  Audit kompatibilitas Workers SELESAI (driver postgres.js 3.4.9 + Hyperdrive
+  Free 100k query/hari = bisa; korban: sharp, ClamAV, LISTEN realtime, storage
+  lokal → butuh 6 operasi kode + driver R2 baru; risiko bundle 3 MB).
+- Keputusan kelvin: TUNDA migrasi, produksi tetap Vercel Hobby sambil nabung.
+  Risiko disadari: suspend sewaktu-waktu (komersial di Hobby). Parasut siap:
+  backup .rlsbak, docs/SELFHOST.md (VPS $0), docs/CLOUDFLARE.md (audit penuh +
+  langkah resume). Tidak ada kode diubah hari ini.
