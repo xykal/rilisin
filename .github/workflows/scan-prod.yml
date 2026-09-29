@@ -1,0 +1,46 @@
+# Worker antivirus untuk PRODUKSI (cerminan scan-staging.yml).
+# JADWAL MATI sampai cutover selesai (docs/CUTOVER.md Fase 4) — aktifkan dengan
+# membuka komentar `schedule` di bawah. Dispatch manual kapan saja.
+# Butuh: vars PROD_URL + secrets SCAN_WORKER_TOKEN_PROD (lihat CUTOVER Fase 1).
+name: Scan produksi (ClamAV)
+
+on:
+  # schedule:
+  #   - cron: "37 * * * *" # tiap jam menit ke-37 (beda dari staging :07)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scan-prod
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Worker ONCE → produksi
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      clamav:
+        image: clamav/clamav:stable
+        ports: ["3310:3310"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Cek prasyarat produksi
+        run: |
+          if [ -z "${{ vars.PROD_URL }}" ]; then
+            echo "Belum dikonfigurasi: isi vars PROD_URL + secrets SCAN_WORKER_TOKEN_PROD (lihat docs/CUTOVER.md Fase 1).";
+            exit 1;
+          fi
+      - name: Kuras antrean scan produksi
+        env:
+          RILISIN_URL: ${{ vars.PROD_URL }}
+          SCAN_WORKER_TOKEN: ${{ secrets.SCAN_WORKER_TOKEN_PROD }}
+          CLAMD_HOST: localhost
+          ONCE: "1"
+          WORKER_NAME: gh-actions-prod
+        run: node scanner/worker.mjs

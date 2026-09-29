@@ -236,3 +236,21 @@ ZAP baseline (DAST) di CI 2026-09-29 (ROADMAP 2026-10-05, dimajukan):
   90003 SRI hilang (script same-origin Next — SRI hanya relevan cross-origin);
   10038 tanpa CSP di 404 `/api/*` (respons JSON tanpa konten tereksekusi;
   satu-satunya route API ber-HTML sudah punya CSP ketat sendiri).
+
+Persiapan cutover produksi 2026-09-29 (gas dari kall; eksekusi menunggu akun):
+- `docs/CUTOVER.md`: runbook 4 fase (keputusan & akun kall → proyek & env →
+  deploy tertutup + smoke → go-live → pasca) + rollback + checklist env
+  produksi (nama saja) + perintah verifikasi. Prinsip: prod = proyek Vercel +
+  Neon terpisah, deploy hanya manual via CI, migrasi backward-compatible.
+- Audit env (nama saja via API): staging 41 var; kode memakai ~45 nama;
+  `.env.example` sudah lengkap (termasuk komentar-ID). Temuan: Turnstile +
+  Pakasir memang belum di staging (mock/captcha mati — wajar); Upstash &
+  OneSignal tidak ada di kode → dicoret dari cutover (limit bersama sudah
+  lewat Postgres, push belum diimplementasi). Seed/restore double-guarded
+  (ALLOW_SEED + *_ALLOW_REMOTE) — aman dari kecelakaan.
+- Job CI `deploy-prod` (manual dispatch, environment `production`), proyek
+  Vercel terpisah via vars + workflow `scan-prod.yml` (jadwal MATI sampai
+  Fase 4, dispatch manual + cek prasyarat jelas). Keduanya gagal-jelas kalau
+  vars/secrets belum diisi — tidak setengah jalan.
+- Jujur: happy path kedua job ini BELUM teruji (butuh proyek prod) — diuji
+  saat cutover Fase 2 sesuai runbook.

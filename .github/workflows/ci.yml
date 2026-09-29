@@ -1,6 +1,7 @@
 # CI Rilisin: lint → typecheck → seed DB → build → smoke test end-to-end (143 cek) → contract test Pakasir v2.
 # Job test tanpa secret apa pun (APP_SECRET dibuat acak per run, pembayaran mode simulasi, gateway palsu).
 # Job deploy: push ke main yang LULUS test -> deploy staging ke Vercel (build di Vercel, env tetap di Vercel).
+# Job deploy-prod: MANUAL (workflow_dispatch) -> deploy produksi ke proyek Vercel terpisah (butuh environment 'production', lihat docs/CUTOVER.md).
 # Token = secret environment "staging" yang dibatasi ke branch main; PR & Dependabot tidak bisa membacanya.
 name: CI
 
@@ -161,6 +162,38 @@ jobs:
         with:
           node-version: 24
       - name: Deploy ke Vercel (production = staging terkunci)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@60.1.3 deploy --prod --yes --token "$VERCEL_TOKEN"
+
+  deploy-prod:
+    name: Deploy PRODUKSI (Vercel, manual)
+    needs: [test, security]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ vars.PROD_URL }}
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_PROD_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROD_PROJECT_ID }}
+      VERCEL_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Cek prasyarat proyek produksi
+        run: |
+          if [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "Belum dikonfigurasi: isi vars VERCEL_PROD_ORG_ID + VERCEL_PROD_PROJECT_ID dan secrets VERCEL_TOKEN di environment 'production' (lihat docs/CUTOVER.md Fase 1).";
+            exit 1;
+          fi
+      - name: Deploy ke Vercel (PRODUKSI)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx --yes vercel@60.1.3 deploy --prod --yes --token "$VERCEL_TOKEN"
