@@ -389,6 +389,8 @@ let slug;
     storeName: "Toko Calon Serius",
     tagline: "Toko uji persetujuan",
     websiteUrl: "",
+    phone: "081234567890",
+    portfolioUrl: "https://github.com/tokocalon",
     agree: "on",
   });
   ok(reapplied.status === 303 && (reapplied.headers.get("location") ?? "").includes("/seller?diajukan=1"), "Pemohon bisa mengajukan ulang");
