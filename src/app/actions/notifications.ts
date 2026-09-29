@@ -68,7 +68,8 @@ export async function sendTestPushAction(): Promise<FormState> {
   const n = await sendPush([
     { externalId: user.id, title: "Push uji dari Rilisin", body: "Kalau HP bergetar, push sudah berjalan.", url: `${appUrl()}/akun/notifikasi` },
   ]).catch(() => -1);
-  if (n < 0) return { error: "Push gagal dikirim. Coba lagi beberapa saat lagi." };
-  if (n === 0) return { error: "Terkirim tapi 0 perangkat menerima — pastikan status di atas “Push aktif”, lalu coba lagi." };
+  if (n === null || n < 0)
+    return { error: "OneSignal menolak: belum ada perangkat yang langganan ke akun ini. Tekan “Aktifkan push di perangkat ini” di atas sampai status “Push aktif”, lalu coba lagi." };
+  if (n === 0) return { error: "Terkirim tapi 0 perangkat menerima — coba lagi, atau langganan ulang (Matikan → Aktifkan)." };
   return { success: `Push uji dikirim ke ${n} perangkat. Cek HP-mu.` };
 }

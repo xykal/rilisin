@@ -328,3 +328,7 @@ Tombol Tes Push 2026-09-29 (kelvin: taruh tes push di pengaturan notif):
   (rate-limit 3/jam, cerminan email uji). `sendPush()` kini mengembalikan total
   penerima OneSignal: 0 = pesan "belum langganan" (diagnosa mandiri).
 - Smoke +1 cek: tanpa kunci → pesan jelas, tidak crash.
+
+Fix pesan Tes Push 2026-09-29: "0 perangkat" ternyata = OneSignal MENOLAK
+(audience kosong, bukan terkirim). `sendPush()` kini null saat ditolak; pesan
+uji dibedakan: belum langganan vs terkirim-0. Data: 0 notif + 0 perangkat.
