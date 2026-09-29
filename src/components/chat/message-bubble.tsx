@@ -249,6 +249,8 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
                 <span className="inline-flex items-center gap-1">
                   <ImageIcon className="h-3.5 w-3.5" /> Foto
                 </span>
+              ) : msg.replyTo.hasAudio && !msg.replyTo.body ? (
+                <span className="inline-flex items-center gap-1">🎙 VN</span>
               ) : (
                 msg.replyTo.body
               )}
@@ -275,7 +277,13 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
             {!msg.body && <span className="chat-meta chat-meta-image">{timeLabel(msg.createdAt, tz)}</span>}
           </button>
         )}
-        {(msg.body || !msg.image) && (
+        {msg.audio && (
+          <div className="chat-voice">
+            <audio controls preload="metadata" src={msg.audio.url} aria-label="Putar voice note" className="block h-10 w-56 max-w-full" />
+            {!msg.body && <span className="chat-meta chat-meta-image">{timeLabel(msg.createdAt, tz)}</span>}
+          </div>
+        )}
+        {(msg.body || (!msg.image && !msg.audio)) && (
           <div className={cn("chat-text", bigEmoji && "chat-text-emoji")}>
             <RichText text={msg.body} />
             {!bigEmoji && <span className={cn("chat-spacer", msg.editedAt && "chat-spacer-wide")} />}

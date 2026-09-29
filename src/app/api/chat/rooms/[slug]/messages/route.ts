@@ -40,6 +40,8 @@ const sendSchema = z.object({
   clientId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
   replyToId: z.string().regex(UUID_RE).nullish(),
   uploadId: z.string().regex(UUID_RE).nullish(),
+  voiceUploadId: z.string().regex(UUID_RE).nullish(),
+  voiceSec: z.number().int().min(1).max(120).nullish(),
 });
 
 export async function POST(req: Request, ctx: RouteContext<"/api/chat/rooms/[slug]/messages">) {

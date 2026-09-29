@@ -328,3 +328,11 @@ Tombol Tes Push 2026-09-29 (kelvin: taruh tes push di pengaturan notif):
   (rate-limit 3/jam, cerminan email uji). `sendPush()` kini mengembalikan total
   penerima OneSignal: 0 = pesan "belum langganan" (diagnosa mandiri).
 - Smoke +1 cek: tanpa kunci → pesan jelas, tidak crash.
+
+Voice note (PR fitur/voice-notes) 2026-09-29 (chat 2.0 #1):
+- Rekam di browser (MediaRecorder webm/opus, fallback mp4 Safari) → upload
+  `/api/chat/voice` (magic bytes, maks 2 MB ±2 mnt, kuota harian gabung gambar)
+  → pesan beraudio (player native) → realtime SSE + preview 🎙 + notif.
+- Skema: `chat_messages.audio_key/audio_sec` (migrasi 0008); upload POOL
+  `chat_uploads` (width/height 0 = bukan gambar). Satu pesan satu lampiran.
+- Smoke +4 cek (282): upload 201, kirim tanpa teks, anti pakai-ulang, 415.

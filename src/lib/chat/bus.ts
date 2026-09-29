@@ -75,7 +75,15 @@ class ChatBus {
     if (!message) return;
     this.emit(roomHandlers, { type: "msg", message, created: s.c === 1 });
     if (wantsActivity) {
-      const preview = message.image ? (message.body ? `📷 ${snippet(message.body, 60)}` : "📷 Foto") : snippet(message.body, 70);
+      const preview = message.image
+        ? message.body
+          ? `📷 ${snippet(message.body, 60)}`
+          : "📷 Foto"
+        : message.audio
+          ? message.body
+            ? `🎙 ${snippet(message.body, 60)}`
+            : "🎙 Pesan suara"
+          : snippet(message.body, 70);
       this.emit(this.everywhere, {
         type: "activity",
         activity: {

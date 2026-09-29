@@ -11,6 +11,9 @@ export const CHAT_LIMITS = {
   deleteWindowMs: 48 * 60 * 60 * 1000,
   pageSize: 40,
   imageMaxBytes: 8 * 1024 * 1024,
+  voiceMaxBytes: 2 * 1024 * 1024,
+  /** Voice note maks 2 menit. */
+  voiceMaxSec: 120,
   /** Pesan otomatis disembunyikan kalau dilaporkan sebanyak ini oleh orang berbeda. */
   reportHideThreshold: 3,
   /** Akun baru belum boleh kirim link selama sekian jam (anti bot spam). */
@@ -106,12 +109,14 @@ export type ChatMessageDTO = {
   /** Kosong kalau pesan dihapus / disembunyikan. */
   body: string;
   image: { url: string; w: number; h: number } | null;
+  audio: { url: string; sec: number } | null;
   replyTo: {
     id: string;
     authorId: string;
     authorName: string;
     body: string;
     hasImage: boolean;
+    hasAudio: boolean;
     unavailable: boolean;
   } | null;
   reactions: ChatReactionDTO[];

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ImagePlus, Loader2, Lock, LogIn, MicOff, Pencil, Reply, SendHorizontal, X } from "lucide-react";
+import { Check, ImagePlus, Loader2, Lock, LogIn, Mic, MicOff, Pencil, Reply, SendHorizontal, Square, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CHAT_LIMITS, snippet } from "@/lib/chat/shared";
@@ -9,6 +9,9 @@ import type { LocalMessage } from "./message-bubble";
 import { nameColor, useMediaQuery } from "./utils";
 
 export type PendingImage = { uploadId: string | null; url: string; w: number; h: number; progress: number; error?: string };
+export type PendingVoice = { uploadId: string | null; url: string; sec: number; progress: number; error?: string };
+
+const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 type Props = {
   roomSlug: string;
@@ -19,7 +22,7 @@ type Props = {
   slowModeSec: number;
   onCancelReply: () => void;
   onCancelEdit: () => void;
-  onSend: (body: string, image: PendingImage | null) => Promise<boolean>;
+  onSend: (body: string, image: PendingImage | null, voice: PendingVoice | null) => Promise<boolean>;
   onEdit: (id: string, body: string) => Promise<boolean>;
   onTyping: () => void;
   onError: (msg: string) => void;
@@ -28,9 +31,12 @@ type Props = {
 export function Composer(p: Props) {
   const [text, setText] = useState("");
   const [image, setImage] = useState<PendingImage | null>(null);
+  const [voice, setVoice] = useState<PendingVoice | null>(null);
+  const [rec, setRec] = useState<{ sec: number } | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const recRef = useRef<{ mr: MediaRecorder; chunks: Blob[]; timer: number; startedAt: number } | null>(null);
   const lastTyping = useRef(0);
   const finePointer = useMediaQuery("(pointer: fine)");
 
@@ -66,6 +72,19 @@ export function Composer(p: Props) {
     return () => window.clearTimeout(t);
   }, [cooldown]);
 
+  useEffect(
+    () => () => {
+      const r = recRef.current;
+      if (r) {
+        window.clearInterval(r.timer);
+        try {
+          r.mr.stop();
+        } catch {}
+      }
+    },
+    [],
+  );
+
   if (p.disabled) {
     return (
       <div className="border-t border-slate-200 bg-white px-4 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] text-center">
@@ -83,10 +102,10 @@ export function Composer(p: Props) {
     );
   }
 
-  const uploading = !!image && !image.uploadId && !image.error;
+  const uploading = (!!image && !image.uploadId && !image.error) || (!!voice && !voice.uploadId && !voice.error) || !!rec;
   const trimmed = text.trim();
   const tooLong = trimmed.length > CHAT_LIMITS.maxChars;
-  const canSend = (!!trimmed || (!!image?.uploadId && !p.editing)) && !uploading && !tooLong && cooldown <= 0;
+  const canSend = (!!trimmed || (!!image?.uploadId && !p.editing) || (!!voice?.uploadId && !p.editing)) && !uploading && !tooLong && cooldown <= 0;
 
   async function submit() {
     if (!canSend) return;
@@ -100,14 +119,105 @@ export function Composer(p: Props) {
       return;
     }
     const img = image;
+    const vn = voice;
     setText("");
     setImage(null);
+    setVoice(null);
     requestAnimationFrame(resize);
-    const ok = await p.onSend(body, img);
+    const ok = await p.onSend(body, img, vn);
     if (ok && p.slowModeSec > 0) setCooldown(p.slowModeSec);
   }
 
+  function pickMime() {
+    for (const c of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]) {
+      try {
+        if (window.MediaRecorder?.isTypeSupported(c)) return c;
+      } catch {}
+    }
+    return "";
+  }
+
+  async function startRec() {
+    if (rec || voice || p.editing) return;
+    if (!window.MediaRecorder || !navigator.mediaDevices?.getUserMedia) return p.onError("Browser ini tidak bisa merekam audio.");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = pickMime();
+      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      const chunks: Blob[] = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size) chunks.push(e.data);
+      };
+      const startedAt = Date.now();
+      mr.start();
+      const timer = window.setInterval(() => {
+        const sec = Math.floor((Date.now() - startedAt) / 1000);
+        setRec({ sec });
+        if (sec >= CHAT_LIMITS.voiceMaxSec) stopRec(true);
+      }, 500);
+      recRef.current = { mr, chunks, timer, startedAt };
+      setImage(null);
+      setRec({ sec: 0 });
+    } catch {
+      p.onError("Mikrofon tidak bisa diakses — izinkan dulu di browser.");
+    }
+  }
+
+  function stopRec(send: boolean) {
+    const r = recRef.current;
+    recRef.current = null;
+    if (r) window.clearInterval(r.timer);
+    setRec(null);
+    if (!r) return;
+    const sec = Math.min(CHAT_LIMITS.voiceMaxSec, Math.max(1, Math.round((Date.now() - r.startedAt) / 1000)));
+    const done = () => {
+      const blob = new Blob(r.chunks, { type: r.mr.mimeType || "audio/webm" });
+      if (!send || !blob.size) return;
+      uploadVoice(blob, sec);
+    };
+    if (r.mr.state === "inactive") done();
+    else {
+      r.mr.onstop = () => {
+        r.mr.stream.getTracks().forEach((t) => t.stop());
+        done();
+      };
+      r.mr.stop();
+    }
+  }
+
+  function uploadVoice(blob: Blob, sec: number) {
+    if (blob.size > CHAT_LIMITS.voiceMaxBytes) return p.onError("Voice note maksimal 2 MB (±2 menit).");
+    const localUrl = URL.createObjectURL(blob);
+    setVoice({ uploadId: null, url: localUrl, sec, progress: 0 });
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/chat/voice");
+    xhr.setRequestHeader("Content-Type", blob.type || "audio/webm");
+    xhr.setRequestHeader("x-voice-sec", String(sec));
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) setVoice((cur) => (cur && cur.url === localUrl ? { ...cur, progress: e.loaded / e.total } : cur));
+    };
+    xhr.onload = () => {
+      let data: { id?: string; error?: string } = {};
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {}
+      if (xhr.status >= 200 && xhr.status < 300 && data.id) {
+        setVoice((cur) => (cur && cur.url === localUrl ? { ...cur, uploadId: data.id!, progress: 1 } : cur));
+      } else {
+        setVoice(null);
+        p.onError(data.error ?? "Upload voice note gagal.");
+      }
+    };
+    xhr.onerror = () => {
+      setVoice(null);
+      p.onError("Upload voice note gagal — cek koneksi.");
+    };
+    xhr.send(blob);
+  }
+
   function pickFile(file: File) {
+    if (rec) return;
+    setVoice(null);
     if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return p.onError("Hanya gambar PNG, JPG, atau WebP.");
     if (file.size > 25 * 1024 * 1024) return p.onError("Gambar maksimal 25 MB.");
     const localUrl = URL.createObjectURL(file);
@@ -171,7 +281,7 @@ export function Composer(p: Props) {
             <p className="text-[12.5px] font-bold" style={{ color: p.editing ? "#4b34d9" : nameColor(banner.author.id) }}>
               {p.editing ? "Edit pesan" : `Membalas ${banner.author.id === p.viewerId ? "diri sendiri" : banner.author.displayName}`}
             </p>
-            <p className="truncate text-[13px] text-slate-600">{banner.body ? snippet(banner.body, 100) : banner.image ? "📷 Foto" : ""}</p>
+            <p className="truncate text-[13px] text-slate-600">{banner.body ? snippet(banner.body, 100) : banner.image ? "📷 Foto" : banner.audio ? "🎙 Pesan suara" : ""}</p>
           </div>
           <button
             type="button"
@@ -203,6 +313,35 @@ export function Composer(p: Props) {
           </button>
         </div>
       )}
+      {rec && (
+        <div className="anim-slide-up mb-2 flex items-center gap-3 rounded-2xl bg-red-50 p-2 pl-4">
+          <span className="relative flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" />
+          </span>
+          <span className="min-w-0 flex-1 font-mono text-sm font-semibold text-red-700">Merekam… {fmtDur(rec.sec)}</span>
+          <button type="button" aria-label="Batalkan rekaman" onClick={() => stopRec(false)} className="tap-hit rounded-full p-1.5 text-slate-500 hover:bg-red-100">
+            <X className="h-4 w-4" />
+          </button>
+          <button type="button" aria-label="Selesai dan siapkan kirim" onClick={() => stopRec(true)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow hover:bg-red-700">
+            <Square className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      {voice && (
+        <div className="anim-slide-up mb-2 flex items-center gap-3 rounded-2xl bg-slate-100 p-2">
+          <Mic className="h-5 w-5 shrink-0 text-brand-600" />
+          <div className="min-w-0 flex-1">
+            <audio controls preload="metadata" src={voice.url} aria-label="Pratinjau voice note" className="h-9 w-full" />
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${Math.round(voice.progress * 100)}%` }} />
+            </div>
+          </div>
+          <button type="button" aria-label="Hapus voice note" onClick={() => setVoice(null)} className="tap-hit rounded-full p-1.5 text-slate-500 hover:bg-slate-200">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <div className="flex items-end gap-1.5">
         {!p.editing && (
           <>
@@ -225,6 +364,15 @@ export function Composer(p: Props) {
               className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-600 disabled:opacity-40"
             >
               <ImagePlus className="h-[22px] w-[22px]" />
+            </button>
+            <button
+              type="button"
+              aria-label="Rekam voice note"
+              disabled={!!voice || !!image}
+              onClick={() => void startRec()}
+              className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-600 disabled:opacity-40"
+            >
+              <Mic className="h-[22px] w-[22px]" />
             </button>
           </>
         )}

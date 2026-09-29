@@ -8,7 +8,7 @@ import type {
   ChatViewerDTO,
   ReportReason,
 } from "@/lib/chat/shared";
-import type { PendingImage } from "./composer";
+import type { PendingImage, PendingVoice } from "./composer";
 import type { LocalMessage } from "./message-bubble";
 import { chatApi, newClientId } from "./utils";
 
@@ -268,7 +268,7 @@ export function useRoom(opts: {
 
   // ─── Aksi ────────────────────────────────────────────────────────────────
   const send = useCallback(
-    async (body: string, replyTo: LocalMessage | null, image: PendingImage | null) => {
+    async (body: string, replyTo: LocalMessage | null, image: PendingImage | null, voice?: PendingVoice | null) => {
       if (!viewer) return false;
       const clientId = newClientId();
       const tmpId = `tmp:${clientId}`;
@@ -281,8 +281,9 @@ export function useRoom(opts: {
         author: { id: viewer.id, username: viewer.username, displayName: viewer.displayName, avatarUrl: viewer.avatarUrl, role: viewer.role, isSeller: false, isTrusted: false },
         body: body.trim(),
         image: image ? { url: image.url, w: image.w, h: image.h } : null,
+        audio: voice ? { url: voice.url, sec: voice.sec } : null,
         replyTo: replyTo
-          ? { id: replyTo.id, authorId: replyTo.author.id, authorName: replyTo.author.displayName, body: replyTo.body.slice(0, 140), hasImage: !!replyTo.image, unavailable: false }
+          ? { id: replyTo.id, authorId: replyTo.author.id, authorName: replyTo.author.displayName, body: replyTo.body.slice(0, 140), hasImage: !!replyTo.image, hasAudio: !!replyTo.audio, unavailable: false }
           : null,
         reactions: [],
         createdAt: now,
@@ -293,7 +294,7 @@ export function useRoom(opts: {
         pending: "sending",
       };
       setMsgs((prev) => ({ ...prev, [tmpId]: optimistic }));
-      const payload = { body, clientId, replyToId: replyTo?.id ?? null, uploadId: image?.uploadId ?? null };
+      const payload = { body, clientId, replyToId: replyTo?.id ?? null, uploadId: image?.uploadId ?? null, voiceUploadId: voice?.uploadId ?? null, voiceSec: voice?.sec ?? null };
       const res = await chatApi<{ message: ChatMessageDTO }>(`/api/chat/rooms/${room.slug}/messages`, payload);
       if (res.ok) {
         upsert([res.data.message], "new");

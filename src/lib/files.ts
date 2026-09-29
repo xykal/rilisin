@@ -70,7 +70,17 @@ export function detectImageType(head: Buffer): ImageType | null {
   return null;
 }
 
+export type AudioType = "webm" | "ogg" | "mp4";
+
+export function detectAudioType(head: Buffer): AudioType | null {
+  if (head.length >= 4 && head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3) return "webm"; // EBML
+  if (head.length >= 4 && head.subarray(0, 4).toString("latin1") === "OggS") return "ogg";
+  if (head.length >= 8 && head.subarray(4, 8).toString("latin1") === "ftyp") return "mp4";
+  return null;
+}
+
 export const ACCEPTED_IMAGE_TYPES = "image/png,image/jpeg,image/webp";
+export const ACCEPTED_AUDIO_TYPES = "audio/webm,audio/ogg,audio/mp4";
 
 /** Nama paket Android, contoh: id.namadev.aplikasi */
 export const ANDROID_PACKAGE_RE = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/;

@@ -70,6 +70,8 @@ function selectMessages() {
       imageKey: chatMessages.imageKey,
       imageW: chatMessages.imageW,
       imageH: chatMessages.imageH,
+      audioKey: chatMessages.audioKey,
+      audioSec: chatMessages.audioSec,
       createdAt: chatMessages.createdAt,
       updatedAt: chatMessages.updatedAt,
       editedAt: chatMessages.editedAt,
@@ -88,6 +90,7 @@ function selectMessages() {
       replyAuthorName: replyAuthor.displayName,
       replyBody: reply.body,
       replyImage: reply.imageKey,
+      replyAudio: reply.audioKey,
       replyDeletedAt: reply.deletedAt,
       replyHiddenAt: reply.reportHiddenAt,
     })
@@ -156,6 +159,10 @@ function toDTO(row: MessageRow, reactions: Map<string, ChatReactionDTO[]>): Chat
       visible && row.imageKey
         ? { url: mediaUrl(row.imageKey)!, w: row.imageW ?? 800, h: row.imageH ?? 600 }
         : null,
+    audio:
+      visible && row.audioKey
+        ? { url: mediaUrl(row.audioKey)!, sec: row.audioSec ?? 0 }
+        : null,
     replyTo: row.replyId
       ? {
           id: row.replyId,
@@ -163,6 +170,7 @@ function toDTO(row: MessageRow, reactions: Map<string, ChatReactionDTO[]>): Chat
           authorName: row.replyAuthorName ?? "Anggota",
           body: replyUnavailable ? "" : snippet(row.replyBody ?? "", 140),
           hasImage: !replyUnavailable && !!row.replyImage,
+          hasAudio: !replyUnavailable && !!row.replyAudio,
           unavailable: replyUnavailable,
         }
       : null,
@@ -229,10 +237,11 @@ export async function getRoomBySlug(slug: string) {
   return room ?? null;
 }
 
-function previewOf(r: { body: string | null; image: string | null; deleted: Date | null; hidden: Date | null }) {
+function previewOf(r: { body: string | null; image: string | null; audio: string | null; deleted: Date | null; hidden: Date | null }) {
   if (r.deleted) return "🚫 Pesan dihapus";
   if (r.hidden) return "⚠️ Pesan disembunyikan";
   if (r.image) return r.body ? `📷 ${snippet(r.body, 60)}` : "📷 Foto";
+  if (r.audio) return r.body ? `🎙 ${snippet(r.body, 60)}` : "🎙 Pesan suara";
   return snippet(r.body ?? "", 70);
 }
 
@@ -257,6 +266,7 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
     pinned_message_id: string | null;
     lm_body: string | null;
     lm_image: string | null;
+    lm_audio: string | null;
     lm_deleted: Date | null;
     lm_hidden: Date | null;
     lm_at: Date | null;
@@ -264,7 +274,7 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
     unread: number | null;
   }>(sql`
     select r.id, r.slug, r.name, r.emoji, r.description, r.kind, r.slow_mode_sec, r.pinned_message_id,
-      lm.body as lm_body, lm.image_key as lm_image, lm.deleted_at as lm_deleted,
+      lm.body as lm_body, lm.image_key as lm_image, lm.audio_key as lm_audio, lm.deleted_at as lm_deleted,
       lm.report_hidden_at as lm_hidden, lm.created_at as lm_at, lu.display_name as lm_author,
       ${unreadExpr} as unread
     from ${chatRooms} r
@@ -288,7 +298,7 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
     lastMessage: r.lm_at
       ? {
           authorName: r.lm_author ?? "Anggota",
-          preview: previewOf({ body: r.lm_body, image: r.lm_image, deleted: r.lm_deleted, hidden: r.lm_hidden }),
+          preview: previewOf({ body: r.lm_body, image: r.lm_image, audio: r.lm_audio, deleted: r.lm_deleted, hidden: r.lm_hidden }),
           at: new Date(r.lm_at).toISOString(),
         }
       : null,
@@ -337,8 +347,8 @@ export async function countMembers() {
 }
 
 // ─── Aturan konten ───────────────────────────────────────────────────────────
-async function validateContent(actor: ChatActor, body: string, opts: { hasImage: boolean; roomSlug: string; req?: Request }) {
-  if (!body && !opts.hasImage) throw new ChatError(400, "Pesan masih kosong.");
+async function validateContent(actor: ChatActor, body: string, opts: { hasAttachment: boolean; roomSlug: string; req?: Request }) {
+  if (!body && !opts.hasAttachment) throw new ChatError(400, "Pesan masih kosong.");
   if (body.length > CHAT_LIMITS.maxChars) {
     throw new ChatError(400, `Pesan terlalu panjang (maks. ${CHAT_LIMITS.maxChars.toLocaleString("id-ID")} karakter).`);
   }
@@ -370,7 +380,7 @@ async function validateContent(actor: ChatActor, body: string, opts: { hasImage:
 export async function sendMessage(
   actor: ChatActor,
   room: ChatRoom,
-  input: { body: string; clientId: string; replyToId?: string | null; uploadId?: string | null },
+  input: { body: string; clientId: string; replyToId?: string | null; uploadId?: string | null; voiceUploadId?: string | null; voiceSec?: number | null },
   req?: Request,
 ) {
   const staff = isStaffRole(actor.role);
@@ -395,7 +405,7 @@ export async function sendMessage(
   }
 
   const body = normalizeMessage(input.body);
-  await validateContent(actor, body, { hasImage: !!input.uploadId, roomSlug: room.slug, req });
+  await validateContent(actor, body, { hasAttachment: !!(input.uploadId || input.voiceUploadId), roomSlug: room.slug, req });
 
   if (room.slowModeSec > 0 && !staff) {
     const [last] = await db
@@ -443,6 +453,17 @@ export async function sendMessage(
     if (!u) throw new ChatError(400, "Gambar tidak ditemukan atau sudah dipakai. Upload ulang ya.");
     image = u;
   }
+  if (input.uploadId && input.voiceUploadId) throw new ChatError(400, "Satu pesan satu lampiran: gambar atau voice note, tidak bisa dua-duanya.");
+  let voice: { id: string; key: string; sec: number } | null = null;
+  if (input.voiceUploadId) {
+    const [u] = await db
+      .select({ id: chatUploads.id, key: chatUploads.storageKey })
+      .from(chatUploads)
+      .where(and(eq(chatUploads.id, input.voiceUploadId), eq(chatUploads.uploaderId, actor.id), isNull(chatUploads.usedAt)))
+      .limit(1);
+    if (!u) throw new ChatError(400, "Voice note tidak ditemukan atau sudah dipakai. Rekam ulang ya.");
+    voice = { id: u.id, key: u.key, sec: Math.min(CHAT_LIMITS.voiceMaxSec, Math.max(1, Math.round(Number(input.voiceSec) || 0))) };
+  }
 
   const [msg] = await db
     .insert(chatMessages)
@@ -455,6 +476,8 @@ export async function sendMessage(
       imageKey: image?.key ?? null,
       imageW: image?.w ?? null,
       imageH: image?.h ?? null,
+      audioKey: voice?.key ?? null,
+      audioSec: voice?.sec ?? null,
     })
     .onConflictDoNothing({ target: [chatMessages.authorId, chatMessages.clientId] })
     .returning({ id: chatMessages.id, seq: chatMessages.seq, createdAt: chatMessages.createdAt });
@@ -469,17 +492,19 @@ export async function sendMessage(
   }
 
   if (image) await db.update(chatUploads).set({ usedAt: new Date() }).where(eq(chatUploads.id, image.id));
+  if (voice) await db.update(chatUploads).set({ usedAt: new Date() }).where(eq(chatUploads.id, voice.id));
   await db.update(chatRooms).set({ lastMessageAt: msg.createdAt }).where(eq(chatRooms.id, room.id));
   await markRead(actor.id, room.id, msg.seq);
   await signalMessage(room.id, msg.id, true);
-  await notifyChatPeople(actor, room, body, replyToId).catch((err) => console.error("[chat] notifikasi gagal", err));
+  await notifyChatPeople(actor, room, body, replyToId, { hasImage: !!image, hasAudio: !!voice }).catch((err) => console.error("[chat] notifikasi gagal", err));
   return (await getMessageDTO(msg.id))!;
 }
 
 /** Balasan & @mention di chat → notifikasi lonceng (tanpa email; digabung per ruang selama belum dibaca). */
-async function notifyChatPeople(actor: ChatActor, room: ChatRoom, body: string, replyToId: string | null) {
+async function notifyChatPeople(actor: ChatActor, room: ChatRoom, body: string, replyToId: string | null, media?: { hasImage: boolean; hasAudio: boolean }) {
   const url = `/komunitas/${room.slug}`;
-  const data = { roomName: room.name, snippet: snippet(body || "📷 Foto", 120) };
+  const fallback = media?.hasAudio ? "🎙 Pesan suara" : media?.hasImage ? "📷 Foto" : "";
+  const data = { roomName: room.name, snippet: snippet(body || fallback, 120) };
   const notes: NotifyInput[] = [];
   let replyAuthor: string | null = null;
   if (replyToId) {
@@ -528,7 +553,7 @@ export async function editMessage(actor: ChatActor, id: string, rawBody: string,
   if (mute) throw new ChatError(403, "Kamu sedang dibisukan moderator.", "muted");
   const body = normalizeMessage(rawBody);
   const [room] = await db.select({ slug: chatRooms.slug }).from(chatRooms).where(eq(chatRooms.id, m.roomId));
-  await validateContent(actor, body, { hasImage: !!m.imageKey, roomSlug: room?.slug ?? "?", req });
+  await validateContent(actor, body, { hasAttachment: !!(m.imageKey || m.audioKey), roomSlug: room?.slug ?? "?", req });
   if (body !== m.body) {
     await db.insert(chatMessageEdits).values({ messageId: m.id, previousBody: m.body });
     await db.update(chatMessages).set({ body, editedAt: new Date(), updatedAt: new Date() }).where(eq(chatMessages.id, m.id));
@@ -567,11 +592,14 @@ export async function deleteForEveryone(actor: ChatActor, id: string, req?: Requ
       imageKey: null,
       imageW: null,
       imageH: null,
+      audioKey: null,
+      audioSec: null,
       updatedAt: new Date(),
     })
     .where(eq(chatMessages.id, m.id));
   await db.delete(chatReactions).where(eq(chatReactions.messageId, m.id));
   if (m.imageKey) storage().remove(m.imageKey).catch(() => {});
+  if (m.audioKey) storage().remove(m.audioKey).catch(() => {});
 
   const [room] = await db.select({ pinned: chatRooms.pinnedMessageId }).from(chatRooms).where(eq(chatRooms.id, m.roomId));
   if (room?.pinned === m.id) {

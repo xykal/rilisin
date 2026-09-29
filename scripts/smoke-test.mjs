@@ -464,6 +464,18 @@ const rina = user; // user@rilisin.test (Rina)
   ok(reuse.status === 400, "Gambar yang sudah dipakai tidak bisa dipakai ulang");
   const fakeImg = await rina.req("/api/chat/uploads", { method: "POST", headers: { "content-type": "image/png" }, body: Buffer.from("<svg onload=alert(1)>") });
   ok(fakeImg.status === 415, "File bukan gambar ditolak (cek magic bytes)");
+
+  // Voice note
+  const webm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01]), Buffer.alloc(1024, 7)]);
+  const vnRes = await rina.req("/api/chat/voice", { method: "POST", headers: { "content-type": "audio/webm", "x-voice-sec": "12" }, body: webm });
+  const vn = await vnRes.json();
+  ok(vnRes.status === 201 && vn.url?.endsWith(".webm") && vn.sec === 12, "Upload voice note webm → 201 + durasi");
+  const withVn = await rina.say("nongkrong", "", { voiceUploadId: vn.id, voiceSec: 12 });
+  ok(withVn.status === 201 && withVn.data.message.audio?.url === vn.url && withVn.data.message.audio?.sec === 12, "Kirim pesan voice note (tanpa teks)");
+  const vnReuse = await rina.say("nongkrong", "pakai ulang", { voiceUploadId: vn.id, voiceSec: 5 });
+  ok(vnReuse.status === 400, "Voice note yang sudah dipakai tidak bisa dipakai ulang");
+  const fakeVn = await rina.req("/api/chat/voice", { method: "POST", headers: { "content-type": "audio/webm", "x-voice-sec": "5" }, body: Buffer.from("bukan-audio") });
+  ok(fakeVn.status === 415, "File bukan audio ditolak (cek magic bytes)");
   const slow = await rina.say("pamer-karya", "pesan kedua terlalu cepat");
   ok(slow.status === 429 && /Mode lambat/.test(slow.data.error), "Mode lambat ruang Pamer Karya bekerja");
 
