@@ -17,6 +17,7 @@ import {
   type NotificationDTO,
   type NotificationType,
 } from "./shared";
+import { queueNotificationPush } from "./push";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Exec = typeof db | Tx;
@@ -70,10 +71,11 @@ export async function notify(input: NotifyInput | NotifyInput[], exec: Exec = db
   return ids;
 }
 
-/** Buat notifikasi + jadwalkan email setelah respons terkirim (tidak memperlambat aksi user). */
+/** Buat notifikasi + jadwalkan email & push setelah respons terkirim (tidak memperlambat aksi user). */
 export async function notifyAndEmail(input: NotifyInput | NotifyInput[]) {
   const ids = await notify(input);
   queueNotificationEmails(ids);
+  queueNotificationPush(ids);
   return ids;
 }
 

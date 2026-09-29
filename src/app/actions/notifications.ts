@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { emailConfigured, isUndeliverableAddress, renderEmail, sendEmail, appUrl } from "@/lib/email";
 import { markAllRead, readUnsubscribeToken, setEmailPrefs } from "@/lib/notifications/server";
+import { setPushPrefs } from "@/lib/notifications/push";
 import { NOTIFICATION_CATEGORIES } from "@/lib/notifications/shared";
 import { sharedLimit } from "@/lib/rate-limit";
 import type { FormState } from "./form-state";
@@ -15,6 +16,14 @@ export async function saveNotificationPrefsAction(_prev: FormState, formData: Fo
   await setEmailPrefs(user.id, Object.fromEntries(NOTIFICATION_CATEGORIES.map((c) => [c.id, formData.get(`email_${c.id}`) === "on"])));
   revalidatePath("/akun/notifikasi");
   return { success: "Pengaturan notifikasi tersimpan." };
+}
+
+export async function savePushPrefsAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Masuk dulu." };
+  await setPushPrefs(user.id, Object.fromEntries(NOTIFICATION_CATEGORIES.map((c) => [c.id, formData.get(`push_${c.id}`) === "on"])));
+  revalidatePath("/akun/notifikasi");
+  return { success: "Pengaturan push tersimpan." };
 }
 
 export async function markAllReadAction() {

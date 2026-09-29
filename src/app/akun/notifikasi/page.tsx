@@ -1,18 +1,22 @@
-import { Bell, Mail } from "lucide-react";
+import { Bell, Mail, Smartphone } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { NotificationPrefsForm, TestEmailForm } from "@/components/notification-forms";
+import { NotificationPrefsForm, PushPrefsForm, TestEmailForm } from "@/components/notification-forms";
+import { PushDevicePanel } from "@/components/push-settings";
 import { Alert, Card } from "@/components/ui";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { requireUser } from "@/lib/auth/guards";
 import { emailConfigured, isUndeliverableAddress } from "@/lib/email";
 import { getEmailPrefs } from "@/lib/notifications/server";
+import { getPushPrefs, pushConfigured } from "@/lib/notifications/push";
 
 export const metadata: Metadata = { title: "Pengaturan notifikasi", robots: { index: false } };
 
 export default async function NotificationSettingsPage() {
   const user = await requireUser("/akun/notifikasi");
   const prefs = await getEmailPrefs(user.id);
+  const pushPrefs = await getPushPrefs(user.id);
+  const pushOn = pushConfigured();
   const configured = emailConfigured();
   const demoAddress = isUndeliverableAddress(user.email);
 
@@ -46,6 +50,26 @@ export default async function NotificationSettingsPage() {
         <p className="mt-4 text-xs text-slate-500">
           Email penting soal keamanan akun (reset password, password diganti) dan bukti pembayaran selalu dikirim — tidak bisa dimatikan.
         </p>
+      </Card>
+
+      <Card className="mt-6 p-5 sm:p-7">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-ink">
+          <Smartphone className="h-5 w-5 text-brand-600" /> Push HP
+        </h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Notifikasi penting langsung masuk ke HP — walau browser ditutup. Aktifkan dulu per perangkat, lalu atur kategorinya.
+        </p>
+        {!pushOn && (
+          <Alert tone="info" className="mb-4">
+            Push belum diaktifkan di server ini (butuh kunci OneSignal) — pengaturan tetap disimpan dan berlaku begitu push aktif.
+          </Alert>
+        )}
+        {pushOn && (
+          <div className="mb-6">
+            <PushDevicePanel />
+          </div>
+        )}
+        <PushPrefsForm prefs={pushPrefs} />
       </Card>
 
       <Card className="mt-6 p-5 sm:p-7">

@@ -934,6 +934,14 @@ async function register(s, username, password, extra = {}) {
   const savedPref = await rina.submitForm("/akun/notifikasi", pref.text, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on" });
   const pref2 = (await rina.html("/akun/notifikasi")).text;
   ok(clean(await savedPref.text()).includes("Pengaturan notifikasi tersimpan") && /name="email_transaksi"[^>]*checked/.test(pref2) && !/name="email_komunitas"[^>]*checked/.test(pref2), "Preferensi email notifikasi tersimpan");
+
+  const savedPush = await rina.submitForm("/akun/notifikasi", pref2, 'data-form="push-prefs"', { push_transaksi: "on", push_karya: "on" });
+  const pref3 = (await rina.html("/akun/notifikasi")).text;
+  ok(clean(await savedPush.text()).includes("Pengaturan push tersimpan") && /name="push_transaksi"[^>]*checked/.test(pref3) && !/name="push_komunitas"[^>]*checked/.test(pref3), "Preferensi push notifikasi tersimpan");
+  const man = await fetch(`${BASE}/manifest.webmanifest`, { headers: authHeaders() });
+  ok(man.status === 200 && (await man.text()).includes("Rilisin"), "Manifest PWA tersaji");
+  const psw = await fetch(`${BASE}/OneSignalSDKWorker.js`, { headers: authHeaders() });
+  ok(psw.status === 200 && (await psw.text()).includes("OneSignalSDK"), "Service worker OneSignal tersaji");
   await rina.submitForm("/akun/notifikasi", pref2, 'data-form="notif-prefs"', { email_transaksi: "on", email_karya: "on", email_komunitas: "on" });
   const badUnsub = await guest.req("/api/notifications/unsubscribe?t=palsu", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" });
   ok(badUnsub.status === 400 && (await guest.html("/notifikasi/berhenti?t=palsu")).text.includes("Link tidak valid"), "Berhenti berlangganan: token palsu ditolak");

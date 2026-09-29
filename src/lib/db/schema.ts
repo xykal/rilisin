@@ -74,8 +74,8 @@ export const reportStatus = pgEnum("report_status", ["open", "resolved", "dismis
 /** discussion = diskusi biasa · qa = tanya jawab (ada jawaban terbaik) · announcement = hanya staf yang bisa membuat thread. */
 export const forumCategoryKind = pgEnum("forum_category_kind", ["discussion", "qa", "announcement"]);
 
-/** Preferensi notifikasi: email per kategori (lihat NOTIFICATION_CATEGORIES). Kunci yang tidak ada = pakai default. */
-export type NotifyPrefs = { email?: Record<string, boolean> };
+/** Preferensi notifikasi: email & push per kategori (lihat NOTIFICATION_CATEGORIES). Kunci yang tidak ada = pakai default. */
+export type NotifyPrefs = { email?: Record<string, boolean>; push?: Record<string, boolean> };
 /** Data tampilan notifikasi (judul thread, nama produk, cuplikan, dll). Selalu dirender sebagai teks biasa. */
 export type NotificationData = Record<string, string | number | null>;
 
@@ -786,6 +786,8 @@ export const notifications = pgTable(
     readAt: tsz("read_at"),
     /** Email untuk grup ini sudah dikirim — balasan berikutnya tidak memicu email lagi sampai dibaca. */
     emailedAt: tsz("emailed_at"),
+    /** Push untuk grup ini sudah dikirim (klaim atomik, cerminan email). */
+    pushedAt: tsz("pushed_at"),
     createdAt: createdAt(),
     updatedAt: tsz("updated_at").notNull().defaultNow(),
   },

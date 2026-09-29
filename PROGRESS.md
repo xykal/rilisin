@@ -289,3 +289,19 @@ Fase A "gampang dipencet" (1/3: chat) 2026-09-29 (kelvin: "semua" — seller sup
   textarea 15→16px (bunuh auto-zoom iOS), tombol kirim-ulang bubble +padding.
 - Sisa Fase A (sesi berikut): tombol ikon global (site-header, lonceng, forum),
   cek font input <16px se-aplikasi, poles breakpoint tablet (md: tipis).
+
+Fase C (1/2: kode push + PWA) 2026-09-29 (kelvin: gas OneSignal, akun sudah ada):
+- Integrasi OneSignal Web Push TERPASANG, mati-aman tanpa kunci. Tanpa dep npm
+  baru (paket npm `onesignal` ternyata 0.1.2 = bukan SDK; web SDK resmi via CDN).
+- Baru: `public/OneSignalSDKWorker.js`, `manifest.webmanifest` + 4 ikon PNG
+  (dibangkitkan PIL, "R" putih di ungu brand), `src/types/onesignal.d.ts`,
+  `src/lib/push-client.ts` (bungkus SDK malas), `src/lib/notifications/push.ts`
+  (REST sender + preferensi `push` JSONB + klaim atomik `pushed_at`),
+  `<PushInit/>` (layout, login/logout per akun), `<PushDevicePanel/>` +
+  `PushPrefsForm` di `/akun/notifikasi`, migrasi `0007_push`, `docs/PUSH.md`.
+- `notifyAndEmail()` kini juga menjadwalkan push via `after()` (nol ubahan
+  call-site). Default push: transaksi+karya ON, forum+diikuti OFF.
+- Smoke +3 cek (prefs push, manifest, SW) = 277; header CI dikoreksi (143 basi).
+- LIVE BELUM terverifikasi: butuh App ID (kelvin kirim via chat) + REST key
+  (kelvin pasang sendiri di Vercel env). Safari Mac tidak didukung (butuh
+  sertifikat Apple $99); iPhone butuh install Home Screen.

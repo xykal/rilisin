@@ -6,6 +6,8 @@ import { SiteHeader } from "@/components/site-header";
 import { isSimulationMode } from "@/lib/payments/provider";
 import { SITE } from "@/lib/config";
 import { BRAND } from "@/config/brand";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { PushInit } from "@/components/push-init";
 import "./globals.css";
 
 // Semua halaman membaca session (cookie) & data terbaru dari database.
@@ -24,6 +26,9 @@ export const metadata: Metadata = {
   authors: [{ name: `${BRAND.author} — ${BRAND.company}`, url: "https://github.com/xykal" }],
   creator: `${BRAND.author} — ${BRAND.company}`,
   publisher: BRAND.company,
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: SITE.name, statusBarStyle: "default" },
+  icons: { apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -35,7 +40,9 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await getCurrentUser().catch(() => null);
+  const pushAppId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ?? "";
   return (
     <html lang="id" className={jakarta.variable}>
       <body className="min-h-screen font-sans antialiased">
@@ -49,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <HideOnRoutes pattern="^/komunitas(/(?!aturan)[^/]+)?/?$">
           <SiteFooter />
         </HideOnRoutes>
+        <PushInit userId={user?.id ?? null} appId={pushAppId} />
       </body>
     </html>
   );

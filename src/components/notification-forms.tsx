@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveNotificationPrefsAction, sendTestEmailAction } from "@/app/actions/notifications";
+import { saveNotificationPrefsAction, savePushPrefsAction, sendTestEmailAction } from "@/app/actions/notifications";
 import { NOTIFICATION_CATEGORIES, type NotificationCategory } from "@/lib/notifications/shared";
 import { SubmitButton } from "./submit-button";
 import { Alert } from "./ui";
@@ -42,3 +42,27 @@ export function TestEmailForm({ enabled }: { enabled: boolean }) {
     </form>
   );
 }
+export function PushPrefsForm({ prefs }: { prefs: Record<NotificationCategory, boolean> }) {
+  const [state, action] = useActionState(savePushPrefsAction, undefined);
+  return (
+    <form action={action} className="space-y-4" data-form="push-prefs">
+      {state?.success && <Alert tone="success">{state.success}</Alert>}
+      {state?.error && <Alert tone="danger">{state.error}</Alert>}
+      <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+        {NOTIFICATION_CATEGORIES.map((c) => (
+          <li key={c.id}>
+            <label className="flex cursor-pointer items-start gap-4 p-4">
+              <input type="checkbox" name={`push_${c.id}`} defaultChecked={prefs[c.id]} className="mt-1 h-5 w-5 shrink-0 accent-brand-600" />
+              <span className="min-w-0">
+                <span className="block font-semibold text-ink">Push: {c.label}</span>
+                <span className="block text-sm text-slate-500">{c.description}</span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <SubmitButton pendingText="Menyimpan…">Simpan pengaturan push</SubmitButton>
+    </form>
+  );
+}
+

@@ -10,24 +10,28 @@ export const NOTIFICATION_CATEGORIES = [
     label: "Pesanan & pencairan",
     description: "Karyamu terjual, pencairan saldo diproses atau ditolak.",
     emailDefault: true,
+    pushDefault: true,
   },
   {
     id: "karya",
     label: "Karya & ulasan",
     description: "Karya disetujui / perlu perbaikan, ulasan baru untuk karyamu, balasan seller untuk ulasanmu.",
     emailDefault: true,
+    pushDefault: true,
   },
   {
     id: "komunitas",
     label: "Forum",
     description: "Balasan di thread kamu, mention @username, jawaban terbaik. Maksimal satu email per thread sampai kamu membukanya.",
     emailDefault: true,
+    pushDefault: false,
   },
   {
     id: "diikuti",
     label: "Update yang kamu ikuti",
     description: "Versi baru & devlog dari karya yang kamu ikuti (otomatis untuk karya yang kamu unduh/beli), karya baru dari seller yang kamu ikuti.",
     emailDefault: false,
+    pushDefault: false,
   },
 ] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number]["id"];
