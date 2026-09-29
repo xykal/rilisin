@@ -131,6 +131,7 @@ export default async function ReviewDetailPage({ params, searchParams }: PagePro
                     v{r.version}
                     <Badge tone={r.status === "review" ? "amber" : r.status === "published" ? "green" : r.status === "rejected" ? "red" : "slate"}>{r.status}</Badge>
                     <span className="text-xs font-normal text-slate-500">{r.submittedAt ? `dikirim ${timeAgo(r.submittedAt)}` : ""}</span>
+                    {r.scheduledAt && <span className="text-xs font-normal text-amber-700">terjadwal {formatDateTime(r.scheduledAt)}</span>}
                   </p>
                   {r.changelogMd && <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{r.changelogMd}</p>}
                   <ul className="mt-3 space-y-2">

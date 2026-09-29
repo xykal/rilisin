@@ -51,29 +51,38 @@ export async function approveProductAction(formData: FormData) {
   if (infected) redirect(`/admin/review/${productId}?error=malware`);
   const now = new Date();
   const checkAndroid = formData.get("androidChecked") === "on";
+  // Rilis terjadwal ikut disetujui tapi belum tayang (tayang otomatis saat jadwal tiba).
+  const pending = await db
+    .select({ id: releases.id, scheduledAt: releases.scheduledAt })
+    .from(releases)
+    .where(and(eq(releases.productId, productId), eq(releases.status, "review")));
+  const dueIds = pending.filter((r) => !r.scheduledAt || r.scheduledAt <= now).map((r) => r.id);
+  const futureIds = pending.filter((r) => r.scheduledAt && r.scheduledAt > now).map((r) => r.id);
   await db.transaction(async (tx) => {
     await tx
       .update(products)
       .set({
         status: "published",
-        publishedAt: product.publishedAt ?? now,
+        publishedAt: product.publishedAt ?? (dueIds.length ? now : null),
         rejectionReason: null,
         updatedAt: now,
         ...(checkAndroid ? { androidCheckedAt: now } : {}),
       })
       .where(eq(products.id, productId));
-    await tx
-      .update(releases)
-      .set({ status: "published", publishedAt: now })
-      .where(and(eq(releases.productId, productId), eq(releases.status, "review")));
+    if (dueIds.length) {
+      await tx.update(releases).set({ status: "published", publishedAt: now }).where(inArray(releases.id, dueIds));
+    }
+    if (futureIds.length) {
+      await tx.update(releases).set({ status: "published", publishedAt: null }).where(inArray(releases.id, futureIds));
+    }
     // Status scan TIDAK diubah di sini: persetujuan moderator bukan hasil antivirus (diisi worker scan).
   });
   await log(staff.id, "product", productId, "approve", str(formData, "note") || (checkAndroid ? "Bukti verifikasi Android dicek" : null));
   await notifyAndEmail({ userId: product.sellerId, type: "product_approved", actorId: staff.id, url: `/p/${product.slug}`, data: { productTitle: product.title } });
   // Tayang pertama kali → kabari pengikut seller
-  if (!product.publishedAt) await announceProductPublished(productId);
+  if (!product.publishedAt && dueIds.length) await announceProductPublished(productId);
   revalidatePath("/", "layout");
-  redirect("/admin/review?hasil=disetujui");
+  redirect(`/admin/review?hasil=${!product.publishedAt && !dueIds.length ? "dijadwalkan" : "disetujui"}`);
 }
 
 export async function rejectProductAction(formData: FormData) {
@@ -121,12 +130,13 @@ export async function approveReleaseAction(formData: FormData) {
   const now = new Date();
   const [infected] = await db.select({ id: releaseFiles.id }).from(releaseFiles).where(and(eq(releaseFiles.releaseId, releaseId), eq(releaseFiles.scanStatus, "infected"))).limit(1);
   if (infected) redirect(`/admin/review/${release.productId}?error=malware`);
-  await db.update(releases).set({ status: "published", publishedAt: now, rejectionReason: null }).where(eq(releases.id, releaseId));
+  const scheduled = Boolean(release.scheduledAt && release.scheduledAt > now);
+  await db.update(releases).set({ status: "published", publishedAt: scheduled ? null : now, rejectionReason: null }).where(eq(releases.id, releaseId));
   await db.update(products).set({ updatedAt: now }).where(eq(products.id, release.productId));
-  await log(staff.id, "release", releaseId, "approve", `v${release.version}`);
-  await announceReleasePublished(releaseId);
+  await log(staff.id, "release", releaseId, "approve", scheduled ? `v${release.version} (terjadwal)` : `v${release.version}`);
+  if (!scheduled) await announceReleasePublished(releaseId);
   revalidatePath("/", "layout");
-  redirect("/admin/review?hasil=rilis-disetujui");
+  redirect(`/admin/review?hasil=${scheduled ? "rilis-dijadwalkan" : "rilis-disetujui"}`);
 }
 
 export async function rejectReleaseAction(formData: FormData) {

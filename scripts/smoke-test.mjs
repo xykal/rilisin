@@ -404,6 +404,68 @@ let slug;
   ok(!sellerDash.text.includes("Aktivasi toko"), "Seller yang sudah pernah submit tidak melihat kartu aktivasi");
 }
 
+// ─── 3c. Rilis terjadwal: Segera hadir + hitung mundur + tayang otomatis ────
+{
+  const wib = (d) => new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 19);
+  const pix = new Session();
+  await pix.login("pixelrantau@rilisin.test");
+  ok(pix.hasSession(), "Login seller terpercaya berhasil");
+  const np = await pix.html("/seller/produk/baru");
+  const nc = await pix.submitForm("/seller/produk/baru", np.text, 'name="title"', {
+    title: "Game Terjadwal Smoke",
+    summary: "Produk uji otomatis untuk rilis terjadwal.",
+    category: "aplikasi",
+    license: "MIT",
+    platforms: ["android"],
+    tags: "",
+    descriptionMd: "Deskripsi uji rilis terjadwal yang sengaja dibuat cukup panjang supaya lolos checklist delapan puluh karakter.",
+    websiteUrl: "",
+    sourceUrl: "",
+    pricingModel: "free",
+  });
+  const schedProductId = (nc.headers.get("location") ?? "").match(/\/seller\/produk\/([0-9a-f-]{36})/)?.[1];
+  ok(nc.status === 303 && Boolean(schedProductId), "Seller terpercaya membuat draft produk");
+  const schedSlug = (await pix.html(`/seller/produk/${schedProductId}`)).text.match(/\/p\/([a-z0-9-]+)/)?.[1];
+
+  const spng = await sharp({ create: { width: 800, height: 800, channels: 3, background: "#f59e0b" } }).png().toBuffer();
+  const sjpg = await sharp({ create: { width: 1600, height: 900, channels: 3, background: "#0ea5e9" } }).jpeg().toBuffer();
+  ok((await pix.upload("icon", schedProductId, "ikon.png", spng)).ok, "Upload ikon produk terjadwal");
+  ok((await pix.upload("cover", schedProductId, "cover.jpg", sjpg)).ok, "Upload cover produk terjadwal");
+  ok((await pix.upload("screenshot", schedProductId, "layar.jpg", sjpg)).ok, "Upload screenshot produk terjadwal");
+  const spage = await pix.html(`/seller/produk/${schedProductId}`);
+  const sandroid = await pix.submitForm(`/seller/produk/${schedProductId}`, spage.text, 'name="androidPackage"', {
+    androidPackage: "id.uji.jadwal",
+    androidRegistration: "not_registered",
+  });
+  ok(sandroid.status === 200, "Simpan info Android produk terjadwal");
+
+  const srel = await pix.submitForm(`/seller/produk/${schedProductId}`, spage.text, 'name="version"', { version: "1.0.0", changelogMd: "- Rilis terjadwal uji" });
+  ok(srel.status === 200 && clean(await srel.text()).includes("Rilis v1.0.0 dibuat"), "Buat rilis v1.0.0 (untuk dijadwalkan)");
+  const srelId = (await pix.html(`/seller/produk/${schedProductId}`)).text.match(/name="releaseId" value="([0-9a-f-]{36})"/)?.[1];
+  const sapk = Buffer.from(zipSync({ "AndroidManifest.xml": strToU8('<manifest package="id.uji.jadwal"/>'), "classes.dex": strToU8("dex") }));
+  ok((await pix.upload("release_file", srelId, "jadwal-1.0.0.apk", sapk, "android")).ok, "Upload APK rilis terjadwal");
+
+  const when = wib(new Date(Date.now() + 5000));
+  const sub = await pix.submitForm(`/seller/produk/${schedProductId}`, (await pix.html(`/seller/produk/${schedProductId}`)).text, 'name="scheduledAt"', { scheduledAt: when });
+  ok(sub.status === 303 && (sub.headers.get("location") ?? "").includes("dikirim=jadwal"), "Produk dikirim dengan jadwal tayang");
+  const coming = await guest.html(`/p/${schedSlug}`);
+  ok(coming.res.status === 200 && coming.text.includes("Segera hadir") && coming.text.includes("1.0.0"), "Publik melihat Segera hadir + hitung mundur (bukan 404)");
+  ok(!coming.text.includes("action=\"/api/download/"), "Rilis terjadwal belum bisa diunduh");
+  ok((await pix.html(`/seller/produk/${schedProductId}`)).text.includes("Terjadwal"), "Seller melihat badge Terjadwal");
+  await new Promise((r) => setTimeout(r, 7000));
+  ok((await pix.html(`/p/${schedSlug}`)).text.includes("v1.0.0"), "Rilis tayang otomatis setelah jadwal tiba");
+
+  const rel2 = await pix.submitForm(`/seller/produk/${schedProductId}`, (await pix.html(`/seller/produk/${schedProductId}`)).text, 'name="version"', { version: "2.0.0", changelogMd: "- Rilis kedua" });
+  ok(rel2.status === 200 && clean(await rel2.text()).includes("Rilis v2.0.0 dibuat"), "Buat rilis v2.0.0");
+  const relId2 = (await pix.html(`/seller/produk/${schedProductId}`)).text.match(/name="releaseId" value="([0-9a-f-]{36})"/)?.[1];
+  ok((await pix.upload("release_file", relId2, "jadwal-2.0.0.apk", sapk, "android")).ok, "Upload APK v2.0.0");
+  const when2 = wib(new Date(Date.now() + 120000));
+  const sub2 = await pix.submitForm(`/seller/produk/${schedProductId}`, (await pix.html(`/seller/produk/${schedProductId}`)).text, "Tayangkan rilis", { scheduledAt: when2 });
+  ok(sub2.status === 303 && (sub2.headers.get("location") ?? "").includes("rilis=jadwal"), "Rilis 2.0.0 terjadwal");
+  const cancel = await pix.submitForm(`/seller/produk/${schedProductId}`, (await pix.html(`/seller/produk/${schedProductId}`)).text, "Batalkan jadwal", {});
+  ok(cancel.status === 303 && (cancel.headers.get("location") ?? "").includes("rilis=tayang"), "Jadwal dibatalkan, rilis langsung tayang");
+}
+
 // ─── 4. Admin approve ───────────────────────────────────────────────────────
 {
   const userTriesAdmin = await user.html("/admin/review");

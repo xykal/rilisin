@@ -1,6 +1,6 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { blockedHashes, moderationActions, products, releaseFiles, releases } from "@/lib/db/schema";
 import { appUrl } from "@/lib/email";
@@ -110,7 +110,7 @@ export async function recordScanResult(input: { fileId: string; status: "clean" 
   const [other] = await db
     .select({ id: releases.id })
     .from(releases)
-    .where(and(eq(releases.productId, f.product.id), eq(releases.status, "published"), ne(releases.id, f.release.id)))
+    .where(and(eq(releases.productId, f.product.id), eq(releases.status, "published"), or(isNull(releases.scheduledAt), lte(releases.scheduledAt, new Date())), ne(releases.id, f.release.id)))
     .limit(1);
   let suspended = false;
   if (!other && f.product.status === "published") {

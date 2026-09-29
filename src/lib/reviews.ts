@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { isStaff, type CurrentUser } from "@/lib/auth/current-user";
 import { cleanText, ContentError, guardContent } from "@/lib/community/guard";
 import { REVIEW_LIMITS, plainSnippet } from "@/lib/community/shared";
@@ -179,7 +179,7 @@ export async function saveReview(user: CurrentUser, productId: string, input: { 
   const [latest] = await db
     .select({ version: releases.version })
     .from(releases)
-    .where(and(eq(releases.productId, productId), eq(releases.status, "published")))
+    .where(and(eq(releases.productId, productId), eq(releases.status, "published"), or(isNull(releases.scheduledAt), lte(releases.scheduledAt, new Date()))))
     .orderBy(desc(releases.publishedAt))
     .limit(1);
 

@@ -20,7 +20,9 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { cache } from "react";
+import { Countdown } from "@/components/countdown";
 import { AndroidBadge, Avatar, PriceTag, ProductIcon, ProductStatusBadge } from "@/components/bits";
 import { PlatformIcon } from "@/components/icons";
 import { Markdown } from "@/components/markdown";
@@ -38,6 +40,7 @@ import { formatBytes, formatCompact, formatDate, formatRupiah, timeAgo } from "@
 import { getFollowState } from "@/lib/follows";
 import { getCategoryBySlug, listThreads } from "@/lib/forum";
 import { getMoreFromSeller, getProductBySlug, getSellerStats, hasEntitlement } from "@/lib/queries";
+import { announceDueReleases, claimDueReleases, getNextScheduledRelease } from "@/lib/releases";
 import { mediaUrl } from "@/lib/storage";
 
 const getProduct = cache(getProductBySlug);
@@ -52,6 +55,9 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Prom
 export default async function ProductPage({ params, searchParams }: PageProps<"/p/[slug]">) {
   const { slug } = await params;
   const { diambil } = await searchParams;
+  // Rilis terjadwal yang waktunya tiba tayang otomatis saat halaman dibuka (klaim atomik, umumkan belakangan).
+  const due = await claimDueReleases();
+  if (due.length) after(() => announceDueReleases(due));
   const [product, user] = await Promise.all([getProduct(slug), getCurrentUser()]);
   if (!product) notFound();
 
@@ -72,6 +78,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   ]);
 
   const latest = product.releases[0];
+  const nextScheduled = await getNextScheduledRelease(product.id);
   const isFree = product.pricingModel === "free";
   const canDownload = Boolean(user) && (isFree || owned || isOwner || staff);
   const cover = mediaUrl(product.coverKey);
@@ -227,6 +234,11 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           {/* Changelog */}
           <Card className="p-6 sm:p-8">
             <h2 className="mb-4 text-lg font-bold text-ink">Riwayat versi</h2>
+            {nextScheduled && (
+              <p className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <CalendarDays className="h-4 w-4" /> v{nextScheduled.version} segera hadir — tayang {formatDate(nextScheduled.scheduledAt!)}.
+              </p>
+            )}
             {product.releases.length ? (
               <ol className="space-y-6">
                 {product.releases.map((r, i) => (
@@ -333,7 +345,17 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             </div>
 
             {!latest ? (
-              <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-500">Belum ada file yang bisa diunduh.</p>
+              nextScheduled ? (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+                  <p className="flex items-center justify-center gap-1.5 text-sm font-bold text-amber-800">
+                    <CalendarDays className="h-4 w-4" /> Segera hadir: v{nextScheduled.version}
+                  </p>
+                  <div className="mt-2"><Countdown at={nextScheduled.scheduledAt!.toISOString()} /></div>
+                  <p className="mt-2 text-xs text-slate-500">Tayang {formatDate(nextScheduled.scheduledAt!)} — ikuti produk ini supaya dapat kabar.</p>
+                </div>
+              ) : (
+                <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-500">Belum ada file yang bisa diunduh.</p>
+              )
             ) : !user ? (
               <div className="mt-4">
                 <ButtonLink href={`/masuk?next=${encodeURIComponent(`/p/${product.slug}`)}`} className="w-full !py-3">

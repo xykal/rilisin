@@ -287,6 +287,8 @@ export const releases = pgTable(
     createdAt: createdAt(),
     submittedAt: tsz("submitted_at"),
     publishedAt: tsz("published_at"),
+    /** Rilis terjadwal: tayang otomatis saat waktu tiba (diambil alih publishDue). null = tayang langsung. */
+    scheduledAt: tsz("scheduled_at"),
   },
   (t) => [
     uniqueIndex("releases_product_version_idx").on(t.productId, t.version),

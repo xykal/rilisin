@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { moderationActions, productMedia, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";
 import { ANDROID_PACKAGE_RE } from "@/lib/files";
 import { sharedLimit } from "@/lib/rate-limit";
+import { announceDueReleases, parseScheduledAt } from "@/lib/releases";
 import { slugify } from "@/lib/slug";
 import { storage } from "@/lib/storage";
 import { fieldErrorsFrom, type FormState } from "./form-state";
@@ -439,6 +440,12 @@ export async function submitProductAction(formData: FormData) {
   const { complete } = productChecklist({ ...product, mediaCount, hasReleaseWithFiles: withFiles.length > 0 });
   if (!complete) redirect(`/seller/produk/${product.id}?error=checklist`);
 
+  let scheduledAt: Date | null;
+  try {
+    scheduledAt = parseScheduledAt(String(formData.get("scheduledAt") ?? ""));
+  } catch {
+    redirect(`/seller/produk/${product.id}?error=jadwal`);
+  }
   const trusted = user.seller.isTrusted;
   const now = new Date();
   await db.transaction(async (tx) => {
@@ -447,14 +454,14 @@ export async function submitProductAction(formData: FormData) {
       .set({
         status: trusted ? "published" : "review",
         submittedAt: now,
-        publishedAt: trusted ? now : null,
+        publishedAt: trusted ? (product.publishedAt ?? (scheduledAt ? null : now)) : null,
         rejectionReason: null,
         updatedAt: now,
       })
       .where(eq(products.id, product.id));
     await tx
       .update(releases)
-      .set({ status: trusted ? "published" : "review", submittedAt: now, publishedAt: trusted ? now : null, rejectionReason: null })
+      .set({ status: trusted ? "published" : "review", submittedAt: now, publishedAt: trusted && !scheduledAt ? now : null, rejectionReason: null, scheduledAt })
       .where(inArray(releases.id, withFiles.map((r) => r.id)));
     if (trusted) {
       await tx.insert(moderationActions).values({
@@ -467,9 +474,9 @@ export async function submitProductAction(formData: FormData) {
     }
   });
 
-  if (trusted && !product.publishedAt) await announceProductPublished(product.id);
+  if (trusted && !product.publishedAt && !scheduledAt) await announceProductPublished(product.id);
   revalidatePath("/", "layout");
-  redirect(`/seller/produk/${product.id}?dikirim=${trusted ? "tayang" : "review"}`);
+  redirect(`/seller/produk/${product.id}?dikirim=${trusted ? (scheduledAt ? "jadwal" : "tayang") : "review"}`);
 }
 
 export async function submitReleaseAction(formData: FormData) {
@@ -481,11 +488,17 @@ export async function submitReleaseAction(formData: FormData) {
   const [{ n }] = await db.select({ n: count() }).from(releaseFiles).where(eq(releaseFiles.releaseId, release.id));
   if (n === 0) redirect(`/seller/produk/${release.productId}?error=nofile`);
 
+  let scheduledAt: Date | null;
+  try {
+    scheduledAt = parseScheduledAt(String(formData.get("scheduledAt") ?? ""));
+  } catch {
+    redirect(`/seller/produk/${release.productId}?error=jadwal`);
+  }
   const trusted = user.seller.isTrusted;
   const now = new Date();
   await db
     .update(releases)
-    .set({ status: trusted ? "published" : "review", submittedAt: now, publishedAt: trusted ? now : null })
+    .set({ status: trusted ? "published" : "review", submittedAt: now, publishedAt: trusted && !scheduledAt ? now : null, scheduledAt })
     .where(eq(releases.id, release.id));
   await db.update(products).set({ updatedAt: now }).where(eq(products.id, release.productId));
   if (trusted) {
@@ -493,12 +506,25 @@ export async function submitReleaseAction(formData: FormData) {
       targetType: "release",
       targetId: release.id,
       action: "auto_publish_trusted",
-      note: `v${release.version}`,
+      note: scheduledAt ? `v${release.version} terjadwal ${scheduledAt.toISOString()}` : `v${release.version}`,
     });
-    await announceReleasePublished(release.id);
+    if (!scheduledAt) await announceReleasePublished(release.id);
   }
   revalidatePath("/", "layout");
-  redirect(`/seller/produk/${release.productId}?rilis=${trusted ? "tayang" : "review"}`);
+  redirect(`/seller/produk/${release.productId}?rilis=${trusted ? (scheduledAt ? "jadwal" : "tayang") : "review"}`);
+}
+
+/** Batalkan jadwal (tayangkan sekarang). Hanya untuk rilis terjadwal yang belum tiba waktunya. */
+export async function cancelScheduleAction(formData: FormData) {
+  const user = await requireSeller();
+  const release = await loadOwnedRelease(String(formData.get("releaseId")), user.id);
+  if (!release || release.productStatus !== "published") redirect("/seller/produk");
+  const [row] = await db.select({ scheduledAt: releases.scheduledAt }).from(releases).where(eq(releases.id, release.id)).limit(1);
+  if (!row?.scheduledAt || row.scheduledAt <= new Date()) redirect(`/seller/produk/${release.productId}`);
+  await db.update(releases).set({ scheduledAt: null, publishedAt: new Date() }).where(eq(releases.id, release.id));
+  await announceDueReleases([{ id: release.id, product_id: release.productId }]);
+  revalidatePath("/", "layout");
+  redirect(`/seller/produk/${release.productId}?rilis=tayang`);
 }
 
 export async function updateStoreAction(_prev: FormState, formData: FormData): Promise<FormState> {

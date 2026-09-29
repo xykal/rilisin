@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, countDistinct, desc, eq, ilike, inArray, ne, or, sql, sum, type SQL } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, eq, ilike, inArray, isNull, lte, ne, or, sql, sum, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   downloadLogs,
@@ -163,7 +163,8 @@ export async function getProductBySlug(slug: string) {
       },
       media: { orderBy: (m, { asc }) => [asc(m.sort), asc(m.createdAt)] },
       releases: {
-        where: (r, { eq }) => eq(r.status, "published"),
+        where: (r, { and, eq, isNull, lte, or }) =>
+          and(eq(r.status, "published"), or(isNull(r.scheduledAt), lte(r.scheduledAt, new Date()))),
         orderBy: (r, { desc }) => [desc(r.publishedAt)],
         with: { files: { orderBy: (f, { asc }) => [asc(f.platform), asc(f.createdAt)] } },
       },
@@ -235,12 +236,12 @@ export async function getLibrary(userId: string) {
       )`.mapWith((v) => (v ? new Date(v) : null)),
       latestVersion: sql<string | null>`(
         select r.version from ${releases} r
-        where r.product_id = ${products.id} and r.status = 'published'
+        where r.product_id = ${products.id} and r.status = 'published' and (r.scheduled_at is null or r.scheduled_at <= now())
         order by r.published_at desc limit 1
       )`,
       latestReleasedAt: sql<Date | null>`(
         select max(r.published_at) from ${releases} r
-        where r.product_id = ${products.id} and r.status = 'published'
+        where r.product_id = ${products.id} and r.status = 'published' and (r.scheduled_at is null or r.scheduled_at <= now())
       )`.mapWith((v) => (v ? new Date(v) : null)),
       productStatus: products.status,
     })

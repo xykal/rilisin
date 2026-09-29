@@ -184,7 +184,7 @@ export async function listFollowing(userId: string) {
         iconKey: products.iconKey,
         status: products.status,
         since: follows.createdAt,
-        latestVersion: sql<string | null>`(select r.version from ${releases} r where r.product_id = ${products.id} and r.status = 'published' order by r.published_at desc limit 1)`,
+        latestVersion: sql<string | null>`(select r.version from ${releases} r where r.product_id = ${products.id} and r.status = 'published' and (r.scheduled_at is null or r.scheduled_at <= now()) order by r.published_at desc limit 1)`,
       })
       .from(follows)
       .innerJoin(products, eq(products.id, follows.targetId))

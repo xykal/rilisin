@@ -19,6 +19,8 @@ const RESULT_MESSAGES: Record<string, string> = {
   ditolak: "Karya ditolak — seller sudah bisa melihat alasannya.",
   "rilis-disetujui": "Rilis baru disetujui dan tayang.",
   "rilis-ditolak": "Rilis ditolak.",
+  dijadwalkan: "Karya disetujui, tayang otomatis sesuai jadwal.",
+  "rilis-dijadwalkan": "Rilis disetujui, tayang otomatis sesuai jadwal.",
 };
 
 const ACTION_LABELS: Record<string, string> = {

@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { announceDueReleases, claimDueReleases } from "@/lib/releases";
 import { requireCleanScan } from "@/lib/scan";
 import { autoFollowProduct } from "@/lib/follows";
 import { eq, sql } from "drizzle-orm";
@@ -29,6 +31,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/download/[fileI
       storageKey: releaseFiles.storageKey,
       scanStatus: releaseFiles.scanStatus,
       releaseStatus: releases.status,
+      releaseScheduledAt: releases.scheduledAt,
       productId: products.id,
       productSlug: products.slug,
       productStatus: products.status,
@@ -52,8 +55,14 @@ export async function POST(req: Request, ctx: RouteContext<"/api/download/[fileI
   if (!privileged && requireCleanScan() && file.scanStatus !== "clean") {
     return new Response("File masih dalam pemindaian antivirus. Coba lagi beberapa menit lagi.", { status: 409 });
   }
+  // Rilis terjadwal yang waktunya tiba → tayangkan dulu (lazy publish), lalu layani.
+  if (file.releaseStatus === "published" && file.releaseScheduledAt && file.releaseScheduledAt <= new Date()) {
+    const due = await claimDueReleases();
+    if (due.length) after(() => announceDueReleases(due));
+  }
+  const scheduledFuture = Boolean(file.releaseScheduledAt && file.releaseScheduledAt > new Date());
   if (!privileged) {
-    if (file.productStatus !== "published" || file.releaseStatus !== "published") {
+    if (file.productStatus !== "published" || file.releaseStatus !== "published" || scheduledFuture) {
       return new Response("File tidak ditemukan", { status: 404 });
     }
     const rl = await sharedLimit(`download:${user.id}`, 40, 10 * 60 * 1000);

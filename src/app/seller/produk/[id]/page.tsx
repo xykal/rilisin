@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  cancelScheduleAction,
   deleteProductAction,
   deleteReleaseAction,
   deleteReleaseFileAction,
@@ -83,8 +84,11 @@ export default async function ManageProductPage({ params, searchParams }: PagePr
         {sp.dibuat && <Alert tone="success" title="Draft dibuat!">Sekarang tambahkan ikon, cover, screenshot, dan file rilis. Setelah checklist lengkap, kirim ke review.</Alert>}
         {sp.dikirim === "review" && <Alert tone="success" title="Terkirim ke review">Tim moderator akan mengecek karyamu (biasanya kurang dari 1 hari). Selama direview, data dikunci sementara.</Alert>}
         {sp.dikirim === "tayang" && <Alert tone="success" title="Karya kamu sudah tayang!">Sebagai seller terpercaya, karya langsung tayang (tetap bisa diaudit moderator).</Alert>}
+        {sp.dikirim === "jadwal" && <Alert tone="success" title="Karya disetujui & terjadwal!">Halaman produk tampil sebagai &ldquo;Segera hadir&rdquo; dengan hitung mundur sampai jadwal tiba.</Alert>}
         {sp.rilis === "review" && <Alert tone="success">Rilis baru dikirim ke review. Versi lama tetap bisa diunduh sampai rilis baru disetujui.</Alert>}
         {sp.rilis === "tayang" && <Alert tone="success">Rilis baru sudah tayang. Pengguna akan melihat tanda &ldquo;Update tersedia&rdquo; di Library.</Alert>}
+        {sp.rilis === "jadwal" && <Alert tone="success">Rilis terjadwal. Otomatis tayang saat waktunya tiba (bisa dibatalkan kapan saja).</Alert>}
+        {sp.error === "jadwal" && <Alert tone="danger">Jadwal tidak valid — harus di masa depan (maksimal 90 hari). Kosongkan kalau mau tayang langsung.</Alert>}
         {sp.error === "checklist" && <Alert tone="danger">Checklist belum lengkap. Lengkapi dulu semua poin di panel kanan.</Alert>}
         {sp.error === "nofile" && <Alert tone="danger">Rilis harus punya minimal 1 file sebelum dikirim.</Alert>}
         {sp.error === "hapus" && <Alert tone="danger">Karya yang pernah tayang tidak bisa dihapus permanen (pengguna mungkin sudah menyimpannya di Library).</Alert>}
@@ -217,8 +221,11 @@ export default async function ManageProductPage({ params, searchParams }: PagePr
                 return (
                   <div key={r.id} className="rounded-2xl border border-slate-200 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="flex items-center gap-2 font-bold text-ink">
+                      <p className="flex flex-wrap items-center gap-2 font-bold text-ink">
                         v{r.version} <Badge tone={st.tone}>{st.label}</Badge>
+                        {r.scheduledAt && r.scheduledAt > new Date() && (
+                          <Badge tone="amber">Terjadwal {formatDateTime(r.scheduledAt)}</Badge>
+                        )}
                       </p>
                       <p className="text-xs text-slate-500">
                         {r.publishedAt ? `Tayang ${formatDateTime(r.publishedAt)}` : `Dibuat ${formatDateTime(r.createdAt)}`}
@@ -265,19 +272,33 @@ export default async function ManageProductPage({ params, searchParams }: PagePr
                       </div>
                     )}
 
-                    {(editable || (r.status === "rejected" && !locked)) && (
+                    {(editable || (r.status === "rejected" && !locked) || (r.status === "published" && r.scheduledAt && r.scheduledAt > new Date())) && (
                       <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
-                        <form action={deleteReleaseAction}>
-                          <input type="hidden" name="releaseId" value={r.id} />
-                          <SubmitButton variant="danger" className={buttonStyles.small} confirm={`Hapus rilis v${r.version} beserta file-nya?`}>
-                            <Trash2 className="h-3.5 w-3.5" /> Hapus rilis
-                          </SubmitButton>
-                        </form>
-                        {product.status === "published" && r.status === "draft" && (
-                          <form action={submitReleaseAction}>
+                        {r.status !== "published" && (
+                          <form action={deleteReleaseAction}>
                             <input type="hidden" name="releaseId" value={r.id} />
+                            <SubmitButton variant="danger" className={buttonStyles.small} confirm={`Hapus rilis v${r.version} beserta file-nya?`}>
+                              <Trash2 className="h-3.5 w-3.5" /> Hapus rilis
+                            </SubmitButton>
+                          </form>
+                        )}
+                        {product.status === "published" && r.status === "draft" && (
+                          <form action={submitReleaseAction} className="flex flex-col gap-1.5">
+                            <input type="hidden" name="releaseId" value={r.id} />
+                            <label className="text-xs font-semibold text-slate-600">
+                              Jadwal tayang (WIB, opsional)
+                              <input type="datetime-local" name="scheduledAt" className="mt-1 block rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-normal text-ink" />
+                            </label>
                             <SubmitButton className={buttonStyles.small} disabled={r.files.length === 0} pendingText="Mengirim…">
                               <Send className="h-3.5 w-3.5" /> {user.seller.isTrusted ? "Tayangkan rilis" : "Kirim rilis ke review"}
+                            </SubmitButton>
+                          </form>
+                        )}
+                        {r.status === "published" && r.scheduledAt && r.scheduledAt > new Date() && (
+                          <form action={cancelScheduleAction}>
+                            <input type="hidden" name="releaseId" value={r.id} />
+                            <SubmitButton variant="secondary" className={buttonStyles.small} pendingText="Menayangkan…">
+                              Batalkan jadwal & tayangkan
                             </SubmitButton>
                           </form>
                         )}
@@ -314,6 +335,10 @@ export default async function ManageProductPage({ params, searchParams }: PagePr
               </ul>
               <form action={submitProductAction} className="mt-5">
                 <input type="hidden" name="productId" value={product.id} />
+                <label className="mb-3 block text-xs font-semibold text-slate-600">
+                  Jadwalkan tayang (opsional, WIB)
+                  <input type="datetime-local" name="scheduledAt" className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-ink" />
+                </label>
                 <SubmitButton className="w-full" disabled={!canSubmitProduct} pendingText="Mengirim…">
                   <Send className="h-4 w-4" /> {user.seller.isTrusted ? "Tayangkan sekarang" : "Kirim ke review"}
                 </SubmitButton>
