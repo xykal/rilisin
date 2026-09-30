@@ -1308,7 +1308,7 @@ async function register(s, username, password, extra = {}) {
     const sw = await guest.html("/OneSignalSDKWorker.js");
     const swCsp = sw.res.headers.get("content-security-policy") ?? "";
     ok(sw.res.status === 200 && sw.text.includes("OneSignalSDK.sw.js"), "Push: service worker OneSignal tersaji di root");
-    ok(swCsp.includes("script-src 'self'") && !swCsp.includes("strict-dynamic") && !swCsp.includes("nonce-"), "Push: CSP worker pakai allowlist host (tanpa strict-dynamic/nonce)");
+    ok(swCsp.includes("script-src 'self'") && swCsp.includes("connect-src 'self'") && !swCsp.includes("strict-dynamic") && !swCsp.includes("nonce-"), "Push: CSP worker pakai allowlist host (tanpa strict-dynamic/nonce)");
     const bot = new Session();
     const page = await bot.html("/daftar");
     await sleep(1600);

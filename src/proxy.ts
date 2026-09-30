@@ -56,11 +56,12 @@ export function proxy(request: NextRequest) {
 
   // Service worker OneSignal: JANGAN diberi CSP halaman! Nonce/strict-dynamic tidak berlaku di konteks
   // worker (importScripts tidak bisa bawa nonce) → SDK worker selalu diblokir. Beri allowlist host biasa.
+  // (script-src mencakup onesignal.com juga: loader .sw.js menarik chunk dari sana, bukan cuma CDN)
   if (path === "/OneSignalSDKWorker.js") {
     const res = NextResponse.next();
     res.headers.set(
       "Content-Security-Policy",
-      [`default-src 'none'`, `script-src 'self'${pushCdn}`, `connect-src 'self'${pushApi}`, `img-src 'self' data: blob:${pushCdn}`].join("; "),
+      [`default-src 'none'`, `script-src 'self'${pushCdn}${pushApi}`, `connect-src 'self'${pushApi}`, `img-src 'self' data: blob:${pushCdn}${pushApi}`].join("; "),
     );
     if (locked) res.headers.set("X-Robots-Tag", "noindex, nofollow");
     return res;
@@ -79,7 +80,8 @@ export function proxy(request: NextRequest) {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${cf}${pushCdn}${dev ? " 'unsafe-eval'" : ""}`,
     // atribut style={...} dari React butuh 'unsafe-inline' (CSS tidak bisa menjalankan script)
-    "style-src 'self' 'unsafe-inline'",
+    // OneSignal menyuntik stylesheet-nya sendiri dari onesignal.com (prompt bawaan SDK)
+    `style-src 'self' 'unsafe-inline'${pushApi}`,
     // Vercel Blob: gambar dari store publik, upload presigned ke vercel.com/api/blob, download = redirect ke store privat
     `img-src 'self' blob: data:${blob ? " https://*.public.blob.vercel-storage.com" : ""}${cloudinary ? " https://res.cloudinary.com" : ""}${pushCdn}`,
     "font-src 'self'",
