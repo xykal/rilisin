@@ -415,6 +415,23 @@ let slug;
   const diri = await adm.submitForm("/admin/anggota", anggota2.text, 'data-form="role-tim_rilisin"', { role: "user" });
   ok(turun.status === 303 && (diri.headers.get("location") ?? "").includes("error=self"), "Peran dikembalikan + ubah diri sendiri ditolak");
 
+  // API key + v1 (sebagai calon, seller approved)
+  const keyPage = await calon.html("/akun/api-key");
+  ok(keyPage.res.status === 200 && keyPage.text.includes("Buat key baru"), "Halaman API key tampil");
+  const keyRes = await calon.submitForm("/akun/api-key", keyPage.text, 'data-form="apikey-create"', { name: "Agen Uji", scopes: ["seller:read", "seller:write", "admin:read"], expires: "never" });
+  const secret = (await keyRes.text()).match(/rsk_[A-Za-z0-9_-]+/)?.[0];
+  ok(keyRes.status === 200 && secret, "API key: dibuat + secret tampil sekali");
+  const meRes = await calon.req("/api/v1/me", { headers: { authorization: `Bearer ${secret}` } });
+  const meJson = await meRes.json().catch(() => ({}));
+  ok(meRes.status === 200 && meJson.scopes?.includes("seller:write") && !meJson.scopes?.includes("admin:read"), "v1/me: scope seller ya, admin:read ditolak (bukan staf)");
+  const prodRes = await calon.req("/api/v1/products", { headers: { authorization: `Bearer ${secret}` } });
+  const statsRes = await calon.req("/api/v1/admin/stats", { headers: { authorization: `Bearer ${secret}` } });
+  ok(prodRes.status === 200 && Array.isArray((await prodRes.json()).products) && statsRes.status === 403, "v1: produk sendiri 200, admin/stats tanpa scope 403");
+  const keyPage2 = await calon.html("/akun/api-key");
+  const cabut = await calon.submitForm("/akun/api-key", keyPage2.text, 'data-form="apikey-revoke-', {});
+  const meMati = await calon.req("/api/v1/me", { headers: { authorization: `Bearer ${secret}` } });
+  ok(cabut.status === 303 && meMati.status === 401, "API key dicabut → tidak bisa dipakai lagi");
+
   const dash = await calon.html("/seller");
   ok(
     dash.text.includes("Aktivasi toko") && dash.text.includes("Ikuti panduan 3 langkah"),

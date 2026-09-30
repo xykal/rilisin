@@ -149,6 +149,29 @@ export const recoveryCodes = pgTable(
   (t) => [index("recovery_codes_user_idx").on(t.userId)],
 );
 
+/**
+ * API key buat integrasi/AI agent. Hanya hash SHA-256 yang disimpan (plaintext ditampilkan sekali saat dibuat).
+ * Format: rsk_<32 base64url>. Scope: seller:read, seller:write, admin:read.
+ */
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    keyHash: text("key_hash").notNull().unique(),
+    prefix: text("prefix").notNull(),
+    scopes: text("scopes").array().notNull(),
+    lastUsedAt: tsz("last_used_at"),
+    expiresAt: tsz("expires_at"),
+    revokedAt: tsz("revoked_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("api_keys_user_idx").on(t.userId)],
+);
+
 /** Tantangan login 2FA: password sudah benar, tinggal verifikasi kode. `id` = SHA-256 token cookie. */
 export const authChallenges = pgTable("auth_challenges", {
   id: text("id").primaryKey(),
