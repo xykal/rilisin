@@ -418,43 +418,6 @@ let slug;
   const diri = await adm.submitForm("/admin/anggota", cariAdmin.text, 'data-form="role-tim_rilisin"', { role: "user" });
   ok(turun.status === 303 && (diri.headers.get("location") ?? "").includes("error=self"), "Peran dikembalikan + ubah diri sendiri ditolak");
 
-  // API key + v1 (sebagai calon, seller approved)
-  const keyPage = await calon.html("/akun/api-key");
-  ok(keyPage.res.status === 200 && keyPage.text.includes("Buat key baru"), "Halaman API key tampil");
-  const keyRes = await calon.submitForm("/akun/api-key", keyPage.text, 'data-form="apikey-create"', { name: "Agen Uji", scopes: ["seller:read", "seller:write", "admin:read"], expires: "never" });
-  const secret = (await keyRes.text()).match(/rsk_[A-Za-z0-9_-]+/)?.[0];
-  ok(keyRes.status === 200 && secret, "API key: dibuat + secret tampil sekali");
-  const meRes = await calon.req("/api/v1/me", { headers: { authorization: `Bearer ${secret}` } });
-  const meJson = await meRes.json().catch(() => ({}));
-  ok(meRes.status === 200 && meJson.scopes?.includes("seller:write") && !meJson.scopes?.includes("admin:read"), "v1/me: scope seller ya, admin:read ditolak (bukan staf)");
-  const prodRes = await calon.req("/api/v1/products", { headers: { authorization: `Bearer ${secret}` } });
-  const statsRes = await calon.req("/api/v1/admin/stats", { headers: { authorization: `Bearer ${secret}` } });
-  ok(prodRes.status === 200 && Array.isArray((await prodRes.json()).products) && statsRes.status === 403, "v1: produk sendiri 200, admin/stats tanpa scope 403");
-  // Alur penuh AI agent: draft → rilis → file → kirim review
-  const apiDraft = await calon.req("/api/v1/products", { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: JSON.stringify({ title: "Catat Duit API", summary: "Aplikasi pencatat keuangan offline yang dibuat via API.", category: "aplikasi", platforms: ["windows"], license: "MIT", descriptionMd: "Catat Duit API adalah aplikasi pencatat keuangan offline buat warung dan UMKM, dibuat sepenuhnya lewat API v1 sebagai uji alur AI agent." }) });
-  const apiDraftJson = await apiDraft.json().catch(() => ({}));
-  const apiRel = await calon.req(`/api/v1/products/${apiDraftJson.id}/releases`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: JSON.stringify({ version: "1.0.0", changelogMd: "Rilis perdana via API." }) });
-  const apiRelJson = await apiRel.json().catch(() => ({}));
-  ok(apiDraft.status === 201 && apiRel.status === 201, "v1: AI bikin draft produk + rilis");
-  const upPng = await sharp({ create: { width: 800, height: 800, channels: 3, background: "#5b43f5" } }).png().toBuffer();
-  const upJpg = await sharp({ create: { width: 1600, height: 900, channels: 3, background: "#22c55e" } }).jpeg().toBuffer();
-  const upIcon = await calon.upload("icon", apiDraftJson.id, "ikon.png", upPng);
-  const upCover = await calon.upload("cover", apiDraftJson.id, "cover.jpg", upJpg);
-  const upSs = await calon.upload("screenshot", apiDraftJson.id, "layar.jpg", upJpg);
-  const upExe = await calon.upload("release_file", apiRelJson.id, "catat-duit-1.0.0.exe", Buffer.concat([Buffer.from("MZ"), Buffer.alloc(100)]), "windows");
-  ok(upIcon.ok && upCover.ok && upSs.ok && upExe.ok, "Upload ikon/cover/screenshot/file rilis buat produk API");
-  const bInitRes = await fetch(`${BASE}/api/uploads/init`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json", ...authHeaders() }, body: JSON.stringify({ purpose: "screenshot", targetId: apiDraftJson.id, filename: "via-api.jpg", size: upJpg.length }) });
-  const bInit = await bInitRes.json().catch(() => ({}));
-  const bPut = await calon.req(bInit.uploadUrl, { method: "PUT", body: upJpg, headers: { "content-type": "application/octet-stream" } });
-  const bDone = await fetch(`${BASE}/api/uploads/complete`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json", ...authHeaders() }, body: JSON.stringify({ token: bInit.token }) });
-  ok(bInitRes.status === 200 && bPut.ok && (await bDone.json().catch(() => ({}))).ok, "Upload file via API key (Bearer, tanpa origin)");
-  const apiSubmit = await calon.req(`/api/v1/products/${apiDraftJson.id}/submit`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: "{}" });
-  const apiSubmitJson = await apiSubmit.json().catch(() => ({}));
-  ok(apiSubmit.status === 200 && apiSubmitJson.outcome === "review", "v1: AI kirim produk ke review");
-  const keyPage2 = await calon.html("/akun/api-key");
-  const cabut = await calon.submitForm("/akun/api-key", keyPage2.text, 'data-form="apikey-revoke-', {});
-  const meMati = await calon.req("/api/v1/me", { headers: { authorization: `Bearer ${secret}` } });
-  ok(cabut.status === 303 && meMati.status === 401, "API key dicabut → tidak bisa dipakai lagi");
 
   const dash = await calon.html("/seller");
   ok(
@@ -498,6 +461,44 @@ let slug;
 
   const sellerDash = await seller.html("/seller");
   ok(!sellerDash.text.includes("Aktivasi toko"), "Seller yang sudah pernah submit tidak melihat kartu aktivasi");
+
+  // API key + v1 (sebagai calon, seller approved)
+  const keyPage = await calon.html("/akun/api-key");
+  ok(keyPage.res.status === 200 && keyPage.text.includes("Buat key baru"), "Halaman API key tampil");
+  const keyRes = await calon.submitForm("/akun/api-key", keyPage.text, 'data-form="apikey-create"', { name: "Agen Uji", scopes: ["seller:read", "seller:write", "admin:read"], expires: "never" });
+  const secret = (await keyRes.text()).match(/rsk_[A-Za-z0-9_-]+/)?.[0];
+  ok(keyRes.status === 200 && secret, "API key: dibuat + secret tampil sekali");
+  const meRes = await calon.req("/api/v1/me", { headers: { authorization: `Bearer ${secret}` } });
+  const meJson = await meRes.json().catch(() => ({}));
+  ok(meRes.status === 200 && meJson.scopes?.includes("seller:write") && !meJson.scopes?.includes("admin:read"), "v1/me: scope seller ya, admin:read ditolak (bukan staf)");
+  const prodRes = await calon.req("/api/v1/products", { headers: { authorization: `Bearer ${secret}` } });
+  const statsRes = await calon.req("/api/v1/admin/stats", { headers: { authorization: `Bearer ${secret}` } });
+  ok(prodRes.status === 200 && Array.isArray((await prodRes.json()).products) && statsRes.status === 403, "v1: produk sendiri 200, admin/stats tanpa scope 403");
+  // Alur penuh AI agent: draft → rilis → file → kirim review
+  const apiDraft = await calon.req("/api/v1/products", { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: JSON.stringify({ title: "Catat Duit API", summary: "Aplikasi pencatat keuangan offline yang dibuat via API.", category: "aplikasi", platforms: ["windows"], license: "MIT", descriptionMd: "Catat Duit API adalah aplikasi pencatat keuangan offline buat warung dan UMKM, dibuat sepenuhnya lewat API v1 sebagai uji alur AI agent." }) });
+  const apiDraftJson = await apiDraft.json().catch(() => ({}));
+  const apiRel = await calon.req(`/api/v1/products/${apiDraftJson.id}/releases`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: JSON.stringify({ version: "1.0.0", changelogMd: "Rilis perdana via API." }) });
+  const apiRelJson = await apiRel.json().catch(() => ({}));
+  ok(apiDraft.status === 201 && apiRel.status === 201, "v1: AI bikin draft produk + rilis");
+  const upPng = await sharp({ create: { width: 800, height: 800, channels: 3, background: "#5b43f5" } }).png().toBuffer();
+  const upJpg = await sharp({ create: { width: 1600, height: 900, channels: 3, background: "#22c55e" } }).jpeg().toBuffer();
+  const upIcon = await calon.upload("icon", apiDraftJson.id, "ikon.png", upPng);
+  const upCover = await calon.upload("cover", apiDraftJson.id, "cover.jpg", upJpg);
+  const upSs = await calon.upload("screenshot", apiDraftJson.id, "layar.jpg", upJpg);
+  const upExe = await calon.upload("release_file", apiRelJson.id, "catat-duit-1.0.0.exe", Buffer.concat([Buffer.from("MZ"), Buffer.alloc(100)]), "windows");
+  ok(upIcon.ok && upCover.ok && upSs.ok && upExe.ok, "Upload ikon/cover/screenshot/file rilis buat produk API");
+  const bInitRes = await fetch(`${BASE}/api/uploads/init`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json", ...authHeaders() }, body: JSON.stringify({ purpose: "screenshot", targetId: apiDraftJson.id, filename: "via-api.jpg", size: upJpg.length }) });
+  const bInit = await bInitRes.json().catch(() => ({}));
+  const bPut = await calon.req(bInit.uploadUrl, { method: "PUT", body: upJpg, headers: { "content-type": "application/octet-stream" } });
+  const bDone = await fetch(`${BASE}/api/uploads/complete`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json", ...authHeaders() }, body: JSON.stringify({ token: bInit.token }) });
+  ok(bInitRes.status === 200 && bPut.ok && (await bDone.json().catch(() => ({}))).ok, "Upload file via API key (Bearer, tanpa origin)");
+  const apiSubmit = await calon.req(`/api/v1/products/${apiDraftJson.id}/submit`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: "{}" });
+  const apiSubmitJson = await apiSubmit.json().catch(() => ({}));
+  ok(apiSubmit.status === 200 && apiSubmitJson.outcome === "review", "v1: AI kirim produk ke review");
+  const keyPage2 = await calon.html("/akun/api-key");
+  const cabut = await calon.submitForm("/akun/api-key", keyPage2.text, 'data-form="apikey-revoke-', {});
+  const meMati = await calon.req("/api/v1/me", { headers: { authorization: `Bearer ${secret}` } });
+  ok(cabut.status === 303 && meMati.status === 401, "API key dicabut → tidak bisa dipakai lagi");
 }
 
 // ─── 3c. Rilis terjadwal: Segera hadir + hitung mundur + tayang otomatis ────
