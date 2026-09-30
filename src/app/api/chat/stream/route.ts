@@ -55,7 +55,7 @@ export async function GET(req: Request) {
       const onRoom = (e: BusEvent) => {
         if (e.type === "msg") send("msg", { message: e.message, created: e.created });
         else if (e.type === "typing") {
-          if (e.userId !== user.id) send("typing", { userId: e.userId, name: e.name });
+          if (e.userId !== user.id) send("typing", { userId: e.userId, name: e.name, mode: e.mode ?? "typing" });
         } else if (e.type === "presence") send("presence", { online: e.online });
         else if (e.type === "pin") send("pin", { message: e.message });
       };

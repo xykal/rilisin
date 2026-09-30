@@ -25,7 +25,7 @@ type Props = {
   onSend: (body: string, image: PendingImage | null, audio: PendingAudio | null) => Promise<boolean>;
   onPickSticker: (key: string) => Promise<void>;
   onEdit: (id: string, body: string) => Promise<boolean>;
-  onTyping: () => void;
+  onTyping: (mode?: "recording" | "typing") => void;
   onError: (msg: string) => void;
 };
 
@@ -34,6 +34,16 @@ export function Composer(p: Props) {
   const [image, setImage] = useState<PendingImage | null>(null);
   const [voice, setVoice] = useState<PendingAudio | null>(null);
   const [recording, setRecording] = useState(false);
+  const [recActive, setRecActive] = useState(false);
+
+  // Selama rekaman BERJALAN → ping "merekam…" tiap 2 dtk (server rate-limit 1/2,5 dtk).
+  useEffect(() => {
+    if (!recActive) return;
+    p.onTyping("recording");
+    const t = window.setInterval(() => p.onTyping("recording"), 2000);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onTyping stabil dari use-room
+  }, [recActive]);
   const [showStickers, setShowStickers] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -220,6 +230,7 @@ export function Composer(p: Props) {
           }}
           onError={p.onError}
           onCancel={() => setRecording(false)}
+          onActive={setRecActive}
         />
       )}
       {voice && !recording && (

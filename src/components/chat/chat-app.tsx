@@ -542,13 +542,21 @@ function RoomView({
   const myReactionOn = (msg: LocalMessage) =>
     viewer ? (msg.reactions.find((x) => x.users.some((u) => u.id === viewer.id))?.emoji ?? null) : null;
 
-  const typingNames = Object.values(r.typing).map((t) => t.name.split(" ")[0]);
+  const typingEntries = Object.values(r.typing);
+  const typingNames = typingEntries.map((t) => t.name.split(" ")[0]);
+  const recordingNames = typingEntries.filter((t) => t.mode === "recording").map((t) => t.name.split(" ")[0]);
+  const presenceText =
+    recordingNames.length === 1 && typingNames.length === 1
+      ? `${recordingNames[0]} sedang merekam pesan suara…`
+      : recordingNames.length > 0
+        ? `${recordingNames.join(", ")} merekam… · ${typingNames.length} aktif`
+        : typingNames.length === 1
+          ? `${typingNames[0]} sedang mengetik…`
+          : typingNames.length === 2
+            ? `${typingNames[0]} dan ${typingNames[1]} sedang mengetik…`
+            : `${typingNames.length} orang sedang mengetik…`;
   const subtitle = typingNames.length
-    ? typingNames.length === 1
-      ? `${typingNames[0]} sedang mengetik…`
-      : typingNames.length === 2
-        ? `${typingNames[0]} dan ${typingNames[1]} sedang mengetik…`
-        : `${typingNames.length} orang sedang mengetik…`
+    ? presenceText
     : r.status === "guest"
       ? `${memberCount.toLocaleString("id-ID")} anggota · masuk untuk ikut ngobrol`
       : r.status === "live"

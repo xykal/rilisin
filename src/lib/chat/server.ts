@@ -753,6 +753,6 @@ export async function restoreReportedMessage(moderatorId: string, messageId: str
   await signalMessage(m.roomId, messageId);
 }
 
-export function publishTyping(roomId: string, userId: string, name: string) {
-  return signal({ t: "ty", r: roomId, u: userId, n: name.slice(0, 40) });
+export function publishTyping(roomId: string, userId: string, name: string, mode?: "recording" | "typing") {
+  return signal(mode === "recording" ? { t: "ty", r: roomId, u: userId, n: name.slice(0, 40), m: "rec" } : { t: "ty", r: roomId, u: userId, n: name.slice(0, 40) });
 }

@@ -1,5 +1,6 @@
 {
-  "name": "Rilisin — Marketplace Karya Digital",
+  "id": "/",
+  "name": "Rilisin — Platform Publisher Game, Source Code & Komunitas",
   "short_name": "Rilisin",
   "description": "Jual-beli karya digital, komunitas, dan forum kreator.",
   "start_url": "/",
@@ -7,11 +8,13 @@
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
-  "theme_color": "#5b43f5",
+  "theme_color": "#3D7AF0",
   "lang": "id",
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

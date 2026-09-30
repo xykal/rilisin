@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-/** Indikator "sedang mengetik…" — tidak disimpan ke database, hanya diteruskan realtime. */
+/** Indikator "sedang mengetik…" / "sedang merekam…" — tidak disimpan ke database, hanya diteruskan realtime. */
 export async function POST(req: Request, ctx: RouteContext<"/api/chat/rooms/[slug]/typing">) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
@@ -20,6 +20,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/chat/rooms/[slu
   if (room.kind === "announcement" && !isStaffRole(user.role)) return new Response(null, { status: 204 });
   if (!rateLimit(`chat:typing:${user.id}:${room.id}`, 1, 2500).ok) return new Response(null, { status: 204 });
   if (await getActiveMute(user.id, room.id)) return new Response(null, { status: 204 });
-  await publishTyping(room.id, user.id, user.displayName);
+  const mode = (await req.json().catch(() => ({}))) as { mode?: string };
+  await publishTyping(room.id, user.id, user.displayName, mode?.mode === "recording" ? "recording" : "typing");
   return new Response(null, { status: 204 });
 }

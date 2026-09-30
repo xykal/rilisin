@@ -34,11 +34,15 @@ export function cloudinarySplit(key: string): { id: string; ext: string } {
   return { id: key.slice(0, dot), ext: key.slice(dot + 1).toLowerCase() };
 }
 
+/** Ekstensi audio → Cloudinary mewajibkan resource_type `video` (upload/destroy/URL). Image/upload MENOLAK audio. */
+const AUDIO_EXTS = new Set(["webm", "ogg", "oga", "opus", "weba", "mp4", "m4a", "aac", "mp3", "wav"]);
+const cldType = (ext: string) => (AUDIO_EXTS.has(ext) ? "video" : "image");
+
 export function cloudinaryUrl(key: string): string {
   const env = cloudinaryEnv();
   if (!env) throw new Error("Cloudinary belum dikonfigurasi");
   const { id, ext } = cloudinarySplit(key);
-  return `https://res.cloudinary.com/${env.cloud}/image/upload/${id}.${ext}`;
+  return `https://res.cloudinary.com/${env.cloud}/${cldType(ext)}/upload/${id}.${ext}`;
 }
 
 function basicAuth(env: CloudEnv) {
@@ -48,13 +52,13 @@ function basicAuth(env: CloudEnv) {
 async function cloudinaryUpload(key: string, data: Buffer) {
   const env = cloudinaryEnv();
   if (!env) throw new Error("Cloudinary belum dikonfigurasi");
-  const { id } = cloudinarySplit(key);
+  const { id, ext } = cloudinarySplit(key);
   const form = new FormData();
   form.set("file", new Blob([new Uint8Array(data)], { type: "application/octet-stream" }), "upload.bin");
   form.set("public_id", id);
   form.set("overwrite", "true");
   form.set("invalidate", "true");
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${env.cloud}/image/upload`, {
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${env.cloud}/${cldType(ext)}/upload`, {
     method: "POST",
     headers: { Authorization: basicAuth(env) },
     body: form,
@@ -67,11 +71,11 @@ async function cloudinaryUpload(key: string, data: Buffer) {
 async function cloudinaryDestroy(key: string) {
   const env = cloudinaryEnv();
   if (!env) throw new Error("Cloudinary belum dikonfigurasi");
-  const { id } = cloudinarySplit(key);
+  const { id, ext } = cloudinarySplit(key);
   const form = new FormData();
   form.set("public_id", id);
   form.set("invalidate", "true");
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${env.cloud}/image/destroy`, {
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${env.cloud}/${cldType(ext)}/destroy`, {
     method: "POST",
     headers: { Authorization: basicAuth(env) },
     body: form,

@@ -14,7 +14,7 @@ import { attachmentPreview, type ChatActivity, type ChatMessageDTO } from "./sha
  */
 export type BusEvent =
   | { type: "msg"; message: ChatMessageDTO; created: boolean }
-  | { type: "typing"; userId: string; name: string }
+  | { type: "typing"; userId: string; name: string; mode?: "recording" | "typing" }
   | { type: "pin"; message: ChatMessageDTO | null }
   | { type: "presence"; online: number }
   | { type: "activity"; activity: ChatActivity }
@@ -70,7 +70,7 @@ class ChatBus {
     }
     const roomHandlers = this.rooms.get(s.r);
     if (s.t === "ty") {
-      this.emit(roomHandlers, { type: "typing", userId: s.u, name: s.n });
+      this.emit(roomHandlers, { type: "typing", userId: s.u, name: s.n, mode: s.m === "rec" ? "recording" : "typing" });
       return;
     }
     if (s.t === "pin") {

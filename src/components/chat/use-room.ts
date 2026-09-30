@@ -40,7 +40,7 @@ export function useRoom(opts: {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [pinned, setPinned] = useState<ChatMessageDTO | null>(opts.initial.pinned);
   const [online, setOnline] = useState(0);
-  const [typing, setTyping] = useState<Record<string, { name: string; until: number }>>({});
+  const [typing, setTyping] = useState<Record<string, { name: string; until: number; mode?: "recording" | "typing" }>>({});
   const [status, setStatus] = useState<ConnStatus>(viewer ? "connecting" : "guest");
 
   const hidden = useRef(new Set<string>());
@@ -116,12 +116,17 @@ export function useRoom(opts: {
     let stopped = false;
     let retryTimer = 0;
     let attempt = 0;
+    // Polling fallback: kalau SSE tidak/belum live (mis. proxy mematikan stream), ambil pesan
+    // tiap 5 dtk supaya user TIDAK PERNAH perlu refresh manual.
+    let live = false;
 
     const connect = () => {
       if (stopped) return;
+      live = false;
       es = new EventSource(`/api/chat/stream?room=${encodeURIComponent(room.slug)}`);
       es.addEventListener("ready", (e) => {
         attempt = 0;
+        live = true;
         setStatus("live");
         setOnline(JSON.parse((e as MessageEvent).data).online ?? 0);
         void resync();
@@ -139,8 +144,8 @@ export function useRoom(opts: {
         }
       });
       es.addEventListener("typing", (e) => {
-        const { userId, name } = JSON.parse((e as MessageEvent).data) as { userId: string; name: string };
-        setTyping((t) => ({ ...t, [userId]: { name, until: Date.now() + 5000 } }));
+        const { userId, name, mode } = JSON.parse((e as MessageEvent).data) as { userId: string; name: string; mode?: "recording" | "typing" };
+        setTyping((t) => ({ ...t, [userId]: { name, until: Date.now() + 5000, mode } }));
       });
       es.addEventListener("presence", (e) => setOnline(JSON.parse((e as MessageEvent).data).online ?? 0));
       es.addEventListener("pin", (e) => setPinned(JSON.parse((e as MessageEvent).data).message ?? null));
@@ -160,6 +165,7 @@ export function useRoom(opts: {
       });
       es.onerror = () => {
         if (stopped) return;
+        live = false;
         setStatus("connecting");
         if (es?.readyState === EventSource.CLOSED) {
           es.close();
@@ -207,6 +213,9 @@ export function useRoom(opts: {
     };
 
     connect();
+    const poll = window.setInterval(() => {
+      if (!stopped && !live && document.visibilityState === "visible") void resync();
+    }, 5000);
     if (document.visibilityState === "hidden") onVisible(); // dibuka langsung di tab belakang
 
     const onOnline = () => {
@@ -220,6 +229,7 @@ export function useRoom(opts: {
     window.addEventListener("online", onOnline);
     return () => {
       stopped = true;
+      window.clearInterval(poll);
       window.clearTimeout(retryTimer);
       window.clearTimeout(pauseTimer);
       es?.close();
@@ -486,12 +496,12 @@ export function useRoom(opts: {
     [act],
   );
 
-  const sendTyping = useCallback(() => {
+  const sendTyping = useCallback((mode?: "recording" | "typing") => {
     if (!viewer) return;
     void fetch(`/api/chat/rooms/${room.slug}/typing`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: "{}",
+      body: JSON.stringify(mode === "recording" ? { mode: "recording" } : {}),
       credentials: "same-origin",
     }).catch(() => {});
   }, [room.slug, viewer]);

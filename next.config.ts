@@ -7,7 +7,8 @@ const frameOptions = frameAncestors === "'none'" ? "DENY" : frameAncestors === "
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()" },
+  // microphone=(self): pesan suara butuh getUserMedia; "()" bikin browser menolak TANPA dialog izin.
+  { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "Origin-Agent-Cluster", value: "?1" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
