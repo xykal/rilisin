@@ -293,6 +293,7 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
     ) lm on true
     left join ${users} lu on lu.id = lm.author_id
     ${readJoin}
+    ${visFilter}
     order by r.sort asc, r.created_at asc
   `);
   return rows.map((r) => ({
@@ -421,7 +422,12 @@ export async function sendMessage(
     .from(chatMessages)
     .where(and(eq(chatMessages.authorId, actor.id), eq(chatMessages.clientId, input.clientId)))
     .limit(1);
-  if (existing) retError(429, "Pelan-pelan dulu ya, kamu mengirim terlalu cepat.", "rate", Math.max(burst.retryAfterSec, perMin.retryAfterSec));
+  if (existing) return (await getMessageDTO(existing.id))!;
+
+  const burst = rateLimit(`chat:burst:${actor.id}`, 6, 10_000);
+  const perMin = await sharedLimit(`chat:min:${actor.id}`, 30, 60_000);
+  if (!burst.ok || !perMin.ok) {
+    throw new ChatError(429, "Pelan-pelan dulu ya, kamu mengirim terlalu cepat.", "rate", Math.max(burst.retryAfterSec, perMin.retryAfterSec));
   }
 
   const body = normalizeMessage(input.body);
@@ -744,13 +750,6 @@ export async function restoreReportedMessage(moderatorId: string, messageId: str
   const m = await loadRaw(messageId);
   await db.update(chatMessages).set({ reportHiddenAt: null, updatedAt: new Date() }).where(eq(chatMessages.id, messageId));
   await resolveReportsFor(messageId, moderatorId, "restored", "dismissed");
-  await signalMessage(m.roomId, messageId);
-}
-
-export function publishTyping(roomId: string, userId: string, name: string) {
-  return signal({ t: "ty", r: roomId, u: userId, n: name.slice(0, 40) });
-}
-, "restored", "dismissed");
   await signalMessage(m.roomId, messageId);
 }
 
