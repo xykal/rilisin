@@ -8,6 +8,7 @@ import { z } from "zod";
 import { requireSeller, requireUser } from "@/lib/auth/guards";
 import { productChecklist } from "@/lib/checklist";
 import { CATEGORIES, LICENSES, PLATFORMS, RESERVED_USERNAMES } from "@/lib/config";
+import { storeNameTaken } from "@/lib/names";
 import { db } from "@/lib/db";
 import { moderationActions, productMedia, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";
 import { ANDROID_PACKAGE_RE } from "@/lib/files";

@@ -11,6 +11,7 @@ import {
 } from "@/app/actions/seller";
 import { CATEGORIES, LICENSES, PLATFORMS } from "@/lib/config";
 import { SubmitButton } from "./submit-button";
+import { NameCheckInput } from "./name-check-input";
 import { Alert, Field, cn, inputStyles } from "./ui";
 
 type ProductDefaults = {
