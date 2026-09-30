@@ -258,6 +258,10 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
   const readJoin = viewerId
     ? sql`left join ${chatReads} cr on cr.room_id = r.id and cr.user_id = ${viewerId}`
     : sql``;
+  // Grup privat hanya terlihat oleh anggotanya.
+  const visFilter = viewerId
+    ? sql`where (not r.is_private or exists (select 1 from ${chatMembers} cm where cm.room_id = r.id and cm.user_id = ${viewerId}))`
+    : sql`where not r.is_private`;
   const rows = await db.execute<{
     id: string;
     slug: string;
@@ -417,12 +421,7 @@ export async function sendMessage(
     .from(chatMessages)
     .where(and(eq(chatMessages.authorId, actor.id), eq(chatMessages.clientId, input.clientId)))
     .limit(1);
-  if (existing) return (await getMessageDTO(existing.id))!;
-
-  const burst = rateLimit(`chat:burst:${actor.id}`, 6, 10_000);
-  const perMin = await sharedLimit(`chat:min:${actor.id}`, 30, 60_000);
-  if (!burst.ok || !perMin.ok) {
-    throw new ChatError(429, "Pelan-pelan dulu ya, kamu mengirim terlalu cepat.", "rate", Math.max(burst.retryAfterSec, perMin.retryAfterSec));
+  if (existing) retError(429, "Pelan-pelan dulu ya, kamu mengirim terlalu cepat.", "rate", Math.max(burst.retryAfterSec, perMin.retryAfterSec));
   }
 
   const body = normalizeMessage(input.body);
@@ -745,6 +744,13 @@ export async function restoreReportedMessage(moderatorId: string, messageId: str
   const m = await loadRaw(messageId);
   await db.update(chatMessages).set({ reportHiddenAt: null, updatedAt: new Date() }).where(eq(chatMessages.id, messageId));
   await resolveReportsFor(messageId, moderatorId, "restored", "dismissed");
+  await signalMessage(m.roomId, messageId);
+}
+
+export function publishTyping(roomId: string, userId: string, name: string) {
+  return signal({ t: "ty", r: roomId, u: userId, n: name.slice(0, 40) });
+}
+, "restored", "dismissed");
   await signalMessage(m.roomId, messageId);
 }
 
