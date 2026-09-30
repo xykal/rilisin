@@ -42,6 +42,7 @@ import { getCategoryBySlug, listThreads } from "@/lib/forum";
 import { getMoreFromSeller, getProductBySlug, getSellerStats, hasEntitlement } from "@/lib/queries";
 import { announceDueReleases, claimDueReleases, getNextScheduledRelease } from "@/lib/releases";
 import { mediaUrl } from "@/lib/storage";
+import { pageOg } from "@/lib/og";
 
 const getProduct = cache(getProductBySlug);
 
@@ -49,7 +50,7 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Prom
   const { slug } = await params;
   const product = await getProduct(slug);
   if (!product || product.status !== "published") return { title: "Produk" };
-  return { title: product.title, description: product.summary };
+  return { title: product.title, description: product.summary, ...pageOg(product.title, product.summary, `/p/${slug}`) };
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps<"/p/[slug]">) {

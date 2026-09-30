@@ -5,6 +5,7 @@ import { HideOnRoutes } from "@/components/route-visibility";
 import { SiteHeader } from "@/components/site-header";
 import { isSimulationMode } from "@/lib/payments/provider";
 import { SITE } from "@/lib/config";
+import { appUrl } from "@/lib/email";
 import { BRAND } from "@/config/brand";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { PushInit } from "@/components/push-init";

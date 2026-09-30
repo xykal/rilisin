@@ -4,6 +4,7 @@ import { ChatApp } from "@/components/chat/chat-app";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { viewerDTO } from "@/lib/chat/page-data";
 import {
+import { pageOg } from "@/lib/og";
   countMembers,
   getActiveMute,
   getMessageDTO,
@@ -16,7 +17,9 @@ import {
 export async function generateMetadata({ params }: PageProps<"/komunitas/[room]">): Promise<Metadata> {
   const { room: slug } = await params;
   const room = await getRoomBySlug(slug);
-  return room ? { title: `${room.name} · Komunitas`, description: room.description } : { title: "Komunitas" };
+  return room
+    ? { title: `${room.name} · Komunitas`, description: room.description, ...pageOg(`${room.name} · Komunitas`, room.description, `/komunitas/${slug}`) }
+    : { title: "Komunitas" };
 }
 
 export default async function RoomPage({ params }: PageProps<"/komunitas/[room]">) {

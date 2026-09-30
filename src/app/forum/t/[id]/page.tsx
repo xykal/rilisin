@@ -30,6 +30,7 @@ import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
 import { plainSnippet, replyPath, threadPath } from "@/lib/community/shared";
 import { formatDateTime, timeAgo } from "@/lib/format";
 import { getAcceptedReply, getQuoteTarget, getThread, listReplies, productBadges, replyPageOf, viewerVotes, type ReplyDTO } from "@/lib/forum";
+import { pageOg } from "@/lib/og";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const loadThread = cache(async (id: string) => {
@@ -41,7 +42,8 @@ export async function generateMetadata({ params }: PageProps<"/forum/t/[id]">): 
   const { id } = await params;
   const { t } = await loadThread(id);
   if (!t || t.state !== "visible") return { title: "Thread", robots: { index: false } };
-  return { title: t.thread.title, description: plainSnippet(t.thread.body, 160) };
+  const desc = plainSnippet(t.thread.body, 160);
+  return { title: t.thread.title, description: desc, ...pageOg(t.thread.title, desc, `/forum/t/${id}`) };
 }
 
 function ModForm({ action, children, fields }: { action: (fd: FormData) => Promise<void>; children: React.ReactNode; fields: Record<string, string> }) {

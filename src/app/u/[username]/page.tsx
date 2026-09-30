@@ -20,6 +20,7 @@ import { getMemberActivity, getMemberStats, memberBadges } from "@/lib/profile";
 import { getSellerProfile } from "@/lib/queries";
 import { mediaUrl } from "@/lib/storage";
 import { eq } from "drizzle-orm";
+import { pageOg } from "@/lib/og";
 
 const getProfile = cache(getSellerProfile);
 
@@ -27,7 +28,9 @@ export async function generateMetadata({ params }: PageProps<"/u/[username]">): 
   const { username } = await params;
   const profile = await getProfile(decodeURIComponent(username));
   if (!profile) return { title: "Profil" };
-  return { title: `${profile.storeName ?? profile.displayName} (@${profile.username})`, description: profile.tagline ?? profile.bio ?? undefined };
+  const title = `${profile.storeName ?? profile.displayName} (@${profile.username})`;
+  const desc = profile.tagline ?? profile.bio ?? undefined;
+  return { title, description: desc, ...pageOg(title, desc, `/u/${profile.username}`) };
 }
 
 function Stat({ icon: Icon, value, label }: { icon: typeof Package; value: string | number; label: string }) {

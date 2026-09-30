@@ -158,6 +158,9 @@ const guest = new Session();
 {
   const { res, text } = await guest.html("/");
   ok(res.status === 200 && text.includes("Trending minggu ini"), "Beranda tampil (200)");
+  ok(text.includes('property="og:title"') && text.includes("summary_large_image"), "OG: beranda punya kartu og + twitter large image");
+  const ogRes = await guest.req("/api/og?t=Tes+Kartu");
+  ok((ogRes.headers.get("content-type") ?? "").includes("image/"), "OG: /api/og me-render gambar kartu");
   const search = await guest.html("/jelajahi?q=kasir");
   ok(search.text.includes("KasirKu Offline"), "Pencarian 'kasir' menemukan KasirKu Offline");
   const cat = await guest.html("/jelajahi?kategori=game&sort=baru");
