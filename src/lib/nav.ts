@@ -31,6 +31,7 @@ export async function getNavData(): Promise<NavData> {
     db
       .select({ slug: chatRooms.slug, name: chatRooms.name, emoji: chatRooms.emoji, description: chatRooms.description })
       .from(chatRooms)
+      .where(eq(chatRooms.isPrivate, false))
       .orderBy(asc(chatRooms.sort))
       .limit(9),
     db

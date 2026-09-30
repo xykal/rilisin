@@ -631,8 +631,6 @@ const rina = user; // user@rilisin.test (Rina)
   const intipApi = await staf.api(`/api/chat/rooms/${gslug}/messages`);
   ok(intip.text.includes("Ini grup privat") && intipApi.status === 404, "Privasi penuh: staf pun tidak bisa intip grup privat");
   const daftarTamu = await guest.html("/komunitas");
-  const slugTamu = [...new Set([...daftarTamu.text.matchAll(/\/komunitas\/([a-z0-9-]+)/g)].map((m) => m[1]))];
-  ok(true, `DIAG tamu: status=${daftarTamu.res.status} slug=[${slugTamu.join(",")}]`);
   ok(!daftarTamu.text.includes("Grup Rahasia Uji"), "Grup privat sembunyi dari daftar publik");
 
   const edited = await rina.api(`/api/chat/messages/${msgId}`, { action: "edit", body: "Halo dari smoke test (diedit) ✏️" });
