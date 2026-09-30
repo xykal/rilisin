@@ -92,6 +92,13 @@
       "when": 1790721287291,
       "tag": "0013_seller_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790800000000,
+      "tag": "0014_private_groups",
+      "breakpoints": true
     }
   ]
 }

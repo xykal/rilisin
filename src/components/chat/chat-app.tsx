@@ -13,8 +13,10 @@ import {
   Pencil,
   Pin,
   PinOff,
+  Plus,
   Reply,
   Search,
+  Share2,
   ShieldCheck,
   Timer,
   Trash2,
@@ -61,12 +63,15 @@ export function ChatApp({
   viewer,
   initial,
   memberCount,
+  inviteCode = null,
 }: {
   rooms: ChatRoomDTO[];
   activeSlug: string | null;
   viewer: ChatViewerDTO | null;
   initial: RoomInitial | null;
   memberCount: number;
+  /** Kode invite grup privat (hanya untuk anggota/staf) — dipakai tombol bagikan. */
+  inviteCode?: string | null;
 }) {
   const tz = useDeviceTz();
   const [rooms, setRooms] = useState(initialRooms);
@@ -133,6 +138,7 @@ export function ChatApp({
                 key={room.slug}
                 room={room}
                 viewer={viewer}
+                inviteCode={inviteCode}
                 initial={initial}
                 memberCount={memberCount}
                 onActivity={onActivity}
@@ -193,6 +199,14 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
           </span>
         </div>
         <p className="mt-1 text-sm text-slate-500">Ngobrol, tanya-jawab, dan pamer karya bareng kreator Indonesia.</p>
+        {viewer && (
+          <Link
+            href="/komunitas/baru"
+            className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 py-2 text-sm font-bold text-slate-600 hover:border-violet-400 hover:text-violet-700"
+          >
+            <Plus className="h-4 w-4" /> Buat grup
+          </Link>
+        )}
         <label className="relative mt-3 block">
           <span className="sr-only">Cari ruang</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -223,6 +237,7 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
                     <span className="flex min-w-0 items-center gap-1.5">
                       <span className={cn("truncate text-[15px] font-bold", active ? "text-brand-800" : "text-ink")}>{r.name}</span>
                       {r.kind === "announcement" && <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label="Hanya admin yang bisa kirim" />}
+                      {r.isPrivate && <Lock className="h-3.5 w-3.5 shrink-0 text-violet-500" aria-label="Grup privat" />}
                     </span>
                     {r.lastMessage && (
                       <span className={cn("shrink-0 text-[11.5px]", r.unread ? "font-bold text-brand-600" : "text-slate-400")}>
@@ -301,6 +316,7 @@ type SheetState =
 function RoomView({
   room,
   viewer,
+  inviteCode,
   initial,
   memberCount,
   onActivity,
@@ -309,6 +325,7 @@ function RoomView({
 }: {
   room: ChatRoomDTO;
   viewer: ChatViewerDTO | null;
+  inviteCode: string | null | undefined;
   initial: RoomInitial;
   memberCount: number;
   onActivity: (a: ChatActivity) => void;
@@ -590,6 +607,18 @@ function RoomView({
             className={cn("h-2.5 w-2.5 shrink-0 rounded-full", r.status === "live" ? "bg-emerald-500" : r.status === "guest" ? "bg-slate-300" : "animate-pulse bg-amber-400")}
             title={r.status === "live" ? "Tersambung realtime" : r.status === "guest" ? "Mode baca" : "Menyambungkan…"}
           />
+          <button
+            type="button"
+            onClick={async () => {
+              const url = `${window.location.origin}/komunitas/${room.slug}${room.isPrivate && inviteCode ? `?invite=${inviteCode}` : ""}`;
+              showToast((await copyText(url)) ? "Link grup tersalin — bagikan ke temanmu" : "Gagal menyalin link");
+            }}
+            className="rounded-full p-2 text-slate-600 hover:bg-slate-100"
+            aria-label="Bagikan grup"
+            title="Salin link grup"
+          >
+            <Share2 className="h-5 w-5" />
+          </button>
           <button type="button" onClick={() => setSheet({ kind: "info" })} className="rounded-full p-2 text-slate-600 hover:bg-slate-100" aria-label="Info ruang">
             <Info className="h-5 w-5" />
           </button>
@@ -855,6 +884,27 @@ function RoomView({
                     <p className="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5 text-slate-700">
                       <Lock className="h-4 w-4 text-slate-500" /> Hanya admin &amp; moderator yang bisa mengirim pesan
                     </p>
+                  )}
+                  {room.isPrivate && (
+                    <p className="flex items-center gap-2.5 rounded-xl bg-violet-50 px-3 py-2.5 text-violet-900">
+                      <Lock className="h-4 w-4 shrink-0" /> Grup privat — gabung hanya via link undangan
+                    </p>
+                  )}
+                  {room.isPrivate && inviteCode && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const url = `${window.location.origin}/komunitas/${room.slug}?invite=${inviteCode}`;
+                        showToast((await copyText(url)) ? "Link undangan tersalin" : "Gagal menyalin link");
+                      }}
+                      className="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5 text-left text-slate-700 hover:bg-slate-100"
+                    >
+                      <Copy className="h-4 w-4 shrink-0 text-slate-500" />
+                      <span className="min-w-0">
+                        <span className="block text-xs text-slate-500">Link undangan (ketuk untuk salin)</span>
+                        <span className="block truncate font-mono text-xs">…/komunitas/{room.slug}?invite={inviteCode.slice(0, 6)}…</span>
+                      </span>
+                    </button>
                   )}
                   {room.slowModeSec > 0 && (
                     <p className="flex items-center gap-2.5 rounded-xl bg-amber-50 px-3 py-2.5 text-amber-900">

@@ -554,6 +554,27 @@ const rina = user; // user@rilisin.test (Rina)
   const judol = await rina.say("nongkrong", "Daftar S1OT G4C0R hari ini pasti maxwin!!");
   ok(judol.status === 422 && /judi/i.test(judol.data.error), "Promosi judol diblokir filter");
 
+  // Grup privat + invite link
+  const grupBaru = await rina.html("/komunitas/baru");
+  ok(grupBaru.res.status === 200 && grupBaru.text.includes("Buat grup baru"), "Form buat grup tampil");
+  const dibuat = await rina.submitForm("/komunitas/baru", grupBaru.text, 'name="name"', { name: "Grup Rahasia Uji", emoji: "🤫", description: "", isPrivate: "on" });
+  const gm = (dibuat.headers.get("location") ?? "").match(/\/komunitas\/([a-z0-9-]+)\?invite=([A-Za-z0-9_-]+)/);
+  ok(dibuat.status === 303 && gm?.[1] && gm?.[2], "Grup privat: dibuat + redirect bawa kode invite");
+  const gslug = gm[1];
+  const gcode = gm[2];
+  const penjual = new Session();
+  await penjual.login("seller@rilisin.test");
+  const terkunci = await penjual.html(`/komunitas/${gslug}`);
+  ok(terkunci.text.includes("Ini grup privat") && !terkunci.text.includes("chat-shell"), "Grup privat: bukan anggota melihat kartu terkunci");
+  const nyusup = await penjual.say(gslug, "nyusup ah");
+  ok(nyusup.status === 404, "Grup privat: bukan anggota tidak bisa kirim (404)");
+  const gabung = await penjual.html(`/komunitas/${gslug}?invite=${gcode}`);
+  ok(gabung.res.status === 303 && (gabung.res.headers.get("location") ?? "").endsWith(`/komunitas/${gslug}`), "Invite link: gabung otomatis (redirect ke ruang)");
+  const dalam = await penjual.html(`/komunitas/${gslug}`);
+  ok(dalam.text.includes("Grup Rahasia Uji") && dalam.text.includes("chat-shell"), "Anggota via invite bisa buka ruang");
+  const daftarTamu = await guest.html("/komunitas");
+  ok(!daftarTamu.text.includes("Grup Rahasia Uji"), "Grup privat sembunyi dari daftar publik");
+
   const edited = await rina.api(`/api/chat/messages/${msgId}`, { action: "edit", body: "Halo dari smoke test (diedit) ✏️" });
   ok(edited.status === 200 && edited.data.message.editedAt && edited.data.message.body.includes("diedit"), "Edit pesan sendiri");
   const sellerEdit = await seller.api(`/api/chat/messages/${msgId}`, { action: "edit", body: "dibajak" });

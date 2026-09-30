@@ -131,6 +131,8 @@ export type ChatRoomDTO = {
   kind: "public" | "announcement";
   slowModeSec: number;
   pinnedMessageId: string | null;
+  /** Grup privat: hanya anggota yang melihat di daftar. */
+  isPrivate: boolean;
   lastMessage: { authorName: string; preview: string; at: string } | null;
   unread: number | null;
 };

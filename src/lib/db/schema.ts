@@ -414,8 +414,29 @@ export const chatRooms = pgTable("chat_rooms", {
   slowModeSec: integer("slow_mode_sec").notNull().default(0),
   pinnedMessageId: uuid("pinned_message_id"),
   lastMessageAt: tsz("last_message_at"),
+  /** Grup privat: sembunyi dari daftar publik, gabung hanya via link invite. */
+  isPrivate: boolean("is_private").notNull().default(false),
+  /** Kode undangan unik (grup privat). Null = ruang publik/bawaan. */
+  inviteCode: text("invite_code").unique(),
+  /** Pembuat grup (null = ruang bawaan sistem). */
+  ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 });
+
+/** Anggota grup — wajib untuk baca/kirim di grup privat. */
+export const chatMembers = pgTable(
+  "chat_members",
+  {
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => chatRooms.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    joinedAt: tsz("joined_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.roomId, t.userId] })],
+);
 
 export const chatMessages = pgTable(
   "chat_messages",

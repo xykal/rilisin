@@ -4,6 +4,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import {
   chatHiddenMessages,
+  chatMembers,
   chatMessageEdits,
   chatMessages,
   chatMutes,
@@ -255,6 +256,7 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
     kind: "public" | "announcement";
     slow_mode_sec: number;
     pinned_message_id: string | null;
+    is_private: boolean;
     lm_body: string | null;
     lm_image: string | null;
     lm_deleted: Date | null;
