@@ -113,6 +113,16 @@ export default function ApiGuidePage() {
         <Endpoint method="POST" path="/api/v1/products/:id/releases" scope="seller:write">
           <p>Bikin draft rilis: version (mis. 1.0.0) + changelogMd. Satu produk cuma boleh 1 draft dalam antrean.</p>
         </Endpoint>
+        <Endpoint method="POST" path="/api/v1/products/:id/submit" scope="seller:write">
+          <p>
+            Kirim produk (+ semua rilis draft ber-file) ke review. Checklist belum lengkap → 422 + rincian item yang kurang (kejar sampai semua done). Seller
+            terpercaya → langsung tayang (atau terjadwal kalau isi scheduledAt ISO).
+          </p>
+          <Code>{`curl -X POST -H "Authorization: Bearer rsk_xxx" -H "Content-Type: application/json" \\\n  -d '{}' \\\n  https://rilisin.xyverse.my.id/api/v1/products/<id>/submit`}</Code>
+        </Endpoint>
+        <Endpoint method="POST" path="/api/v1/releases/:id/submit" scope="seller:write">
+          <p>Kirim rilis draft (produk sudah tayang) ke review / tayang. Rilis tanpa file → 422.</p>
+        </Endpoint>
         <Endpoint method="GET" path="/api/v1/admin/stats" scope="admin:read">
           <p>Statistik ringkas: total user/produk, produk tayang/review, antrean toko, laporan terbuka.</p>
         </Endpoint>
@@ -140,8 +150,9 @@ curl -X POST -H "Authorization: Bearer rsk_xxx" -H "Content-Type: application/js
         <span className="flex items-start gap-2">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            <span className="font-bold">Kirim ke review tetap aksi manusia.</span> API sengaja tidak menyediakan tombol “kirim/tayang” — AI menyiapkan draft +
-            file, manusia yang memeriksa & menekan kirim di dashboard. Batas yang sehat buat agen otonom.
+            <span className="font-bold">API bisa kirim sampai tayang.</span> Jaga key seller:write baik-baik — seller terpercaya yang kirim via API langsung tayang
+            tanpa review manusia (tetap tercatat di audit). Untuk agen yang belum dipercaya penuh, beri dia scope seller:read saja + minta manusia menekan
+            kirim di dashboard.
           </span>
         </span>
       </Alert>

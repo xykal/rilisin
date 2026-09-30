@@ -51,7 +51,7 @@ function validUrl(v: string): string | null {
   }
 }
 
-/** Bikin draft produk. Catatan: kirim ke review tetap lewat dashboard (aksi manusia). */
+/** Bikin draft produk. Kirim ke review: POST /api/v1/products/:id/submit. */
 export async function POST(req: Request) {
   const r = await v1auth(req, "seller:write");
   if ("error" in r) return r.error;

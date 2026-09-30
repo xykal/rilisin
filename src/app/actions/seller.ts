@@ -1,19 +1,18 @@
 "use server";
 
-import { announceProductPublished, announceReleasePublished } from "@/lib/follows";
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireSeller, requireUser } from "@/lib/auth/guards";
-import { productChecklist } from "@/lib/checklist";
 import { CATEGORIES, LICENSES, PLATFORMS, RESERVED_USERNAMES } from "@/lib/config";
 import { storeNameTaken } from "@/lib/names";
+import { submitProductFlow, submitReleaseFlow } from "@/lib/seller/submit";
 import { db } from "@/lib/db";
-import { moderationActions, productMedia, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";
+import { productMedia, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";
 import { ANDROID_PACKAGE_RE } from "@/lib/files";
 import { sharedLimit } from "@/lib/rate-limit";
-import { announceDueReleases, parseScheduledAt } from "@/lib/releases";
+import { announceDueReleases } from "@/lib/releases";
 import { slugify } from "@/lib/slug";
 import { storage } from "@/lib/storage";
 import { fieldErrorsFrom, type FormState } from "./form-state";
@@ -448,97 +447,32 @@ export async function deleteReleaseFileAction(formData: FormData) {
 // ─── Kirim ke review ─────────────────────────────────────────────────────────
 export async function submitProductAction(formData: FormData) {
   const user = await requireSeller();
-  const product = await loadOwnedProduct(String(formData.get("productId")), user.id);
-  if (!product) redirect("/seller/produk");
-  if (!["draft", "rejected"].includes(product.status)) redirect(`/seller/produk/${product.id}`);
-
-  const [{ n: mediaCount }] = await db.select({ n: count() }).from(productMedia).where(eq(productMedia.productId, product.id));
-  const pendingReleases = await db
-    .select({ id: releases.id, files: count(releaseFiles.id) })
-    .from(releases)
-    .leftJoin(releaseFiles, eq(releaseFiles.releaseId, releases.id))
-    .where(and(eq(releases.productId, product.id), inArray(releases.status, ["draft", "rejected"])))
-    .groupBy(releases.id);
-  const withFiles = pendingReleases.filter((r) => r.files > 0);
-
-  const { complete } = productChecklist({ ...product, mediaCount, hasReleaseWithFiles: withFiles.length > 0 });
-  if (!complete) redirect(`/seller/produk/${product.id}?error=checklist`);
-
-  let scheduledAt: Date | null;
-  try {
-    scheduledAt = parseScheduledAt(String(formData.get("scheduledAt") ?? ""));
-  } catch {
-    redirect(`/seller/produk/${product.id}?error=jadwal`);
+  const productId = String(formData.get("productId"));
+  const r = await submitProductFlow(productId, { id: user.id, isTrusted: user.seller.isTrusted }, String(formData.get("scheduledAt") ?? ""));
+  if (!r.ok) {
+    if (r.code === "not-found") redirect("/seller/produk");
+    if (r.code === "checklist") redirect(`/seller/produk/${productId}?error=checklist`);
+    if (r.code === "schedule") redirect(`/seller/produk/${productId}?error=jadwal`);
+    redirect(`/seller/produk/${productId}`);
   }
-  const trusted = user.seller.isTrusted;
-  const now = new Date();
-  await db.transaction(async (tx) => {
-    await tx
-      .update(products)
-      .set({
-        status: trusted ? "published" : "review",
-        submittedAt: now,
-        publishedAt: trusted ? (product.publishedAt ?? (scheduledAt ? null : now)) : null,
-        rejectionReason: null,
-        updatedAt: now,
-      })
-      .where(eq(products.id, product.id));
-    await tx
-      .update(releases)
-      .set({ status: trusted ? "published" : "review", submittedAt: now, publishedAt: trusted && !scheduledAt ? now : null, rejectionReason: null, scheduledAt })
-      .where(inArray(releases.id, withFiles.map((r) => r.id)));
-    if (trusted) {
-      await tx.insert(moderationActions).values({
-        moderatorId: null,
-        targetType: "product",
-        targetId: product.id,
-        action: "auto_publish_trusted",
-        note: "Seller terpercaya — tayang otomatis (tetap bisa diaudit)",
-      });
-    }
-  });
-
-  if (trusted && !product.publishedAt && !scheduledAt) await announceProductPublished(product.id);
   revalidatePath("/", "layout");
-  redirect(`/seller/produk/${product.id}?dikirim=${trusted ? (scheduledAt ? "jadwal" : "tayang") : "review"}`);
+  redirect(`/seller/produk/${productId}?dikirim=${r.outcome === "published" ? "tayang" : r.outcome === "scheduled" ? "jadwal" : "review"}`);
 }
 
 export async function submitReleaseAction(formData: FormData) {
   const user = await requireSeller();
-  const release = await loadOwnedRelease(String(formData.get("releaseId")), user.id);
-  if (!release) redirect("/seller/produk");
-  if (release.productStatus !== "published" || release.status !== "draft") redirect(`/seller/produk/${release.productId}`);
-
-  const [{ n }] = await db.select({ n: count() }).from(releaseFiles).where(eq(releaseFiles.releaseId, release.id));
-  if (n === 0) redirect(`/seller/produk/${release.productId}?error=nofile`);
-
-  let scheduledAt: Date | null;
-  try {
-    scheduledAt = parseScheduledAt(String(formData.get("scheduledAt") ?? ""));
-  } catch {
-    redirect(`/seller/produk/${release.productId}?error=jadwal`);
-  }
-  const trusted = user.seller.isTrusted;
-  const now = new Date();
-  await db
-    .update(releases)
-    .set({ status: trusted ? "published" : "review", submittedAt: now, publishedAt: trusted && !scheduledAt ? now : null, scheduledAt })
-    .where(eq(releases.id, release.id));
-  await db.update(products).set({ updatedAt: now }).where(eq(products.id, release.productId));
-  if (trusted) {
-    await db.insert(moderationActions).values({
-      targetType: "release",
-      targetId: release.id,
-      action: "auto_publish_trusted",
-      note: scheduledAt ? `v${release.version} terjadwal ${scheduledAt.toISOString()}` : `v${release.version}`,
-    });
-    if (!scheduledAt) await announceReleasePublished(release.id);
+  const releaseId = String(formData.get("releaseId"));
+  const r = await submitReleaseFlow(releaseId, { id: user.id, isTrusted: user.seller.isTrusted }, String(formData.get("scheduledAt") ?? ""));
+  if (!r.ok) {
+    if (!r.productId) redirect("/seller/produk");
+    if (r.code === "nofile") redirect(`/seller/produk/${r.productId}?error=nofile`);
+    if (r.code === "schedule") redirect(`/seller/produk/${r.productId}?error=jadwal`);
+    redirect(`/seller/produk/${r.productId}`);
   }
   revalidatePath("/", "layout");
-  redirect(`/seller/produk/${release.productId}?rilis=${trusted ? (scheduledAt ? "jadwal" : "tayang") : "review"}`);
+  redirect(`/seller/produk/${r.productId}?rilis=${r.outcome === "published" ? "tayang" : r.outcome === "scheduled" ? "jadwal" : "review"}`);
 }
 
-/** Batalkan jadwal (tayangkan sekarang). Hanya untuk rilis terjadwal yang belum tiba waktunya. */
 export async function cancelScheduleAction(formData: FormData) {
   const user = await requireSeller();
   const release = await loadOwnedRelease(String(formData.get("releaseId")), user.id);
