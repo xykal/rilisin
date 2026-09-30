@@ -621,7 +621,8 @@ const rina = user; // user@rilisin.test (Rina)
   const nyusup = await penjual.say(gslug, "nyusup ah");
   ok(nyusup.status === 404, "Grup privat: bukan anggota tidak bisa kirim (404)");
   const gabung = await penjual.html(`/komunitas/${gslug}?invite=${gcode}`);
-  ok(gabung.res.status === 303 && (gabung.res.headers.get("location") ?? "").endsWith(`/komunitas/${gslug}`), "Invite link: gabung otomatis (redirect ke ruang)");
+  // redirect() di page server-component = 307 (303 hanya untuk server action).
+  ok((gabung.res.status === 303 || gabung.res.status === 307) && (gabung.res.headers.get("location") ?? "").endsWith(`/komunitas/${gslug}`), "Invite link: gabung otomatis (redirect ke ruang)");
   const dalam = await penjual.html(`/komunitas/${gslug}`);
   ok(dalam.text.includes("Grup Rahasia Uji") && dalam.text.includes("chat-shell"), "Anggota via invite bisa buka ruang");
   const staf = new Session();
