@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
-export const UI_SCALES = ["kecil", "normal", "besar"] as const;
-export type UiScale = (typeof UI_SCALES)[number];
+const UI_SCALES = ["kecil", "normal", "besar"] as const;
 
 /** Skala tampilan (cookie 1 tahun): kecil 15px / normal 16px / besar 18px di root — seluruh UI rem ikut membesar. */
 export async function setUiScaleAction(formData: FormData) {
