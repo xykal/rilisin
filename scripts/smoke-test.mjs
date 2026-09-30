@@ -406,6 +406,14 @@ let slug;
   const queue2 = await adm.html("/admin/penjual");
   const approved = await adm.submitForm("/admin/penjual", queue2.text, "Setujui toko", {});
   ok(approved.status === 303 && (approved.headers.get("location") ?? "").includes("hasil=disetujui"), "Admin menyetujui pengajuan toko");
+  const anggota = await adm.html("/admin/anggota");
+  ok(anggota.res.status === 200 && anggota.text.includes("@rina"), "Admin: daftar anggota tampil");
+  const naik = await adm.submitForm("/admin/anggota", anggota.text, 'data-form="role-rina"', { role: "moderator" });
+  ok(naik.status === 303 && (naik.headers.get("location") ?? "").includes("hasil=peran"), "Admin: menaikkan user jadi moderator");
+  const anggota2 = await adm.html("/admin/anggota");
+  const turun = await adm.submitForm("/admin/anggota", anggota2.text, 'data-form="role-rina"', { role: "user" });
+  const diri = await adm.submitForm("/admin/anggota", anggota2.text, 'data-form="role-tim_rilisin"', { role: "user" });
+  ok(turun.status === 303 && (diri.headers.get("location") ?? "").includes("error=self"), "Peran dikembalikan + ubah diri sendiri ditolak");
 
   const dash = await calon.html("/seller");
   ok(

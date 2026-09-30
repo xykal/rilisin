@@ -11,7 +11,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const [counts, finance] = await Promise.all([getModerationCounts(), user.role === "admin" ? financeCounts() : Promise.resolve(null)]);
   return (
     <>
-      <AdminTabs reviews={counts.reviews} reports={counts.reports} contentReports={counts.contentReports} finance={finance ? finance.total : null} sellers={user.role === "admin" ? counts.sellers : null} />
+      <AdminTabs reviews={counts.reviews} reports={counts.reports} contentReports={counts.contentReports} finance={finance ? finance.total : null} sellers={user.role === "admin" ? counts.sellers : null} members={user.role === "admin" ? 0 : null} />
       {children}
     </>
   );
