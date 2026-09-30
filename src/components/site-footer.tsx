@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CATEGORIES, SITE } from "@/lib/config";
 import { LEGAL_DOCS } from "@/lib/legal";
 import { BRAND } from "@/config/brand";
+import { InstallButton } from "./install-button";
 import { Logo } from "./logo";
 
 export function SiteFooter() {
@@ -12,6 +13,7 @@ export function SiteFooter() {
           <Logo />
           <p className="mt-3 text-sm text-slate-500">{SITE.tagline}.</p>
           <p className="mt-4 text-xs text-slate-400">Prototype · dokumen hukum masih draf (menunggu review pengacara).</p>
+          <InstallButton />
         </div>
         <div>
           <p className="text-sm font-bold text-ink">Jelajahi</p>

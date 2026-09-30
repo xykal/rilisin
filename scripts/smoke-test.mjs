@@ -1197,6 +1197,9 @@ async function register(s, username, password, extra = {}) {
   ok(man.status === 200 && (await man.text()).includes("Rilisin"), "Manifest PWA tersaji");
   const psw = await fetch(`${BASE}/OneSignalSDKWorker.js`, { headers: authHeaders() });
   ok(psw.status === 200 && (await psw.text()).includes("OneSignalSDK"), "Service worker OneSignal tersaji");
+  const rsw = await fetch(`${BASE}/sw.js`, { headers: authHeaders() });
+  ok(rsw.status === 200 && (await rsw.text()).includes("Rilisin service worker"), "Service worker Rilisin (offline) tersaji");
+  ok((await guest.html("/offline")).text.includes("Kamu lagi offline"), "Halaman fallback offline tampil");
   const testPush = await rina.submitForm("/akun/notifikasi", pref3, 'data-form="test-push"', {});
   ok(clean(await testPush.text()).includes("Push belum diaktifkan di server ini"), "Push uji tanpa kunci: pesan jelas (tidak crash)");
   const prof = await rina.html("/akun/profil");

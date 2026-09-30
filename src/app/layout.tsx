@@ -9,6 +9,7 @@ import { appUrl } from "@/lib/email";
 import { BRAND } from "@/config/brand";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { PushInit } from "@/components/push-init";
+import { SwRegister } from "@/components/sw-register";
 import "./globals.css";
 
 // Semua halaman membaca session (cookie) & data terbaru dari database.
@@ -58,6 +59,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <SiteFooter />
         </HideOnRoutes>
         <PushInit userId={user?.id ?? null} appId={pushAppId} />
+        <SwRegister />
       </body>
     </html>
   );

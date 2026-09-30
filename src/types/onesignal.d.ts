@@ -4,7 +4,7 @@
  * Referensi: https://documentation.onesignal.com/docs/web-push-sdk
  */
 export interface OneSignalAPI {
-  init(opts: { appId: string; allowLocalhostAsSecureOrigin?: boolean }): Promise<void>;
+  init(opts: { appId: string; serviceWorkerPath?: string; allowLocalhostAsSecureOrigin?: boolean }): Promise<void>;
   login(externalId: string): Promise<void>;
   logout(): Promise<void>;
   User: {
