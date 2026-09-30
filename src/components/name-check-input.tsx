@@ -54,7 +54,7 @@ export function NameCheckInput({ tipe, id, prefix, defaultValue, ...rest }: Prop
     <div>
       <div className="relative">
         {prefix}
-        <input id={id} name={rest.name} value={value} onChange={(e) => setValue(e.target.value)} aria-describedby={state ? `${id}-status` : undefined} {...rest} />
+        <input id={id} value={value} onChange={(e) => setValue(e.target.value)} aria-describedby={state ? `${id}-status` : undefined} {...rest} />
       </div>
       <p id={`${id}-status`} aria-live="polite" className={`mt-1.5 min-h-4 text-xs ${!state ? (busy ? "text-slate-400" : "") : state.ok ? "text-emerald-600" : "text-rose-600"}`}>
         {busy && !state ? "Mengecek…" : state ? `${state.ok ? "✓" : "✗"} ${state.msg}` : ""}

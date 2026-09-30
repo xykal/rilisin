@@ -278,7 +278,7 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
     lm_author: string | null;
     unread: number | null;
   }>(sql`
-    select r.id, r.slug, r.name, r.emoji, r.description, r.kind, r.slow_mode_sec, r.pinned_message_id,
+    select r.id, r.slug, r.name, r.emoji, r.description, r.kind, r.slow_mode_sec, r.pinned_message_id, r.is_private,
       lm.body as lm_body, lm.image_key as lm_image, lm.audio_key as lm_audio, lm.sticker_key as lm_sticker, lm.deleted_at as lm_deleted,
       lm.report_hidden_at as lm_hidden, lm.created_at as lm_at, lu.display_name as lm_author,
       ${unreadExpr} as unread
@@ -300,6 +300,7 @@ export async function getRoomsForViewer(viewerId: string | null): Promise<ChatRo
     kind: r.kind,
     slowModeSec: r.slow_mode_sec,
     pinnedMessageId: r.pinned_message_id,
+    isPrivate: r.is_private,
     lastMessage: r.lm_at
       ? {
           authorName: r.lm_author ?? "Anggota",
@@ -349,6 +350,21 @@ export async function getActiveMute(userId: string, roomId: string | null): Prom
 export async function countMembers() {
   const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(users).where(isNull(users.bannedAt));
   return r?.n ?? 0;
+}
+
+/** Apakah user anggota ruang (grup privat & publik memakai tabel keanggotaan yang sama). */
+export async function isRoomMember(roomId: string, userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: chatMembers.userId })
+    .from(chatMembers)
+    .where(and(eq(chatMembers.roomId, roomId), eq(chatMembers.userId, userId)))
+    .limit(1);
+  return !!row;
+}
+
+/** Gabungkan user ke ruang. Idempoten (klik link undangan 2x tidak error). */
+export async function joinRoom(roomId: string, userId: string): Promise<void> {
+  await db.insert(chatMembers).values({ roomId, userId }).onConflictDoNothing();
 }
 
 // ─── Aturan konten ───────────────────────────────────────────────────────────

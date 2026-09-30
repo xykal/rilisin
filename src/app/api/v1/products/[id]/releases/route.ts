@@ -11,8 +11,8 @@ const releaseSchema = z.object({
   version: z
     .string()
     .trim()
-    .replace(/^v/i, "")
-    .regex(/^[0-9A-Za-z][0-9A-Za-z.+-]{0,23}$/, "Versi tidak valid (contoh: 1.0.0)"),
+    .max(25)
+    .regex(/^[vV]?[0-9A-Za-z][0-9A-Za-z.+-]{0,23}$/, "Versi tidak valid (contoh: 1.0.0)"),
   changelogMd: z.string().max(5000).optional().default(""),
 });
 
@@ -29,10 +29,11 @@ export async function POST(req: Request, ctx: RouteContext<"/api/v1/products/[id
   const parsed = releaseSchema.safeParse(await readJsonBody(req, 16 * 1024));
   if (!parsed.success) return apiError(400, "Data rilis tidak valid.", { issues: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`) });
 
+  const version = parsed.data.version.replace(/^v/i, "");
   const existing = await db.select({ version: releases.version, status: releases.status }).from(releases).where(eq(releases.productId, product.id));
   if (existing.some((x) => x.status === "draft" || x.status === "review")) return apiError(422, "Masih ada rilis draft / sedang direview. Selesaikan dulu.");
-  if (existing.some((x) => x.version.toLowerCase() === parsed.data.version.toLowerCase())) return apiError(409, "Versi ini sudah pernah dipakai.");
+  if (existing.some((x) => x.version.toLowerCase() === version.toLowerCase())) return apiError(409, "Versi ini sudah pernah dipakai.");
 
-  const [release] = await db.insert(releases).values({ productId: product.id, version: parsed.data.version, changelogMd: parsed.data.changelogMd }).returning({ id: releases.id });
-  return json({ id: release!.id, version: parsed.data.version, status: "draft" }, 201);
+  const [release] = await db.insert(releases).values({ productId: product.id, version, changelogMd: parsed.data.changelogMd }).returning({ id: releases.id });
+  return json({ id: release!.id, version, status: "draft" }, 201);
 }
