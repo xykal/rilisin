@@ -1,4 +1,4 @@
-import { desc, eq, ilike, or } from "drizzle-orm";
+import { desc, eq, or, sql } from "drizzle-orm";
 import { ShieldCheck, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { setRoleAction } from "@/app/actions/admin-members";
@@ -24,13 +24,15 @@ export default async function MembersPage({ searchParams }: PageProps<"/admin/an
   await requireAdmin("/admin/anggota");
   const { q, hasil, error } = await searchParams;
   const query = typeof q === "string" ? q.trim().slice(0, 60) : "";
-  const like = `%${query.replace(/[%_]/g, "")}%`;
+  // Escape wildcard LIKE (jangan strip — username boleh mengandung _ dan %).
+  const like = `%${query.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
+  const match = (col: typeof users.username) => sql`${col} ILIKE ${like} ESCAPE '\\'`;
 
   const [list, audit] = await Promise.all([
     db
       .select({ id: users.id, username: users.username, displayName: users.displayName, email: users.email, role: users.role, createdAt: users.createdAt })
       .from(users)
-      .where(query ? or(ilike(users.username, like), ilike(users.email, like), ilike(users.displayName, like)) : undefined)
+      .where(query ? or(match(users.username), match(users.email), match(users.displayName)) : undefined)
       .orderBy(desc(users.createdAt))
       .limit(30),
     db
