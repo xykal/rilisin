@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { apiError, guardMutation, guardRead, json, readJsonBody, UUID_RE } from "@/lib/api";
-import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { actorFrom, chatErrorResponse } from "@/lib/chat/api-helpers";
 import { getRoomBySlug, isRoomMember, listMessages, sendMessage, syncMessages } from "@/lib/chat/server";
 import { rateLimit } from "@/lib/rate-limit";
@@ -19,8 +19,8 @@ export async function GET(req: Request, ctx: RouteContext<"/api/chat/rooms/[slug
   const { slug } = await ctx.params;
   const room = await getRoomBySlug(slug);
   if (!room) return apiError(404, "Ruang tidak ditemukan.");
-  // Grup privat: hanya anggota (+ staf moderasi). 404 supaya keberadaannya tidak bocor.
-  if (room.isPrivate && (!user || (!isStaff(user) && !(await isRoomMember(room.id, user.id))))) return apiError(404, "Ruang tidak ditemukan.");
+  // Grup privat: hanya anggota (privasi penuh — staf moderasi mengandalkan laporan). 404 supaya tidak bocor.
+  if (room.isPrivate && (!user || !(await isRoomMember(room.id, user.id)))) return apiError(404, "Ruang tidak ditemukan.");
 
   const url = new URL(req.url);
   const since = url.searchParams.get("since");
@@ -52,8 +52,8 @@ export async function POST(req: Request, ctx: RouteContext<"/api/chat/rooms/[slu
   const { slug } = await ctx.params;
   const room = await getRoomBySlug(slug);
   if (!room) return apiError(404, "Ruang tidak ditemukan.");
-  // Grup privat: hanya anggota (+ staf moderasi). 404 supaya keberadaannya tidak bocor.
-  if (room.isPrivate && (!user || (!isStaff(user) && !(await isRoomMember(room.id, user.id))))) return apiError(404, "Ruang tidak ditemukan.");
+  // Grup privat: hanya anggota (privasi penuh — staf moderasi mengandalkan laporan). 404 supaya tidak bocor.
+  if (room.isPrivate && (!user || !(await isRoomMember(room.id, user.id)))) return apiError(404, "Ruang tidak ditemukan.");
 
   const parsed = sendSchema.safeParse(await readJsonBody(req, 32 * 1024));
   if (!parsed.success) return apiError(400, "Data pesan tidak valid.");

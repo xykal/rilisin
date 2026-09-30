@@ -572,6 +572,11 @@ const rina = user; // user@rilisin.test (Rina)
   ok(gabung.res.status === 303 && (gabung.res.headers.get("location") ?? "").endsWith(`/komunitas/${gslug}`), "Invite link: gabung otomatis (redirect ke ruang)");
   const dalam = await penjual.html(`/komunitas/${gslug}`);
   ok(dalam.text.includes("Grup Rahasia Uji") && dalam.text.includes("chat-shell"), "Anggota via invite bisa buka ruang");
+  const staf = new Session();
+  await staf.login("admin@rilisin.test");
+  const intip = await staf.html(`/komunitas/${gslug}`);
+  const intipApi = await staf.api(`/api/chat/rooms/${gslug}/messages`);
+  ok(intip.text.includes("Ini grup privat") && intipApi.status === 404, "Privasi penuh: staf pun tidak bisa intip grup privat");
   const daftarTamu = await guest.html("/komunitas");
   ok(!daftarTamu.text.includes("Grup Rahasia Uji"), "Grup privat sembunyi dari daftar publik");
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ChatApp } from "@/components/chat/chat-app";
-import { getCurrentUser, isStaff } from "@/lib/auth/current-user";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { viewerDTO } from "@/lib/chat/page-data";
 import { pageOg } from "@/lib/og";
 import {
@@ -50,8 +50,9 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/kom
   }
 
   const member = user ? await isRoomMember(room.id, user.id) : false;
-  const staff = isStaff(user);
-  if (room.isPrivate && !member && !staff) {
+  // Privasi penuh: grup privat HANYA untuk anggota — staf pun tidak bisa intip.
+  // Moderasi mengandalkan laporan anggota (moderator melihat pesan yang dilaporkan saja).
+  if (room.isPrivate && !member) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <p className="text-5xl">🔒</p>
@@ -87,33 +88,13 @@ export default async function RoomPage({ params, searchParams }: PageProps<"/kom
     viewerId ? getActiveMute(viewerId, room.id) : Promise.resolve(null),
   ]);
 
-  // Staf (moderasi) bisa buka grup privat via link walau bukan anggota — suntik ke daftar lokal.
-  const allRooms = rooms.some((r) => r.id === room.id)
-    ? rooms
-    : [
-        ...rooms,
-        {
-          id: room.id,
-          slug: room.slug,
-          name: room.name,
-          emoji: room.emoji,
-          description: room.description,
-          kind: room.kind,
-          slowModeSec: room.slowModeSec,
-          pinnedMessageId: room.pinnedMessageId,
-          isPrivate: room.isPrivate,
-          lastMessage: null,
-          unread: null,
-        },
-      ];
-
   return (
     <ChatApp
-      rooms={allRooms}
+      rooms={rooms}
       activeSlug={room.slug}
       viewer={viewerDTO(user)}
       memberCount={memberCount}
-      inviteCode={member || staff ? (room.inviteCode ?? null) : null}
+      inviteCode={member ? (room.inviteCode ?? null) : null}
       initial={{ messages: page.messages, hasMore: page.hasMore, pinned: pinned?.deleted ? null : pinned, lastReadSeq, mute }}
     />
   );
