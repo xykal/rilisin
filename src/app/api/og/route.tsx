@@ -47,7 +47,7 @@ export async function GET(req: Request) {
           </div>
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: 2 }}>{SITE.name.toUpperCase()}</div>
         </div>
-        <div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: title.length > 48 ? 56 : 68, fontWeight: 800, lineHeight: 1.15 }}>{title}</div>
           {subtitle ? <div style={{ marginTop: 20, fontSize: 30, opacity: 0.85, lineHeight: 1.35 }}>{subtitle}</div> : null}
         </div>
