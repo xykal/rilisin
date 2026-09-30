@@ -641,7 +641,7 @@ function RoomView({
             <Pin className="h-4 w-4 shrink-0 rotate-45 text-brand-600" />
             <span className="min-w-0">
               <span className="block text-[11.5px] font-bold text-brand-700">Pesan tersemat</span>
-              <span className="block truncate text-[13px] text-slate-700">{r.pinned.body ? snippet(r.pinned.body, 120) : r.pinned.image ? "📷 Foto" : r.pinned.audio ? "🎤 Pesan suara" : "Pesan"}</span>
+              <span className="block truncate text-[13px] text-slate-700">{r.pinned.body ? snippet(r.pinned.body, 120) : r.pinned.image ? "📷 Foto" : r.pinned.audio ? "🎤 Pesan suara" : r.pinned.sticker ? "✨ Stiker" : "Pesan"}</span>
             </span>
           </button>
         )}
@@ -790,6 +790,10 @@ function RoomView({
             if (ok && viewer)
               onOwnMessage(room.id, attachmentPreview(body, image ? "image" : audio ? "audio" : null), new Date().toISOString(), viewer.displayName);
             return ok;
+          }}
+          onPickSticker={async (key) => {
+            const ok = await r.sendSticker(key);
+            if (ok && viewer) onOwnMessage(room.id, "✨ Stiker", new Date().toISOString(), viewer.displayName);
           }}
           onEdit={async (id, body) => {
             const ok = await r.edit(id, body);

@@ -482,6 +482,7 @@ export const chatMessages = pgTable(
     imageH: integer("image_h"),
     audioKey: text("audio_key"),
     audioSecs: integer("audio_secs"),
+    stickerKey: text("sticker_key"),
     createdAt: createdAt(),
     /** Naik setiap ada perubahan (edit, hapus, reaksi) — dipakai sinkronisasi realtime. */
     updatedAt: tsz("updated_at").notNull().defaultNow(),

@@ -700,6 +700,10 @@ const rina = user; // user@rilisin.test (Rina)
   ok(withVoice.status === 201 && withVoice.data.message.audio?.url === voice.url, "Kirim pesan suara tanpa teks");
   const fakeVoice = await seller.req("/api/chat/uploads", { method: "POST", headers: { "content-type": "audio/webm", "x-audio-secs": "3" }, body: Buffer.from("bukan audio") });
   ok(fakeVoice.status === 415, "File bukan audio ditolak (cek magic bytes)");
+  const withSticker = await seller.say("nongkrong", "", { stickerKey: "kancil/halo" });
+  ok(withSticker.status === 201 && withSticker.data.message.sticker?.url === "/stickers/kancil/halo.png", "Kirim stiker Si Kancil");
+  const badSticker = await seller.say("nongkrong", "", { stickerKey: "kancil/ngawur" });
+  ok(badSticker.status === 400, "Stiker tidak dikenal ditolak");
 
   // Laporan → otomatis tersembunyi setelah 3 pelapor
   const andi = new Session();

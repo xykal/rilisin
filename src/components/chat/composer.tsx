@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, ImagePlus, Loader2, Lock, LogIn, Mic, MicOff, Pencil, Reply, SendHorizontal, X } from "lucide-react";
+import { Check, ImagePlus, Loader2, Lock, LogIn, Mic, MicOff, Pencil, Reply, SendHorizontal, Sticker, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CHAT_LIMITS, snippet } from "@/lib/chat/shared";
 import { cn } from "../ui";
 import type { LocalMessage } from "./message-bubble";
 import { nameColor, useMediaQuery } from "./utils";
+import { StickerPicker } from "./sticker-picker";
 import { VoicePlayer } from "./voice-player";
 import { canRecordVoice, VoiceRecorder, type PendingAudio } from "./voice-recorder";
 
@@ -22,6 +23,7 @@ type Props = {
   onCancelReply: () => void;
   onCancelEdit: () => void;
   onSend: (body: string, image: PendingImage | null, audio: PendingAudio | null) => Promise<boolean>;
+  onPickSticker: (key: string) => Promise<void>;
   onEdit: (id: string, body: string) => Promise<boolean>;
   onTyping: () => void;
   onError: (msg: string) => void;
@@ -32,6 +34,7 @@ export function Composer(p: Props) {
   const [image, setImage] = useState<PendingImage | null>(null);
   const [voice, setVoice] = useState<PendingAudio | null>(null);
   const [recording, setRecording] = useState(false);
+  const [showStickers, setShowStickers] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -177,7 +180,7 @@ export function Composer(p: Props) {
             <p className="text-[12.5px] font-bold" style={{ color: p.editing ? "#4b34d9" : nameColor(banner.author.id) }}>
               {p.editing ? "Edit pesan" : `Membalas ${banner.author.id === p.viewerId ? "diri sendiri" : banner.author.displayName}`}
             </p>
-            <p className="truncate text-[13px] text-slate-600">{banner.body ? snippet(banner.body, 100) : banner.image ? "📷 Foto" : banner.audio ? "🎤 Pesan suara" : ""}</p>
+            <p className="truncate text-[13px] text-slate-600">{banner.body ? snippet(banner.body, 100) : banner.image ? "📷 Foto" : banner.audio ? "🎤 Pesan suara" : banner.sticker ? "✨ Stiker" : ""}</p>
           </div>
           <button
             type="button"
@@ -229,6 +232,14 @@ export function Composer(p: Props) {
           </button>
         </div>
       )}
+      {showStickers && !p.editing && (
+        <StickerPicker
+          onPick={(key) => {
+            setShowStickers(false);
+            void p.onPickSticker(key);
+          }}
+        />
+      )}
       <div className="flex items-end gap-1.5">
         {!p.editing && (
           <>
@@ -263,6 +274,16 @@ export function Composer(p: Props) {
                 <Mic className="h-[22px] w-[22px]" />
               </button>
             )}
+            <button
+              type="button"
+              aria-label="Kirim stiker"
+              aria-expanded={showStickers}
+              disabled={recording}
+              onClick={() => setShowStickers((s) => !s)}
+              className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-600 disabled:opacity-40"
+            >
+              <Sticker className="h-[22px] w-[22px]" />
+            </button>
           </>
         )}
         <div className={cn("flex min-w-0 flex-1 items-end rounded-[22px] border bg-white transition-colors", tooLong ? "border-red-300" : "border-slate-200 focus-within:border-brand-300")}>

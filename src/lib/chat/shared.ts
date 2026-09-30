@@ -110,6 +110,7 @@ export type ChatMessageDTO = {
   body: string;
   image: { url: string; w: number; h: number } | null;
   audio: { url: string; secs: number } | null;
+  sticker: { url: string; label: string } | null;
   replyTo: {
     id: string;
     authorId: string;
@@ -117,6 +118,7 @@ export type ChatMessageDTO = {
     body: string;
     hasImage: boolean;
     hasAudio: boolean;
+    hasSticker: boolean;
     unavailable: boolean;
   } | null;
   reactions: ChatReactionDTO[];
@@ -195,8 +197,9 @@ export function snippet(body: string, max = 90) {
 }
 
 /** Pratinjau pesan berlampiran — satu-satunya tempat label 📷/🎤 hidup (daftar ruang, SSE, notif, optimistik). */
-export function attachmentPreview(body: string, kind: "image" | "audio" | null): string {
+export function attachmentPreview(body: string, kind: "image" | "audio" | "sticker" | null): string {
   if (kind === "image") return body ? `📷 ${snippet(body, 60)}` : "📷 Foto";
   if (kind === "audio") return body ? `🎤 ${snippet(body, 60)}` : "🎤 Pesan suara";
+  if (kind === "sticker") return body ? `✨ ${snippet(body, 60)}` : "✨ Stiker";
   return snippet(body, 70);
 }

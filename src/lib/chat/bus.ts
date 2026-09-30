@@ -84,7 +84,7 @@ class ChatBus {
     if (!message) return;
     this.emit(roomHandlers, { type: "msg", message, created: s.c === 1 });
     if (wantsActivity) {
-      const preview = attachmentPreview(message.body, message.image ? "image" : message.audio ? "audio" : null);
+      const preview = attachmentPreview(message.body, message.image ? "image" : message.audio ? "audio" : message.sticker ? "sticker" : null);
       this.emit(this.everywhere, {
         type: "activity",
         activity: {
