@@ -26,13 +26,20 @@ export default async function MembersPage({ searchParams }: PageProps<"/admin/an
   const query = typeof q === "string" ? q.trim().slice(0, 60) : "";
   // Escape wildcard LIKE (jangan strip — username boleh mengandung _ dan %).
   const like = `%${query.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
-  const match = (col: typeof users.username) => sql`${col} ILIKE ${like} ESCAPE '\\'`;
 
   const [list, audit] = await Promise.all([
     db
       .select({ id: users.id, username: users.username, displayName: users.displayName, email: users.email, role: users.role, createdAt: users.createdAt })
       .from(users)
-      .where(query ? or(match(users.username), match(users.email), match(users.displayName)) : undefined)
+      .where(
+        query
+          ? or(
+              sql`${users.username} ILIKE ${like} ESCAPE '\\'`,
+              sql`${users.email} ILIKE ${like} ESCAPE '\\'`,
+              sql`${users.displayName} ILIKE ${like} ESCAPE '\\'`,
+            )
+          : undefined,
+      )
       .orderBy(desc(users.createdAt))
       .limit(30),
     db
