@@ -86,12 +86,16 @@ export function proxy(request: NextRequest) {
     `img-src 'self' blob: data:${blob ? " https://*.public.blob.vercel-storage.com" : ""}${cloudinary ? " https://res.cloudinary.com" : ""}${pushCdn}`,
     "font-src 'self'",
     `connect-src 'self'${blob ? " https://vercel.com" : ""}${cf}${pushApi}`,
-    "media-src 'self'",
+    // Voice note: preview pakai blob: URL, file terkirim dari Cloudinary/blob publik.
+    // media-src 'self' saja = SEMUA audio diblokir (preview muter loading, bubble abu-abu).
+    `media-src 'self' blob:${blob ? " https://*.public.blob.vercel-storage.com" : ""}${cloudinary ? " https://res.cloudinary.com" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     `form-action 'self'${blob ? " https://*.private.blob.vercel-storage.com" : ""}`,
     `frame-ancestors ${frameAncestors}`,
-    cf ? `frame-src${cf}` : "frame-src 'none'",
+    // vercel.live: toolbar feedback Vercel (hanya terlihat tim internal) — tanpa ini console merah tiap load.
+    // Urutan: Cloudflare dulu (smoke test mencocokkan prefix persis "frame-src https://challenges...").
+    `frame-src${cf} https://vercel.live`,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
   ].join("; ");
