@@ -94,10 +94,20 @@ export function VoiceRecorder({
           setSecs(s);
           if (s >= CHAT_LIMITS.audioMaxSecs && recRef.current?.state === "recording") recRef.current.stop();
         }, 500);
-      } catch {
+      } catch (err) {
         if (!alive) return;
         cbRef.current.onActive?.(false);
-        cbRef.current.onError("Izin mikrofon ditolak — nyalakan dulu di pengaturan browser.");
+        const name = err instanceof DOMException ? err.name : "";
+        console.error("[voice] getUserMedia gagal:", name || err);
+        const msg =
+          name === "NotFoundError" || name === "OverconstrainedError"
+            ? "Tidak ada mikrofon terdeteksi di perangkat ini."
+            : name === "NotReadableError"
+              ? "Mikrofon sedang dipakai aplikasi lain — tutup aplikasi itu lalu coba lagi."
+              : name === "SecurityError"
+                ? "Browser memblokir mic di konteks ini — buka di window normal, bukan embed."
+                : "Izin mikrofon ditolak — klik ikon gembok di address bar → Microphone → Allow, lalu muat ulang halaman.";
+        cbRef.current.onError(msg);
         cbRef.current.onCancel();
       }
     })();

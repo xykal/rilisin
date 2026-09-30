@@ -34,6 +34,11 @@ export function Composer(p: Props) {
   const [image, setImage] = useState<PendingImage | null>(null);
   const [voice, setVoice] = useState<PendingAudio | null>(null);
   const [recording, setRecording] = useState(false);
+  // Gerbang hidrasi: kemampuan mic (navigator) TIDAK ADA saat render server. Tanpa ini tombol mic
+  // hanya muncul di klien → React error #418 (hydration mismatch) di tiap halaman chat.
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- tandai klien sudah terhidrasi
+  useEffect(() => { setMounted(true); }, []);
   const [recActive, setRecActive] = useState(false);
 
   // Selama rekaman BERJALAN → ping "merekam…" tiap 2 dtk (server rate-limit 1/2,5 dtk).
@@ -274,7 +279,7 @@ export function Composer(p: Props) {
             >
               <ImagePlus className="h-[22px] w-[22px]" />
             </button>
-            {canRecordVoice() && (
+            {mounted && canRecordVoice() && (
               <button
                 type="button"
                 aria-label="Rekam pesan suara"

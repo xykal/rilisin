@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
@@ -236,11 +237,12 @@ export async function getMessageDTO(id: string) {
 }
 
 // ─── Ruang ───────────────────────────────────────────────────────────────────
-export async function getRoomBySlug(slug: string) {
+// React.cache: halaman room memanggil ini 2x per request (metadata + render) — cukup 1 query.
+export const getRoomBySlug = cache(async (slug: string) => {
   if (!/^[a-z0-9-]{1,40}$/.test(slug)) return null;
   const [room] = await db.select().from(chatRooms).where(eq(chatRooms.slug, slug)).limit(1);
   return room ?? null;
-}
+});
 
 function previewOf(r: { body: string | null; image: string | null; audio: string | null; sticker: string | null; deleted: Date | null; hidden: Date | null }) {
   if (r.deleted) return "🚫 Pesan dihapus";

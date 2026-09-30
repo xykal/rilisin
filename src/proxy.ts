@@ -91,7 +91,8 @@ export function proxy(request: NextRequest) {
     "base-uri 'self'",
     `form-action 'self'${blob ? " https://*.private.blob.vercel-storage.com" : ""}`,
     `frame-ancestors ${frameAncestors}`,
-    cf ? `frame-src${cf}` : "frame-src 'none'",
+    // vercel.live: toolbar feedback Vercel (hanya terlihat tim internal) — tanpa ini console merah tiap load.
+    `frame-src https://vercel.live${cf}`,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
   ].join("; ");
