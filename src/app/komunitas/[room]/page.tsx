@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { ChatApp } from "@/components/chat/chat-app";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { viewerDTO } from "@/lib/chat/page-data";
-import {
 import { pageOg } from "@/lib/og";
+import {
   countMembers,
   getActiveMute,
   getMessageDTO,
