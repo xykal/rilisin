@@ -22,9 +22,9 @@
 }
 
 /*
- * Chat komunitas layar penuh (desktop/tablet): halaman = banner + header + chat yang mengisi SISA tinggi layar,
- * tanpa scroll halaman & tanpa kartu. Pakai flex (bukan angka tinggi header) supaya tetap pas walau banner turun 2 baris.
- * Di luar CSS layer sengaja: menang atas utility cadangan h-[calc(...)] di .chat-shell.
+ * Chat komunitas fullscreen ala WA (desktop/tablet): banner + header situs disembunyikan di rute chat,
+ * chat mengisi SELURUH viewport tanpa scroll halaman & tanpa kartu. Pakai flex supaya tetap pas apa pun isi halaman.
+ * Di luar CSS layer sengaja: menang atas utility cadangan h-dvh di .chat-shell.
  */
 @media (min-width: 48rem) and (min-height: 35rem) {
   body:has(.chat-shell) {
@@ -40,6 +40,14 @@
   body:has(.chat-shell) .chat-shell {
     height: 100%;
   }
+}
+
+/* Skala tampilan pilihan user (cookie ui-scale): rem di seluruh UI ikut membesar/mengecil. */
+html[data-uiscale="kecil"] {
+  font-size: 15px;
+}
+html[data-uiscale="besar"] {
+  font-size: 18px;
 }
 
 @theme {
@@ -239,6 +247,9 @@ details > summary::-webkit-details-marker {
 .chat-bubble-mine .chat-quote { background: rgba(75, 52, 217, 0.08); }
 .chat-image { position: relative; display: block; margin: 0 -5px 4px -6px; overflow: hidden; border-radius: 13px; }
 .chat-image img { display: block; width: 100%; max-width: 300px; min-width: 180px; max-height: 340px; object-fit: cover; -webkit-user-drag: none; }
+.chat-voice { position: relative; display: block; margin: 2px 0 4px; }
+.chat-sticker { position: relative; display: block; margin: 2px 0 4px; }
+.chat-sticker img { display: block; width: 128px; height: 128px; border-radius: 18px; background: #fff; box-shadow: 0 2px 8px rgba(15, 18, 34, 0.12); -webkit-user-drag: none; }
 .chat-link { color: #2f6fdd; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
 .chat-mention { color: var(--color-brand-700); font-weight: 600; }
 .chat-code { font-family: var(--font-mono); font-size: 0.86em; background: rgba(15, 18, 34, 0.07); border-radius: 5px; padding: 1px 5px; }

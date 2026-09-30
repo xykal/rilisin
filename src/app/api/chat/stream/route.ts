@@ -1,7 +1,7 @@
 import { apiError, guardRead } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { chatBus, type BusEvent } from "@/lib/chat/bus";
-import { getRoomBySlug } from "@/lib/chat/server";
+import { getRoomBySlug, isRoomMember } from "@/lib/chat/server";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,8 @@ export async function GET(req: Request) {
 
   const room = await getRoomBySlug(new URL(req.url).searchParams.get("room") ?? "");
   if (!room) return apiError(404, "Ruang tidak ditemukan.");
+  // Grup privat: hanya anggota (privasi penuh — staf moderasi mengandalkan laporan). 404 supaya tidak bocor.
+  if (room.isPrivate && (!user || !(await isRoomMember(room.id, user.id)))) return apiError(404, "Ruang tidak ditemukan.");
 
   const bus = chatBus();
   try {

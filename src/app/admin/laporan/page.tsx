@@ -9,6 +9,7 @@ import {
   muteAuthorFromReportAction,
   restoreReportedMessageAction,
 } from "@/app/actions/moderation";
+import { Picker } from "@/components/picker";
 import { SubmitButton } from "@/components/submit-button";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/guards";
@@ -163,13 +164,13 @@ export default async function ReportsPage() {
                   {now && now.authorRole === "user" && (
                     <form action={muteAuthorFromReportAction} className="flex gap-2">
                       <input type="hidden" name="messageId" value={g.target_id} />
-                      <select name="minutes" className="flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm" defaultValue={String(24 * 60)} aria-label="Durasi bisu">
-                        {MUTE_OPTIONS.map((o) => (
-                          <option key={o.minutes} value={o.minutes}>
-                            Bisukan {o.label}
-                          </option>
-                        ))}
-                      </select>
+                      <Picker
+                        name="minutes"
+                        defaultValue={String(24 * 60)}
+                        ariaLabel="Durasi bisu"
+                        className="flex-1"
+                        options={MUTE_OPTIONS.map((o) => ({ value: String(o.minutes), label: `Bisukan ${o.label}` }))}
+                      />
                       <SubmitButton variant="secondary" pendingText="…">
                         <VolumeX className="h-4 w-4" /> Bisukan
                       </SubmitButton>

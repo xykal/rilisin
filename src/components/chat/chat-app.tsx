@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Copy,
   Flag,
+  Home,
   Info,
   Lightbulb,
   Lock,
@@ -13,8 +14,10 @@ import {
   Pencil,
   Pin,
   PinOff,
+  Plus,
   Reply,
   Search,
+  Share2,
   ShieldCheck,
   Timer,
   Trash2,
@@ -28,6 +31,7 @@ import {
   canDeleteForEveryone,
   canEdit,
   isStaffRole,
+  attachmentPreview,
   snippet,
   type ChatActivity,
   type ChatMessageDTO,
@@ -61,12 +65,15 @@ export function ChatApp({
   viewer,
   initial,
   memberCount,
+  inviteCode = null,
 }: {
   rooms: ChatRoomDTO[];
   activeSlug: string | null;
   viewer: ChatViewerDTO | null;
   initial: RoomInitial | null;
   memberCount: number;
+  /** Kode invite grup privat (hanya untuk anggota/staf) — dipakai tombol bagikan. */
+  inviteCode?: string | null;
 }) {
   const tz = useDeviceTz();
   const [rooms, setRooms] = useState(initialRooms);
@@ -113,10 +120,11 @@ export function ChatApp({
   return (
     <TzContext.Provider value={tz}>
       {/*
-        Layar penuh tanpa kartu (desktop/tablet): mengisi sisa layar di bawah header dari tepi ke tepi.
-        Tinggi diatur globals.css (body:has(.chat-shell) → flex column); calc di bawah hanya cadangan browser tanpa :has().
+        Fullscreen ala WA (desktop/tablet): banner + header situs disembunyikan di rute chat (layout),
+        chat mengisi seluruh viewport dari tepi ke tepi. Tinggi diatur globals.css (body:has(.chat-shell)
+        → flex column); h-dvh di bawah hanya cadangan browser tanpa :has().
       */}
-      <div className="chat-shell chat-wide:h-[calc(100dvh-6.0625rem)]">
+      <div className="chat-shell chat-wide:h-dvh">
         <div className="chat-wide:grid chat-wide:h-full chat-wide:grid-cols-[320px_minmax(0,1fr)] chat-wide:overflow-hidden chat-wide:bg-white chat-wide-lg:grid-cols-[360px_minmax(0,1fr)] min-[1600px]:grid-cols-[400px_minmax(0,1fr)]">
           <aside className={cn("flex min-h-0 flex-col bg-white chat-wide:border-r chat-wide:border-slate-200/80", room && "chat-narrow:hidden")}>
             <RoomList rooms={rooms} activeSlug={activeSlug} viewer={viewer} memberCount={memberCount} />
@@ -133,6 +141,7 @@ export function ChatApp({
                 key={room.slug}
                 room={room}
                 viewer={viewer}
+                inviteCode={inviteCode}
                 initial={initial}
                 memberCount={memberCount}
                 onActivity={onActivity}
@@ -187,12 +196,25 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
     <>
       <div className="px-4 pb-3 pt-5 chat-wide:pt-4">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink">Komunitas</h1>
+          <div className="flex items-center gap-1">
+            <Link href="/" aria-label="Ke beranda Rilisin" title="Ke beranda Rilisin" className="rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-brand-700">
+              <Home className="h-5 w-5" />
+            </Link>
+            <h1 className="text-2xl font-extrabold tracking-tight text-ink">Komunitas</h1>
+          </div>
           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
             <Users className="h-3.5 w-3.5" /> {memberCount.toLocaleString("id-ID")} anggota
           </span>
         </div>
         <p className="mt-1 text-sm text-slate-500">Ngobrol, tanya-jawab, dan pamer karya bareng kreator Indonesia.</p>
+        {viewer && (
+          <Link
+            href="/komunitas/baru"
+            className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 py-2 text-sm font-bold text-slate-600 hover:border-violet-400 hover:text-violet-700"
+          >
+            <Plus className="h-4 w-4" /> Buat grup
+          </Link>
+        )}
         <label className="relative mt-3 block">
           <span className="sr-only">Cari ruang</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -223,6 +245,7 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
                     <span className="flex min-w-0 items-center gap-1.5">
                       <span className={cn("truncate text-[15px] font-bold", active ? "text-brand-800" : "text-ink")}>{r.name}</span>
                       {r.kind === "announcement" && <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label="Hanya admin yang bisa kirim" />}
+                      {r.isPrivate && <Lock className="h-3.5 w-3.5 shrink-0 text-violet-500" aria-label="Grup privat" />}
                     </span>
                     {r.lastMessage && (
                       <span className={cn("shrink-0 text-[11.5px]", r.unread ? "font-bold text-brand-600" : "text-slate-400")}>
@@ -301,6 +324,7 @@ type SheetState =
 function RoomView({
   room,
   viewer,
+  inviteCode,
   initial,
   memberCount,
   onActivity,
@@ -309,6 +333,7 @@ function RoomView({
 }: {
   room: ChatRoomDTO;
   viewer: ChatViewerDTO | null;
+  inviteCode: string | null | undefined;
   initial: RoomInitial;
   memberCount: number;
   onActivity: (a: ChatActivity) => void;
@@ -590,6 +615,18 @@ function RoomView({
             className={cn("h-2.5 w-2.5 shrink-0 rounded-full", r.status === "live" ? "bg-emerald-500" : r.status === "guest" ? "bg-slate-300" : "animate-pulse bg-amber-400")}
             title={r.status === "live" ? "Tersambung realtime" : r.status === "guest" ? "Mode baca" : "Menyambungkan…"}
           />
+          <button
+            type="button"
+            onClick={async () => {
+              const url = `${window.location.origin}/komunitas/${room.slug}${room.isPrivate && inviteCode ? `?invite=${inviteCode}` : ""}`;
+              showToast((await copyText(url)) ? "Link grup tersalin — bagikan ke temanmu" : "Gagal menyalin link");
+            }}
+            className="rounded-full p-2 text-slate-600 hover:bg-slate-100"
+            aria-label="Bagikan grup"
+            title="Salin link grup"
+          >
+            <Share2 className="h-5 w-5" />
+          </button>
           <button type="button" onClick={() => setSheet({ kind: "info" })} className="rounded-full p-2 text-slate-600 hover:bg-slate-100" aria-label="Info ruang">
             <Info className="h-5 w-5" />
           </button>
@@ -604,7 +641,7 @@ function RoomView({
             <Pin className="h-4 w-4 shrink-0 rotate-45 text-brand-600" />
             <span className="min-w-0">
               <span className="block text-[11.5px] font-bold text-brand-700">Pesan tersemat</span>
-              <span className="block truncate text-[13px] text-slate-700">{r.pinned.body ? snippet(r.pinned.body, 120) : r.pinned.image ? "📷 Foto" : "Pesan"}</span>
+              <span className="block truncate text-[13px] text-slate-700">{r.pinned.body ? snippet(r.pinned.body, 120) : r.pinned.image ? "📷 Foto" : r.pinned.audio ? "🎤 Pesan suara" : r.pinned.sticker ? "✨ Stiker" : "Pesan"}</span>
             </span>
           </button>
         )}
@@ -746,12 +783,17 @@ function RoomView({
           onCancelEdit={() => setEditing(null)}
           onTyping={r.sendTyping}
           onError={showToast}
-          onSend={async (body, image) => {
+          onSend={async (body, image, audio) => {
             const target = replyTo;
             setReplyTo(null);
-            const ok = await r.send(body, target, image);
-            if (ok && viewer) onOwnMessage(room.id, image ? (body.trim() ? `📷 ${snippet(body, 60)}` : "📷 Foto") : snippet(body, 70), new Date().toISOString(), viewer.displayName);
+            const ok = await r.send(body, target, image, audio);
+            if (ok && viewer)
+              onOwnMessage(room.id, attachmentPreview(body, image ? "image" : audio ? "audio" : null), new Date().toISOString(), viewer.displayName);
             return ok;
+          }}
+          onPickSticker={async (key) => {
+            const ok = await r.sendSticker(key);
+            if (ok && viewer) onOwnMessage(room.id, "✨ Stiker", new Date().toISOString(), viewer.displayName);
           }}
           onEdit={async (id, body) => {
             const ok = await r.edit(id, body);
@@ -855,6 +897,27 @@ function RoomView({
                     <p className="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5 text-slate-700">
                       <Lock className="h-4 w-4 text-slate-500" /> Hanya admin &amp; moderator yang bisa mengirim pesan
                     </p>
+                  )}
+                  {room.isPrivate && (
+                    <p className="flex items-center gap-2.5 rounded-xl bg-violet-50 px-3 py-2.5 text-violet-900">
+                      <Lock className="h-4 w-4 shrink-0" /> Grup privat — gabung hanya via link undangan
+                    </p>
+                  )}
+                  {room.isPrivate && inviteCode && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const url = `${window.location.origin}/komunitas/${room.slug}?invite=${inviteCode}`;
+                        showToast((await copyText(url)) ? "Link undangan tersalin" : "Gagal menyalin link");
+                      }}
+                      className="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5 text-left text-slate-700 hover:bg-slate-100"
+                    >
+                      <Copy className="h-4 w-4 shrink-0 text-slate-500" />
+                      <span className="min-w-0">
+                        <span className="block text-xs text-slate-500">Link undangan (ketuk untuk salin)</span>
+                        <span className="block truncate font-mono text-xs">…/komunitas/{room.slug}?invite={inviteCode.slice(0, 6)}…</span>
+                      </span>
+                    </button>
                   )}
                   {room.slowModeSec > 0 && (
                     <p className="flex items-center gap-2.5 rounded-xl bg-amber-50 px-3 py-2.5 text-amber-900">

@@ -149,6 +149,29 @@ export const recoveryCodes = pgTable(
   (t) => [index("recovery_codes_user_idx").on(t.userId)],
 );
 
+/**
+ * API key buat integrasi/AI agent. Hanya hash SHA-256 yang disimpan (plaintext ditampilkan sekali saat dibuat).
+ * Format: rsk_<32 base64url>. Scope: seller:read, seller:write, admin:read.
+ */
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    keyHash: text("key_hash").notNull().unique(),
+    prefix: text("prefix").notNull(),
+    scopes: text("scopes").array().notNull(),
+    lastUsedAt: tsz("last_used_at"),
+    expiresAt: tsz("expires_at"),
+    revokedAt: tsz("revoked_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("api_keys_user_idx").on(t.userId)],
+);
+
 /** Tantangan login 2FA: password sudah benar, tinggal verifikasi kode. `id` = SHA-256 token cookie. */
 export const authChallenges = pgTable("auth_challenges", {
   id: text("id").primaryKey(),
@@ -414,8 +437,29 @@ export const chatRooms = pgTable("chat_rooms", {
   slowModeSec: integer("slow_mode_sec").notNull().default(0),
   pinnedMessageId: uuid("pinned_message_id"),
   lastMessageAt: tsz("last_message_at"),
+  /** Grup privat: sembunyi dari daftar publik, gabung hanya via link invite. */
+  isPrivate: boolean("is_private").notNull().default(false),
+  /** Kode undangan unik (grup privat). Null = ruang publik/bawaan. */
+  inviteCode: text("invite_code").unique(),
+  /** Pembuat grup (null = ruang bawaan sistem). */
+  ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 });
+
+/** Anggota grup — wajib untuk baca/kirim di grup privat. */
+export const chatMembers = pgTable(
+  "chat_members",
+  {
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => chatRooms.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    joinedAt: tsz("joined_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.roomId, t.userId] })],
+);
 
 export const chatMessages = pgTable(
   "chat_messages",
@@ -436,6 +480,9 @@ export const chatMessages = pgTable(
     imageKey: text("image_key"),
     imageW: integer("image_w"),
     imageH: integer("image_h"),
+    audioKey: text("audio_key"),
+    audioSecs: integer("audio_secs"),
+    stickerKey: text("sticker_key"),
     createdAt: createdAt(),
     /** Naik setiap ada perubahan (edit, hapus, reaksi) — dipakai sinkronisasi realtime. */
     updatedAt: tsz("updated_at").notNull().defaultNow(),
@@ -545,6 +592,9 @@ export const chatUploads = pgTable(
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
+    /** image | audio — audio memakai width/height 0 + durationSecs. */
+    kind: text("kind").notNull().default("image"),
+    durationSecs: integer("duration_secs"),
     usedAt: tsz("used_at"),
     createdAt: createdAt(),
   },

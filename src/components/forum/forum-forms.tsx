@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { createThreadAction, replyAction, updateReplyAction, updateThreadAction } from "@/app/actions/forum";
 import { FORUM_LIMITS } from "@/lib/community/shared";
 import { Honeypot } from "../auth-forms";
+import { Picker } from "../picker";
 import { SubmitButton } from "../submit-button";
 import { Alert, Field, cn, inputStyles } from "../ui";
 
@@ -50,17 +51,17 @@ export function ThreadForm({
 
       {mode === "create" && (
         <Field label="Kategori" htmlFor="categoryId" error={fe.categoryId}>
-          <select id="categoryId" name="categoryId" required defaultValue={state?.values?.categoryId || defaultCategoryId || ""} className={inputStyles}>
-            <option value="" disabled>
-              Pilih kategori…
-            </option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id} disabled={c.disabled}>
-                {c.emoji} {c.name}
-                {c.disabled ? " (khusus tim)" : ""}
-              </option>
-            ))}
-          </select>
+          <Picker
+            id="categoryId"
+            name="categoryId"
+            defaultValue={state?.values?.categoryId || defaultCategoryId || ""}
+            placeholder="Pilih kategori…"
+            options={categories.map((c) => ({
+              value: c.id,
+              label: `${c.emoji} ${c.name}${c.disabled ? " (khusus tim)" : ""}`,
+              disabled: c.disabled,
+            }))}
+          />
         </Field>
       )}
 

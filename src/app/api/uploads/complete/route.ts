@@ -1,12 +1,16 @@
 import { revalidatePath } from "next/cache";
+import { authBearer } from "@/lib/api-keys";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { isSameOrigin } from "@/lib/http";
 import { UploadError, completeUpload } from "@/lib/uploads";
 
 export async function POST(req: Request) {
-  if (!isSameOrigin(req)) return Response.json({ error: "Origin tidak diizinkan" }, { status: 403 });
-  const user = await getCurrentUser();
+  // Dual-auth: session browser (wajib same-origin) ATAU API key seller:write (AI agent, tanpa origin).
+  const via = await authBearer(req);
+  if (!via && !isSameOrigin(req)) return Response.json({ error: "Origin tidak diizinkan" }, { status: 403 });
+  const user = via?.user ?? (await getCurrentUser());
   if (!user) return Response.json({ error: "Silakan masuk dulu" }, { status: 401 });
+  if (via && !via.scopes.includes("seller:write")) return Response.json({ error: "API key butuh scope seller:write." }, { status: 403 });
 
   let token = "";
   try {

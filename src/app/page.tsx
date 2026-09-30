@@ -10,15 +10,26 @@ import {
   Smartphone,
   Wallet,
 } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PriceTag, ProductIcon } from "@/components/bits";
 import { CategoryIcon } from "@/components/icons";
 import { ProductGrid } from "@/components/product-card";
 import { ButtonLink, SectionHeading } from "@/components/ui";
-import { CATEGORIES } from "@/lib/config";
+import { CATEGORIES, SITE } from "@/lib/config";
 import { formatCompact } from "@/lib/format";
 import { getRoomsForViewer } from "@/lib/chat/server";
+import { pageOg } from "@/lib/og";
 import { getHomeData } from "@/lib/queries";
+
+const HOME_TITLE = `${SITE.name} — ${SITE.tagline}`;
+
+export const metadata: Metadata = {
+  // absolute: jangan kena template "%s · Rilisin" (judulnya sudah lengkap).
+  title: { absolute: HOME_TITLE },
+  description: SITE.description,
+  ...pageOg(HOME_TITLE, SITE.description, "/"),
+};
 
 export default async function HomePage() {
   const [{ trending, newest, featured, stats }, rooms] = await Promise.all([getHomeData(), getRoomsForViewer(null)]);

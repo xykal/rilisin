@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { loginAction, registerAction } from "@/app/actions/auth";
 import { SubmitButton } from "./submit-button";
+import { NameCheckInput } from "./name-check-input";
 import { PasswordInput } from "./password-input";
 import { TurnstileWidget } from "./turnstile-widget";
 import { Alert, Field, inputStyles } from "./ui";

@@ -24,6 +24,7 @@ const GUIDES: { href: string; label: string; text: string; icon: LucideIcon }[] 
     text: "Aturan verifikasi developer 2026 & cara instal aman",
     icon: Smartphone,
   },
+  { href: "/panduan/api", label: "API untuk AI agent", text: "Key, scope & endpoint v1 buat integrasi", icon: KeyRound },
   { href: "/keamanan", label: "Pusat Keamanan", text: "Cara kami melindungi akun, file, dan komunitas", icon: ShieldCheck },
   { href: "/komunitas/aturan", label: "Aturan Komunitas", text: "Etika ngobrol, moderasi, dan cara melapor", icon: ScrollText },
   { href: "/seller", label: "Mulai rilis karya", text: "Upload gratis — bagikan atau jual karyamu", icon: Rocket },

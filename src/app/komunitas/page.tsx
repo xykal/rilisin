@@ -3,10 +3,14 @@ import { ChatApp } from "@/components/chat/chat-app";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { viewerDTO } from "@/lib/chat/page-data";
 import { countMembers, getRoomsForViewer } from "@/lib/chat/server";
+import { pageOg } from "@/lib/og";
+
+const DESC = "Ruang ngobrol realtime untuk developer, desainer, dan pengguna karya lokal Indonesia.";
 
 export const metadata: Metadata = {
   title: "Komunitas",
-  description: "Ruang ngobrol realtime untuk developer, desainer, dan pengguna karya lokal Indonesia.",
+  description: DESC,
+  ...pageOg("Komunitas", DESC, "/komunitas"),
 };
 
 export default async function CommunityPage() {

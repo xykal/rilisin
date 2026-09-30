@@ -9,6 +9,8 @@ import type {
   ReportReason,
 } from "@/lib/chat/shared";
 import type { PendingImage } from "./composer";
+import type { PendingAudio } from "./voice-recorder";
+import { parseStickerKey } from "@/lib/chat/stickers";
 import type { LocalMessage } from "./message-bubble";
 import { chatApi, newClientId } from "./utils";
 
@@ -276,7 +278,7 @@ export function useRoom(opts: {
 
   // ─── Aksi ────────────────────────────────────────────────────────────────
   const send = useCallback(
-    async (body: string, replyTo: LocalMessage | null, image: PendingImage | null) => {
+    async (body: string, replyTo: LocalMessage | null, image: PendingImage | null, audio: PendingAudio | null) => {
       if (!viewer) return false;
       const clientId = newClientId();
       const tmpId = `tmp:${clientId}`;
@@ -289,8 +291,10 @@ export function useRoom(opts: {
         author: { id: viewer.id, username: viewer.username, displayName: viewer.displayName, avatarUrl: viewer.avatarUrl, role: viewer.role, isSeller: false, isTrusted: false },
         body: body.trim(),
         image: image ? { url: image.url, w: image.w, h: image.h } : null,
+        audio: audio ? { url: audio.url, secs: audio.secs } : null,
+        sticker: null,
         replyTo: replyTo
-          ? { id: replyTo.id, authorId: replyTo.author.id, authorName: replyTo.author.displayName, body: replyTo.body.slice(0, 140), hasImage: !!replyTo.image, unavailable: false }
+          ? { id: replyTo.id, authorId: replyTo.author.id, authorName: replyTo.author.displayName, body: replyTo.body.slice(0, 140), hasImage: !!replyTo.image, hasAudio: !!replyTo.audio, hasSticker: !!replyTo.sticker, unavailable: false }
           : null,
         reactions: [],
         createdAt: now,
@@ -301,7 +305,7 @@ export function useRoom(opts: {
         pending: "sending",
       };
       setMsgs((prev) => ({ ...prev, [tmpId]: optimistic }));
-      const payload = { body, clientId, replyToId: replyTo?.id ?? null, uploadId: image?.uploadId ?? null };
+      const payload = { body, clientId, replyToId: replyTo?.id ?? null, uploadId: image?.uploadId ?? audio?.uploadId ?? null };
       const res = await chatApi<{ message: ChatMessageDTO }>(`/api/chat/rooms/${room.slug}/messages`, payload);
       if (res.ok) {
         upsert([res.data.message], "new");
@@ -312,6 +316,56 @@ export function useRoom(opts: {
         setMsgs((prev) => (prev[tmpId] ? { ...prev, [tmpId]: { ...prev[tmpId]!, pending: "failed", error: "Tidak terkirim", retryPayload: payload } as LocalMessage } : prev));
       } else {
         // Ditolak server (filter, mode lambat, dibisukan, dll) → tarik balik & kembalikan teks ke pengguna
+        removeLocal(tmpId);
+        cbs.current.onError(res.error);
+      }
+      return false;
+    },
+    [room.id, room.slug, viewer, upsert, removeLocal],
+  );
+
+  // ─── Stiker (ketuk = langsung kirim, tanpa teks & tanpa balas) ─────────────
+  const sendSticker = useCallback(
+    async (stickerKey: string) => {
+      if (!viewer) return false;
+      const parsed = parseStickerKey(stickerKey);
+      if (!parsed) {
+        cbs.current.onError("Stiker tidak dikenal.");
+        return false;
+      }
+      const clientId = newClientId();
+      const tmpId = `local-${clientId}`;
+      const now = new Date().toISOString();
+      const optimistic: LocalMessage = {
+        id: tmpId,
+        seq: Number.MAX_SAFE_INTEGER - 1e6 + ++pendingSeq.current,
+        roomId: room.id,
+        clientId,
+        author: { id: viewer.id, username: viewer.username, displayName: viewer.displayName, avatarUrl: viewer.avatarUrl, role: viewer.role, isSeller: false, isTrusted: false },
+        body: "",
+        image: null,
+        audio: null,
+        sticker: { url: parsed.url, label: parsed.label },
+        replyTo: null,
+        reactions: [],
+        createdAt: now,
+        updatedAt: now,
+        editedAt: null,
+        deleted: null,
+        hiddenByReports: false,
+        pending: "sending",
+      };
+      setMsgs((prev) => ({ ...prev, [tmpId]: optimistic }));
+      const payload = { body: "", clientId, replyToId: null, uploadId: null, stickerKey };
+      const res = await chatApi<{ message: ChatMessageDTO }>(`/api/chat/rooms/${room.slug}/messages`, payload);
+      if (res.ok) {
+        upsert([res.data.message], "new");
+        return true;
+      }
+      if (res.status === 401) cbs.current.onSessionExpired();
+      if (res.status === 0) {
+        setMsgs((prev) => (prev[tmpId] ? { ...prev, [tmpId]: { ...prev[tmpId]!, pending: "failed", error: "Tidak terkirim", retryPayload: payload } as LocalMessage } : prev));
+      } else {
         removeLocal(tmpId);
         cbs.current.onError(res.error);
       }
@@ -379,7 +433,7 @@ export function useRoom(opts: {
 
   const deleteForEveryone = useCallback(
     async (msg: LocalMessage) => {
-      patchLocal(msg.id, { deleted: msg.author.id === viewer?.id ? "author" : "moderator", body: "", image: null, reactions: [] });
+      patchLocal(msg.id, { deleted: msg.author.id === viewer?.id ? "author" : "moderator", body: "", image: null, audio: null, sticker: null, reactions: [] });
       const r = await act(msg.id, { action: "delete", scope: "everyone" });
       if (!r) upsert([{ ...msg, updatedAt: new Date().toISOString() }], "known");
     },
@@ -453,6 +507,7 @@ export function useRoom(opts: {
     loadOlder,
     markRead,
     send,
+    sendSticker,
     retry,
     edit,
     deleteForMe,

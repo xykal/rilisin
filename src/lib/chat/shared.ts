@@ -11,6 +11,9 @@ export const CHAT_LIMITS = {
   deleteWindowMs: 48 * 60 * 60 * 1000,
   pageSize: 40,
   imageMaxBytes: 8 * 1024 * 1024,
+  audioMaxBytes: 5 * 1024 * 1024,
+  /** Durasi rekam maksimal per pesan suara. */
+  audioMaxSecs: 300,
   /** Pesan otomatis disembunyikan kalau dilaporkan sebanyak ini oleh orang berbeda. */
   reportHideThreshold: 3,
   /** Akun baru belum boleh kirim link selama sekian jam (anti bot spam). */
@@ -106,12 +109,16 @@ export type ChatMessageDTO = {
   /** Kosong kalau pesan dihapus / disembunyikan. */
   body: string;
   image: { url: string; w: number; h: number } | null;
+  audio: { url: string; secs: number } | null;
+  sticker: { url: string; label: string } | null;
   replyTo: {
     id: string;
     authorId: string;
     authorName: string;
     body: string;
     hasImage: boolean;
+    hasAudio: boolean;
+    hasSticker: boolean;
     unavailable: boolean;
   } | null;
   reactions: ChatReactionDTO[];
@@ -131,6 +138,8 @@ export type ChatRoomDTO = {
   kind: "public" | "announcement";
   slowModeSec: number;
   pinnedMessageId: string | null;
+  /** Grup privat: hanya anggota yang melihat di daftar. */
+  isPrivate: boolean;
   lastMessage: { authorName: string; preview: string; at: string } | null;
   unread: number | null;
 };
@@ -185,4 +194,12 @@ export function canDeleteForEveryone(
 export function snippet(body: string, max = 90) {
   const oneLine = body.replace(/```[\s\S]*?```/g, "[kode]").replace(/\s+/g, " ").trim();
   return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
+}
+
+/** Pratinjau pesan berlampiran — satu-satunya tempat label 📷/🎤 hidup (daftar ruang, SSE, notif, optimistik). */
+export function attachmentPreview(body: string, kind: "image" | "audio" | "sticker" | null): string {
+  if (kind === "image") return body ? `📷 ${snippet(body, 60)}` : "📷 Foto";
+  if (kind === "audio") return body ? `🎤 ${snippet(body, 60)}` : "🎤 Pesan suara";
+  if (kind === "sticker") return body ? `✨ ${snippet(body, 60)}` : "✨ Stiker";
+  return snippet(body, 70);
 }

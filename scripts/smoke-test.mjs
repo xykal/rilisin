@@ -82,7 +82,8 @@ class Session {
   }
   /**
    * Kirim <form> server action seperti browser tanpa JS (progressive enhancement).
-   * opts.override: field yang namanya sama dengan input hidden MENGGANTI nilainya (uji kiriman "paksa").
+   * Field eksplisit selalu MENGGANTI input hidden yang namanya sama (seperti browser: nilai kontrol yang dikirim,
+   * bukan default). opts.override dipertahankan untuk kejelasan uji kiriman "paksa".
    */
   async submitForm(pagePath, html, marker, fields = {}, opts = {}) {
     const chunks = html.split("<form").slice(1).map((c) => c.split("</form>")[0]);
@@ -93,7 +94,7 @@ class Session {
       if (!/type="hidden"/.test(tag)) continue;
       const name = tag.match(/name="([^"]*)"/)?.[1];
       if (!name) continue;
-      if (opts.override && Object.hasOwn(fields, decode(name))) continue;
+      if (Object.hasOwn(fields, decode(name))) continue;
       fd.append(decode(name), decode(tag.match(/value="([^"]*)"/)?.[1] ?? ""));
     }
     for (const [k, v] of Object.entries(fields)) {
@@ -161,6 +162,12 @@ const guest = new Session();
   ok(text.includes('property="og:title"') && text.includes("summary_large_image"), "OG: beranda punya kartu og + twitter large image");
   const ogRes = await guest.req("/api/og?t=Tes+Kartu");
   ok((ogRes.headers.get("content-type") ?? "").includes("image/"), "OG: /api/og me-render gambar kartu");
+  const namaTaken = await (await guest.req("/api/check-nama?tipe=username&nilai=nusantaralabs")).json();
+  const namaFree = await (await guest.req("/api/check-nama?tipe=username&nilai=calonunik99")).json();
+  ok(namaTaken.tersedia === false && namaFree.tersedia === true, "Cek-nama: username terpakai vs tersedia");
+  const tokoTaken = await (await guest.req("/api/check-nama?tipe=toko&nilai=Nusantara%20Labs")).json();
+  const tokoFree = await (await guest.req("/api/check-nama?tipe=toko&nilai=Toko%20Calon%20Unik")).json();
+  ok(tokoTaken.tersedia === false && tokoFree.tersedia === true, "Cek-nama: nama toko terpakai vs tersedia");
   const search = await guest.html("/jelajahi?q=kasir");
   ok(search.text.includes("KasirKu Offline"), "Pencarian 'kasir' menemukan KasirKu Offline");
   const cat = await guest.html("/jelajahi?kategori=game&sort=baru");
@@ -400,6 +407,17 @@ let slug;
   const queue2 = await adm.html("/admin/penjual");
   const approved = await adm.submitForm("/admin/penjual", queue2.text, "Setujui toko", {});
   ok(approved.status === 303 && (approved.headers.get("location") ?? "").includes("hasil=disetujui"), "Admin menyetujui pengajuan toko");
+  const anggota = await adm.html("/admin/anggota");
+  ok(anggota.res.status === 200 && anggota.text.includes("@rina"), "Admin: daftar anggota tampil");
+  ok(!anggota.text.includes("<select") && anggota.text.includes('name="role"'), "UI custom: tidak ada select bawaan di kelola anggota");
+  const naik = await adm.submitForm("/admin/anggota", anggota.text, 'data-form="role-rina"', { role: "moderator" });
+  ok(naik.status === 303 && (naik.headers.get("location") ?? "").includes("hasil=peran"), "Admin: menaikkan user jadi moderator");
+  const anggota2 = await adm.html("/admin/anggota");
+  const turun = await adm.submitForm("/admin/anggota", anggota2.text, 'data-form="role-rina"', { role: "user" });
+  const cariAdmin = await adm.html("/admin/anggota?q=tim_rilisin");
+  const diri = await adm.submitForm("/admin/anggota", cariAdmin.text, 'data-form="role-tim_rilisin"', { role: "user" });
+  ok(turun.status === 303 && (diri.headers.get("location") ?? "").includes("error=self"), "Peran dikembalikan + ubah diri sendiri ditolak");
+
 
   const dash = await calon.html("/seller");
   ok(
@@ -443,6 +461,44 @@ let slug;
 
   const sellerDash = await seller.html("/seller");
   ok(!sellerDash.text.includes("Aktivasi toko"), "Seller yang sudah pernah submit tidak melihat kartu aktivasi");
+
+  // API key + v1 (sebagai calon, seller approved)
+  const keyPage = await calon.html("/akun/api-key");
+  ok(keyPage.res.status === 200 && keyPage.text.includes("Buat key baru"), "Halaman API key tampil");
+  const keyRes = await calon.submitForm("/akun/api-key", keyPage.text, 'data-form="apikey-create"', { name: "Agen Uji", scopes: ["seller:read", "seller:write", "admin:read"], expires: "never" });
+  const secret = (await keyRes.text()).match(/rsk_[A-Za-z0-9_-]+/)?.[0];
+  ok(keyRes.status === 200 && secret, "API key: dibuat + secret tampil sekali");
+  const meRes = await calon.req("/api/v1/me", { headers: { authorization: `Bearer ${secret}` } });
+  const meJson = await meRes.json().catch(() => ({}));
+  ok(meRes.status === 200 && meJson.scopes?.includes("seller:write") && !meJson.scopes?.includes("admin:read"), "v1/me: scope seller ya, admin:read ditolak (bukan staf)");
+  const prodRes = await calon.req("/api/v1/products", { headers: { authorization: `Bearer ${secret}` } });
+  const statsRes = await calon.req("/api/v1/admin/stats", { headers: { authorization: `Bearer ${secret}` } });
+  ok(prodRes.status === 200 && Array.isArray((await prodRes.json()).products) && statsRes.status === 403, "v1: produk sendiri 200, admin/stats tanpa scope 403");
+  // Alur penuh AI agent: draft → rilis → file → kirim review
+  const apiDraft = await calon.req("/api/v1/products", { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: JSON.stringify({ title: "Catat Duit API", summary: "Aplikasi pencatat keuangan offline yang dibuat via API.", category: "aplikasi", platforms: ["windows"], license: "MIT", descriptionMd: "Catat Duit API adalah aplikasi pencatat keuangan offline buat warung dan UMKM, dibuat sepenuhnya lewat API v1 sebagai uji alur AI agent." }) });
+  const apiDraftJson = await apiDraft.json().catch(() => ({}));
+  const apiRel = await calon.req(`/api/v1/products/${apiDraftJson.id}/releases`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: JSON.stringify({ version: "1.0.0", changelogMd: "Rilis perdana via API." }) });
+  const apiRelJson = await apiRel.json().catch(() => ({}));
+  ok(apiDraft.status === 201 && apiRel.status === 201, "v1: AI bikin draft produk + rilis");
+  const upPng = await sharp({ create: { width: 800, height: 800, channels: 3, background: "#5b43f5" } }).png().toBuffer();
+  const upJpg = await sharp({ create: { width: 1600, height: 900, channels: 3, background: "#22c55e" } }).jpeg().toBuffer();
+  const upIcon = await calon.upload("icon", apiDraftJson.id, "ikon.png", upPng);
+  const upCover = await calon.upload("cover", apiDraftJson.id, "cover.jpg", upJpg);
+  const upSs = await calon.upload("screenshot", apiDraftJson.id, "layar.jpg", upJpg);
+  const upExe = await calon.upload("release_file", apiRelJson.id, "catat-duit-1.0.0.exe", Buffer.concat([Buffer.from("MZ"), Buffer.alloc(100)]), "windows");
+  ok(upIcon.ok && upCover.ok && upSs.ok && upExe.ok, "Upload ikon/cover/screenshot/file rilis buat produk API");
+  const bInitRes = await fetch(`${BASE}/api/uploads/init`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json", ...authHeaders() }, body: JSON.stringify({ purpose: "screenshot", targetId: apiDraftJson.id, filename: "via-api.jpg", size: upJpg.length }) });
+  const bInit = await bInitRes.json().catch(() => ({}));
+  const bPut = await calon.req(bInit.uploadUrl, { method: "PUT", body: upJpg, headers: { "content-type": "application/octet-stream" } });
+  const bDone = await fetch(`${BASE}/api/uploads/complete`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json", ...authHeaders() }, body: JSON.stringify({ token: bInit.token }) });
+  ok(bInitRes.status === 200 && bPut.ok && (await bDone.json().catch(() => ({}))).ok, "Upload file via API key (Bearer, tanpa origin)");
+  const apiSubmit = await calon.req(`/api/v1/products/${apiDraftJson.id}/submit`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: "{}" });
+  const apiSubmitJson = await apiSubmit.json().catch(() => ({}));
+  ok(apiSubmit.status === 200 && apiSubmitJson.outcome === "review", "v1: AI kirim produk ke review");
+  const keyPage2 = await calon.html("/akun/api-key");
+  const cabut = await calon.submitForm("/akun/api-key", keyPage2.text, 'data-form="apikey-revoke-', {});
+  const meMati = await calon.req("/api/v1/me", { headers: { authorization: `Bearer ${secret}` } });
+  ok(cabut.status === 303 && meMati.status === 401, "API key dicabut → tidak bisa dipakai lagi");
 }
 
 // ─── 3c. Rilis terjadwal: Segera hadir + hitung mundur + tayang otomatis ────
@@ -528,10 +584,12 @@ const rina = user; // user@rilisin.test (Rina)
 {
   const room = await guest.html("/komunitas/nongkrong");
   ok(room.res.status === 200 && room.text.includes("Gradle memang ujian kesabaran") && room.text.includes("Masuk untuk ikut ngobrol"), "Tamu bisa baca cuplikan ruang (mode baca)");
+  ok(room.text.includes("chat-shell") && room.text.includes('aria-label="Ke beranda Rilisin"'), "Chat fullscreen: shell penuh + tombol beranda di ruang");
   const guestApi = await guest.api("/api/chat/rooms/nongkrong/messages");
   ok(guestApi.status === 401, "API chat menolak tamu (401)");
   const list = await guest.html("/komunitas");
   ok(list.text.includes("Tanya Jawab Coding") && list.text.includes("Pamer Karya"), "Daftar ruang tampil di /komunitas");
+  ok(list.text.includes("chat-shell") && list.text.includes('aria-label="Ke beranda Rilisin"'), "Chat fullscreen: indeks komunitas + jalan pulang");
 
   const sent = await rina.say("nongkrong", "Halo dari smoke test 👋 *tebal* dan `kode`");
   ok(sent.status === 201 && sent.data.message?.author?.username === "rina", "Kirim pesan (201)");
@@ -547,6 +605,33 @@ const rina = user; // user@rilisin.test (Rina)
   ok(ann.status === 403, "Ruang pengumuman hanya untuk admin/moderator");
   const judol = await rina.say("nongkrong", "Daftar S1OT G4C0R hari ini pasti maxwin!!");
   ok(judol.status === 422 && /judi/i.test(judol.data.error), "Promosi judol diblokir filter");
+
+  // Grup privat + invite link
+  const grupBaru = await rina.html("/komunitas/baru");
+  ok(grupBaru.res.status === 200 && grupBaru.text.includes("Buat grup baru"), "Form buat grup tampil");
+  const dibuat = await rina.submitForm("/komunitas/baru", grupBaru.text, 'name="name"', { name: "Grup Rahasia Uji", emoji: "🤫", description: "", isPrivate: "on" });
+  const gm = (dibuat.headers.get("location") ?? "").match(/\/komunitas\/([a-z0-9-]+)\?invite=([A-Za-z0-9_-]+)/);
+  ok(dibuat.status === 303 && gm?.[1] && gm?.[2], "Grup privat: dibuat + redirect bawa kode invite");
+  const gslug = gm[1];
+  const gcode = gm[2];
+  const penjual = new Session();
+  await penjual.login("seller@rilisin.test");
+  const terkunci = await penjual.html(`/komunitas/${gslug}`);
+  ok(terkunci.text.includes("Ini grup privat") && !terkunci.text.includes("chat-shell"), "Grup privat: bukan anggota melihat kartu terkunci");
+  const nyusup = await penjual.say(gslug, "nyusup ah");
+  ok(nyusup.status === 404, "Grup privat: bukan anggota tidak bisa kirim (404)");
+  const gabung = await penjual.html(`/komunitas/${gslug}?invite=${gcode}`);
+  // redirect() di page server-component = 307 (303 hanya untuk server action).
+  ok((gabung.res.status === 303 || gabung.res.status === 307) && (gabung.res.headers.get("location") ?? "").endsWith(`/komunitas/${gslug}`), "Invite link: gabung otomatis (redirect ke ruang)");
+  const dalam = await penjual.html(`/komunitas/${gslug}`);
+  ok(dalam.text.includes("Grup Rahasia Uji") && dalam.text.includes("chat-shell"), "Anggota via invite bisa buka ruang");
+  const staf = new Session();
+  await staf.login("admin@rilisin.test");
+  const intip = await staf.html(`/komunitas/${gslug}`);
+  const intipApi = await staf.api(`/api/chat/rooms/${gslug}/messages`);
+  ok(intip.text.includes("Ini grup privat") && intipApi.status === 404, "Privasi penuh: staf pun tidak bisa intip grup privat");
+  const daftarTamu = await guest.html("/komunitas");
+  ok(!daftarTamu.text.includes("Grup Rahasia Uji"), "Grup privat sembunyi dari daftar publik");
 
   const edited = await rina.api(`/api/chat/messages/${msgId}`, { action: "edit", body: "Halo dari smoke test (diedit) ✏️" });
   ok(edited.status === 200 && edited.data.message.editedAt && edited.data.message.body.includes("diedit"), "Edit pesan sendiri");
@@ -611,6 +696,18 @@ const rina = user; // user@rilisin.test (Rina)
   ok(fakeImg.status === 415, "File bukan gambar ditolak (cek magic bytes)");
   const slow = await rina.say("pamer-karya", "pesan kedua terlalu cepat");
   ok(slow.status === 429 && /Mode lambat/.test(slow.data.error), "Mode lambat ruang Pamer Karya bekerja");
+  const webm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(64)]);
+  const upVoice = await seller.req("/api/chat/uploads", { method: "POST", headers: { "content-type": "audio/webm", "x-audio-secs": "7" }, body: webm });
+  const voice = await upVoice.json();
+  ok(upVoice.status === 201 && voice.secs === 7 && voice.url?.endsWith(".webm"), "Upload pesan suara (webm)");
+  const withVoice = await seller.say("nongkrong", "", { uploadId: voice.id });
+  ok(withVoice.status === 201 && withVoice.data.message.audio?.url === voice.url, "Kirim pesan suara tanpa teks");
+  const fakeVoice = await seller.req("/api/chat/uploads", { method: "POST", headers: { "content-type": "audio/webm", "x-audio-secs": "3" }, body: Buffer.from("bukan audio") });
+  ok(fakeVoice.status === 415, "File bukan audio ditolak (cek magic bytes)");
+  const withSticker = await seller.say("nongkrong", "", { stickerKey: "kancil/halo" });
+  ok(withSticker.status === 201 && withSticker.data.message.sticker?.url === "/stickers/kancil/halo.png", "Kirim stiker Si Kancil");
+  const badSticker = await seller.say("nongkrong", "", { stickerKey: "kancil/ngawur" });
+  ok(badSticker.status === 400, "Stiker tidak dikenal ditolak");
 
   // Laporan → otomatis tersembunyi setelah 3 pelapor
   const andi = new Session();
@@ -933,7 +1030,7 @@ async function register(s, username, password, extra = {}) {
   const guestNew = await guest.req("/forum/baru");
   ok(guestNew.status === 307 && (guestNew.headers.get("location") ?? "").includes("/masuk"), "Buat thread: tamu diarahkan ke halaman masuk");
   const nf = await rina.html("/forum/baru?kategori=tanya-jawab");
-  const catId = nf.text.match(/<option value="([0-9a-f-]{36})"[^>]*>🙋/)?.[1];
+  const catId = nf.text.match(/name="categoryId" value="([0-9a-f-]{36})"/)?.[1];
   ok(nf.text.includes('data-form="new-thread"') && Boolean(catId), "Buat thread: form tampil dengan kategori terpilih");
   const newThread = (fields) => rina.submitForm("/forum/baru", nf.text, 'data-form="new-thread"', { categoryId: catId, ...fields });
   const fast = await newThread({ title: "Judul yang cukup panjang sekali", body: "Isi thread yang cukup panjang untuk lolos." });
@@ -1119,6 +1216,12 @@ async function register(s, username, password, extra = {}) {
   ok(man.status === 200 && (await man.text()).includes("Rilisin"), "Manifest PWA tersaji");
   const psw = await fetch(`${BASE}/OneSignalSDKWorker.js`, { headers: authHeaders() });
   ok(psw.status === 200 && (await psw.text()).includes("OneSignalSDK"), "Service worker OneSignal tersaji");
+  const rsw = await fetch(`${BASE}/sw.js`, { headers: authHeaders() });
+  ok(rsw.status === 200 && (await rsw.text()).includes("Rilisin service worker"), "Service worker Rilisin (offline) tersaji");
+  ok((await guest.html("/offline")).text.includes("Kamu lagi offline"), "Halaman fallback offline tampil");
+  const beranda = await guest.html("/");
+  const scale = await guest.submitForm("/", beranda.text, 'data-form="ui-scale"', { scale: "besar" });
+  ok((scale.headers.get("set-cookie") ?? "").includes("ui-scale=besar"), "Skala tampilan tersimpan di cookie");
   const testPush = await rina.submitForm("/akun/notifikasi", pref3, 'data-form="test-push"', {});
   ok(clean(await testPush.text()).includes("Push belum diaktifkan di server ini"), "Push uji tanpa kunci: pesan jelas (tidak crash)");
   const prof = await rina.html("/akun/profil");
@@ -1254,7 +1357,7 @@ async function register(s, username, password, extra = {}) {
 
   // Devlog seller → tampil di halaman produk & pengikut dapat kabar
   const df = await sel.html("/forum/baru?kategori=devlog&produk=kasirku-offline");
-  const devCat = df.text.match(/<option value="([0-9a-f-]{36})" selected="">/)?.[1];
+  const devCat = df.text.match(/name="categoryId" value="([0-9a-f-]{36})"/)?.[1];
   await sleep(3200);
   const devTitle = `Devlog uji ${Date.now().toString(36)}: rencana v2.2`;
   const dv = await sel.submitForm("/forum/baru", df.text, 'data-form="new-thread"', { categoryId: devCat, title: devTitle, body: "Catatan pengembangan KasirKu untuk pengikut: v2.2 fokus ke laporan pajak sederhana." });

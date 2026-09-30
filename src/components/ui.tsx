@@ -7,7 +7,8 @@ export function cn(...classes: (string | false | null | undefined)[]) {
 
 const buttonBase =
   // HP (< 640px): label panjang boleh turun baris daripada meluber keluar tombol
-  "inline-flex items-center justify-center gap-2 rounded-xl text-center text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap max-sm:whitespace-normal";
+  // min-h 44px = target sentuh minimum (WCAG) — gampang dipencet di HP & layar sentuh.
+  "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl text-center text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap max-sm:whitespace-normal";
 
 export const buttonStyles = {
   primary: `${buttonBase} bg-brand-600 px-4 py-2.5 text-white shadow-sm shadow-brand-600/20 hover:bg-brand-700`,
@@ -27,7 +28,7 @@ export function ButtonLink({
 }
 
 export const inputStyles =
-  "w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-slate-50";
+  "min-h-[44px] w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-slate-50";
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return (

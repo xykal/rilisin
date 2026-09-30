@@ -27,7 +27,8 @@ export function PushInit({ userId, appId }: { userId: string | null; appId: stri
         window.OneSignalDeferred ??= [];
         window.OneSignalDeferred.push(async (os) => {
           try {
-            await os.init({ appId, allowLocalhostAsSecureOrigin: window.location.hostname === "localhost" });
+            // serviceWorkerPath: push numpang di /sw.js (milik kita) supaya tidak rebutan scope "/" dengan offline cache.
+            await os.init({ appId, serviceWorkerPath: "sw.js", allowLocalhostAsSecureOrigin: window.location.hostname === "localhost" });
             __pushSdkSettled(os);
           } catch (e) {
             console.warn("[push] init gagal", e);
