@@ -92,7 +92,8 @@ export function proxy(request: NextRequest) {
     `form-action 'self'${blob ? " https://*.private.blob.vercel-storage.com" : ""}`,
     `frame-ancestors ${frameAncestors}`,
     // vercel.live: toolbar feedback Vercel (hanya terlihat tim internal) — tanpa ini console merah tiap load.
-    `frame-src https://vercel.live${cf}`,
+    // Urutan: Cloudflare dulu (smoke test mencocokkan prefix persis "frame-src https://challenges...").
+    `frame-src${cf} https://vercel.live`,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
   ].join("; ");
