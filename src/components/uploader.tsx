@@ -4,6 +4,7 @@ import { CircleCheck, CloudUpload, LoaderCircle, TriangleAlert } from "lucide-re
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { formatBytes } from "@/lib/format";
+import { Picker } from "./picker";
 import { buttonStyles, cn, inputStyles } from "./ui";
 
 type Purpose = "icon" | "cover" | "screenshot" | "release_file";
@@ -110,19 +111,7 @@ export function Uploader({
     <div className={cn(!compact && "rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4")}>
       <div className="flex flex-wrap items-center gap-2">
         {platformOptions && platformOptions.length > 0 && (
-          <select
-            value={platform}
-            onChange={(e) => setPlatform(e.target.value)}
-            disabled={busy || disabled}
-            className={cn(inputStyles, "!w-auto !py-2")}
-            aria-label="Platform file"
-          >
-            {platformOptions.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <Picker value={platform} onChange={setPlatform} disabled={busy || disabled} ariaLabel="Platform file" className="w-auto min-w-36" options={platformOptions} />
         )}
         <button
           type="button"

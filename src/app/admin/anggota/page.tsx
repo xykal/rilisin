@@ -2,6 +2,7 @@ import { desc, eq, ilike, or } from "drizzle-orm";
 import { ShieldCheck, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { setRoleAction } from "@/app/actions/admin-members";
+import { Picker } from "@/components/picker";
 import { Alert, Badge, Card, EmptyState } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
@@ -85,11 +86,17 @@ export default async function MembersPage({ searchParams }: PageProps<"/admin/an
                 <Badge tone={ROLE_TONE[u.role]}>{u.role}</Badge>
                 <form action={setRoleAction} data-form={`role-${u.username}`} className="flex items-center gap-2">
                   <input type="hidden" name="userId" value={u.id} />
-                  <select name="role" defaultValue={u.role} aria-label={`Peran ${u.username}`} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm">
-                    <option value="user">user</option>
-                    <option value="moderator">moderator</option>
-                    <option value="admin">admin</option>
-                  </select>
+                  <Picker
+                    name="role"
+                    defaultValue={u.role}
+                    ariaLabel={`Peran ${u.username}`}
+                    className="min-w-36 flex-1"
+                    options={[
+                      { value: "user", label: "user" },
+                      { value: "moderator", label: "moderator" },
+                      { value: "admin", label: "admin" },
+                    ]}
+                  />
                   <button type="submit" className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-brand-700">
                     Simpan
                   </button>

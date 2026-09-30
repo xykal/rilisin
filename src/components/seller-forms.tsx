@@ -10,6 +10,7 @@ import {
   updateStoreAction,
 } from "@/app/actions/seller";
 import { CATEGORIES, LICENSES, PLATFORMS } from "@/lib/config";
+import { Picker } from "./picker";
 import { SubmitButton } from "./submit-button";
 import { NameCheckInput } from "./name-check-input";
 import { Alert, Field, cn, inputStyles } from "./ui";
@@ -70,20 +71,22 @@ export function ProductForm({
         </Field>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field label="Kategori" htmlFor="category" error={fe.category}>
-            <select id="category" name="category" required defaultValue={v?.category ?? product?.category ?? ""} className={inputStyles}>
-              <option value="" disabled>Pilih kategori</option>
-              {CATEGORIES.map((c) => (
-                <option key={c.slug} value={c.slug}>{c.label}</option>
-              ))}
-            </select>
+            <Picker
+              id="category"
+              name="category"
+              defaultValue={v?.category ?? product?.category ?? ""}
+              placeholder="Pilih kategori"
+              options={CATEGORIES.map((c) => ({ value: c.slug, label: c.label }))}
+            />
           </Field>
           <Field label="Lisensi" htmlFor="license" error={fe.license}>
-            <select id="license" name="license" required defaultValue={v?.license ?? product?.license ?? ""} className={inputStyles}>
-              <option value="" disabled>Pilih lisensi</option>
-              {LICENSES.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
+            <Picker
+              id="license"
+              name="license"
+              defaultValue={v?.license ?? product?.license ?? ""}
+              placeholder="Pilih lisensi"
+              options={LICENSES.map((l) => ({ value: l, label: l }))}
+            />
           </Field>
         </div>
 

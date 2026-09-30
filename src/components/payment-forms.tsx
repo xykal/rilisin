@@ -12,6 +12,7 @@ import {
   savePayoutAccountAction,
 } from "@/app/actions/payments";
 import { estimateFee, methodAllowed, PAYMENT_METHODS, PAYOUT_PROVIDERS, PRICE_LIMITS } from "@/lib/payments/methods";
+import { Picker } from "./picker";
 import { SubmitButton } from "./submit-button";
 import { PasswordInput } from "./password-input";
 import { Alert, cn, Field, inputStyles } from "./ui";
@@ -245,16 +246,14 @@ export function PayoutAccountForm({
         ))}
       </div>
       <Field label={method === "bank" ? "Bank" : "E-wallet"} htmlFor="providerName" error={fe.providerName}>
-        <select key={method} id="providerName" name="providerName" defaultValue={(providers as readonly string[]).includes(defaultProvider) ? defaultProvider : ""} required className={inputStyles}>
-          <option value="" disabled>
-            Pilih…
-          </option>
-          {providers.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+        <Picker
+          key={method}
+          id="providerName"
+          name="providerName"
+          defaultValue={(providers as readonly string[]).includes(defaultProvider) ? defaultProvider : ""}
+          placeholder="Pilih…"
+          options={providers.map((p) => ({ value: p, label: p }))}
+        />
       </Field>
       <Field label={method === "bank" ? "Nomor rekening" : "Nomor HP e-wallet"} htmlFor="accountNumber" error={fe.accountNumber}>
         <input id="accountNumber" name="accountNumber" inputMode="numeric" autoComplete="off" required className={inputStyles} placeholder={method === "bank" ? "1234567890" : "081234567890"} />

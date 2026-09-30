@@ -408,6 +408,7 @@ let slug;
   ok(approved.status === 303 && (approved.headers.get("location") ?? "").includes("hasil=disetujui"), "Admin menyetujui pengajuan toko");
   const anggota = await adm.html("/admin/anggota");
   ok(anggota.res.status === 200 && anggota.text.includes("@rina"), "Admin: daftar anggota tampil");
+  ok(!anggota.text.includes("<select") && anggota.text.includes('name="role"'), "UI custom: tidak ada select bawaan di kelola anggota");
   const naik = await adm.submitForm("/admin/anggota", anggota.text, 'data-form="role-rina"', { role: "moderator" });
   ok(naik.status === 303 && (naik.headers.get("location") ?? "").includes("hasil=peran"), "Admin: menaikkan user jadi moderator");
   const anggota2 = await adm.html("/admin/anggota");
@@ -1013,7 +1014,7 @@ async function register(s, username, password, extra = {}) {
   const guestNew = await guest.req("/forum/baru");
   ok(guestNew.status === 307 && (guestNew.headers.get("location") ?? "").includes("/masuk"), "Buat thread: tamu diarahkan ke halaman masuk");
   const nf = await rina.html("/forum/baru?kategori=tanya-jawab");
-  const catId = nf.text.match(/<option value="([0-9a-f-]{36})"[^>]*>🙋/)?.[1];
+  const catId = nf.text.match(/name="categoryId" value="([0-9a-f-]{36})"/)?.[1];
   ok(nf.text.includes('data-form="new-thread"') && Boolean(catId), "Buat thread: form tampil dengan kategori terpilih");
   const newThread = (fields) => rina.submitForm("/forum/baru", nf.text, 'data-form="new-thread"', { categoryId: catId, ...fields });
   const fast = await newThread({ title: "Judul yang cukup panjang sekali", body: "Isi thread yang cukup panjang untuk lolos." });
@@ -1337,7 +1338,7 @@ async function register(s, username, password, extra = {}) {
 
   // Devlog seller → tampil di halaman produk & pengikut dapat kabar
   const df = await sel.html("/forum/baru?kategori=devlog&produk=kasirku-offline");
-  const devCat = df.text.match(/<option value="([0-9a-f-]{36})" selected="">/)?.[1];
+  const devCat = df.text.match(/name="categoryId" value="([0-9a-f-]{36})"/)?.[1];
   await sleep(3200);
   const devTitle = `Devlog uji ${Date.now().toString(36)}: rencana v2.2`;
   const dv = await sel.submitForm("/forum/baru", df.text, 'data-form="new-thread"', { categoryId: devCat, title: devTitle, body: "Catatan pengembangan KasirKu untuk pengikut: v2.2 fokus ke laporan pajak sederhana." });

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { createApiKeyAction } from "@/app/actions/api-keys";
 import { API_SCOPES, SCOPE_LABELS, type ApiScope } from "@/lib/api-keys";
+import { Picker } from "./picker";
 import { SubmitButton } from "./submit-button";
 import { Alert, Field, inputStyles } from "./ui";
 
@@ -41,11 +42,16 @@ export function ApiKeyForm({ allowed }: { allowed: ApiScope[] }) {
         </div>
       </fieldset>
       <Field label="Kedaluwarsa" htmlFor="expires">
-        <select id="expires" name="expires" defaultValue="never" className={inputStyles}>
-          <option value="never">Tidak pernah (cabut manual)</option>
-          <option value="30d">30 hari</option>
-          <option value="90d">90 hari</option>
-        </select>
+        <Picker
+          id="expires"
+          name="expires"
+          defaultValue="never"
+          options={[
+            { value: "never", label: "Tidak pernah (cabut manual)" },
+            { value: "30d", label: "30 hari" },
+            { value: "90d", label: "90 hari" },
+          ]}
+        />
       </Field>
       <SubmitButton pendingText="Membuat key…">Buat API key</SubmitButton>
     </form>
