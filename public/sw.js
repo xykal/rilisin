@@ -4,12 +4,19 @@
  * Naikkan VERSION tiap ada perubahan file ini supaya klien update. */
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const VERSION = "rilisin-v1";
+const VERSION = "rilisin-v2";
 const OFFLINE_URL = "/offline";
-const PRECACHE = [OFFLINE_URL, "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/apple-touch-icon.png"];
+const PRECACHE = [OFFLINE_URL, "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-192.png", "/icons/icon-maskable-512.png", "/apple-touch-icon.png"];
 
+// Precache anti-gagal: SATU file gagal (mis. offline saat install) TIDAK BOLEH menggagalkan
+// seluruh service worker — SW mati = tombol install PWA tidak pernah muncul.
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches
+      .open(VERSION)
+      .then((cache) => Promise.allSettled(PRECACHE.map((url) => cache.add(url))))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {

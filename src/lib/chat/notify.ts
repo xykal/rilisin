@@ -10,7 +10,7 @@ export const CHAT_CHANNEL = "rilisin_chat";
 
 export type ChatSignal =
   | { t: "m"; r: string; id: string; c?: 1 }
-  | { t: "ty"; r: string; u: string; n: string }
+  | { t: "ty"; r: string; u: string; n: string; m?: "rec" }
   | { t: "pin"; r: string; id: string | null }
   | { t: "nt"; u: string };
 

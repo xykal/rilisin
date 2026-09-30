@@ -21,7 +21,18 @@ export function canRecordVoice() {
  * Panel rekam pesan suara: mulai otomatis saat tampil → stop → dengar ulang → kirim/hapus.
  * Upload terjadi saat tombol kirim ditekan (odonDone membawa uploadId siap tempel ke pesan).
  */
-export function VoiceRecorder({ onDone, onError, onCancel }: { onDone: (a: PendingAudio) => void; onError: (msg: string) => void; onCancel: () => void }) {
+export function VoiceRecorder({
+  onDone,
+  onError,
+  onCancel,
+  onActive,
+}: {
+  onDone: (a: PendingAudio) => void;
+  onError: (msg: string) => void;
+  onCancel: () => void;
+  /** Dipanggil true saat rekaman BERJALAN, false saat berhenti/gagal — untuk indikator "merekam…". */
+  onActive?: (active: boolean) => void;
+}) {
   const [phase, setPhase] = useState<"recording" | "preview" | "uploading">("recording");
   const [secs, setSecs] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -32,10 +43,10 @@ export function VoiceRecorder({ onDone, onError, onCancel }: { onDone: (a: Pendi
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const cbRef = useRef({ onDone, onError, onCancel });
+  const cbRef = useRef({ onDone, onError, onCancel, onActive });
   // Sinkron callback terbaru ke ref (di effect, bukan saat render — aturan react-hooks/refs).
   useEffect(() => {
-    cbRef.current = { onDone, onError, onCancel };
+    cbRef.current = { onDone, onError, onCancel, onActive };
   });
 
   const stopTracks = () => {
@@ -53,7 +64,8 @@ export function VoiceRecorder({ onDone, onError, onCancel }: { onDone: (a: Pendi
           return;
         }
         streamRef.current = stream;
-        const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
+        // ogg/opus dulu (Firefox, paling kecil) → webm/opus (Chrome/Edge) → mp4 (Safari). TIDAK PERNAH mp3.
+        const mime = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
         const rec = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined);
         recRef.current = rec;
         chunksRef.current = [];
@@ -63,6 +75,7 @@ export function VoiceRecorder({ onDone, onError, onCancel }: { onDone: (a: Pendi
         rec.onstop = () => {
           window.clearInterval(timerRef.current);
           stopTracks();
+          cbRef.current.onActive?.(false);
           if (!alive) return;
           const type = (rec.mimeType.split(";")[0] || "audio/webm").trim();
           const b = new Blob(chunksRef.current, { type });
@@ -74,6 +87,7 @@ export function VoiceRecorder({ onDone, onError, onCancel }: { onDone: (a: Pendi
           setPhase("preview");
         };
         rec.start();
+        cbRef.current.onActive?.(true);
         const t0 = Date.now();
         timerRef.current = window.setInterval(() => {
           const s = Math.floor((Date.now() - t0) / 1000);
@@ -82,12 +96,14 @@ export function VoiceRecorder({ onDone, onError, onCancel }: { onDone: (a: Pendi
         }, 500);
       } catch {
         if (!alive) return;
+        cbRef.current.onActive?.(false);
         cbRef.current.onError("Izin mikrofon ditolak — nyalakan dulu di pengaturan browser.");
         cbRef.current.onCancel();
       }
     })();
     return () => {
       alive = false;
+      cbRef.current.onActive?.(false);
       window.clearInterval(timerRef.current);
       try {
         if (recRef.current?.state === "recording") recRef.current.stop();
