@@ -70,6 +70,7 @@ export async function sendTestPushAction(): Promise<FormState> {
   ]).catch(() => -1);
   if (n === null || n < 0)
     return { error: "OneSignal menolak: belum ada perangkat yang langganan ke akun ini. Tekan “Aktifkan push di perangkat ini” di atas sampai status “Push aktif”, lalu coba lagi." };
-  if (n === 0) return { error: "Terkirim tapi 0 perangkat menerima — coba lagi, atau langganan ulang (Matikan → Aktifkan)." };
-  return { success: `Push uji dikirim ke ${n} perangkat. Cek HP-mu.` };
+  // Catatan: angka recipients dari OneSignal tidak bisa dipercaya (sering 0 padahal push sampai).
+  // Satu-satunya sinyal valid = API menerima (ada id). Hasil akhir dicek manual di HP.
+  return { success: "Push uji dikirim. Cek HP-mu — kalau tidak sampai dalam 1 menit, langganan ulang (Matikan → Aktifkan)." };
 }
