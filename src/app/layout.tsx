@@ -48,12 +48,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="id" className={jakarta.variable}>
       <body className="min-h-screen font-sans antialiased">
-        <div className="bg-ink px-4 py-2 text-center text-xs font-medium text-white/85">
-          {isSimulationMode()
-            ? "Prototype — produk, akun & obrolan adalah data demo. Pembayaran mode simulasi (tanpa uang sungguhan)."
-            : "Versi uji — pembayaran lewat gateway Pakasir. Jangan membeli kalau tidak diminta tim."}
-        </div>
-        <SiteHeader />
+        {/* Chat komunitas tampil fullscreen ala WA: banner + header situs disembunyikan di /komunitas & ruang chat. Form "baru" & aturan tetap pakai header. */}
+        <HideOnRoutes pattern="^/komunitas(/(?!aturan|baru)[^/]+)?/?$">
+          <div className="bg-ink px-4 py-2 text-center text-xs font-medium text-white/85">
+            {isSimulationMode()
+              ? "Prototype — produk, akun & obrolan adalah data demo. Pembayaran mode simulasi (tanpa uang sungguhan)."
+              : "Versi uji — pembayaran lewat gateway Pakasir. Jangan membeli kalau tidak diminta tim."}
+          </div>
+          <SiteHeader />
+        </HideOnRoutes>
         <main>{children}</main>
         <HideOnRoutes pattern="^/komunitas(/(?!aturan)[^/]+)?/?$">
           <SiteFooter />

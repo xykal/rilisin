@@ -22,9 +22,9 @@
 }
 
 /*
- * Chat komunitas layar penuh (desktop/tablet): halaman = banner + header + chat yang mengisi SISA tinggi layar,
- * tanpa scroll halaman & tanpa kartu. Pakai flex (bukan angka tinggi header) supaya tetap pas walau banner turun 2 baris.
- * Di luar CSS layer sengaja: menang atas utility cadangan h-[calc(...)] di .chat-shell.
+ * Chat komunitas fullscreen ala WA (desktop/tablet): banner + header situs disembunyikan di rute chat,
+ * chat mengisi SELURUH viewport tanpa scroll halaman & tanpa kartu. Pakai flex supaya tetap pas apa pun isi halaman.
+ * Di luar CSS layer sengaja: menang atas utility cadangan h-dvh di .chat-shell.
  */
 @media (min-width: 48rem) and (min-height: 35rem) {
   body:has(.chat-shell) {

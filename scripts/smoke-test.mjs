@@ -580,10 +580,12 @@ const rina = user; // user@rilisin.test (Rina)
 {
   const room = await guest.html("/komunitas/nongkrong");
   ok(room.res.status === 200 && room.text.includes("Gradle memang ujian kesabaran") && room.text.includes("Masuk untuk ikut ngobrol"), "Tamu bisa baca cuplikan ruang (mode baca)");
+  ok(room.text.includes("chat-shell") && room.text.includes('aria-label="Ke beranda Rilisin"'), "Chat fullscreen: shell penuh + tombol beranda di ruang");
   const guestApi = await guest.api("/api/chat/rooms/nongkrong/messages");
   ok(guestApi.status === 401, "API chat menolak tamu (401)");
   const list = await guest.html("/komunitas");
   ok(list.text.includes("Tanya Jawab Coding") && list.text.includes("Pamer Karya"), "Daftar ruang tampil di /komunitas");
+  ok(list.text.includes("chat-shell") && list.text.includes('aria-label="Ke beranda Rilisin"'), "Chat fullscreen: indeks komunitas + jalan pulang");
 
   const sent = await rina.say("nongkrong", "Halo dari smoke test 👋 *tebal* dan `kode`");
   ok(sent.status === 201 && sent.data.message?.author?.username === "rina", "Kirim pesan (201)");

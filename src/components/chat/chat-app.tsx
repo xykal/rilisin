@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Copy,
   Flag,
+  Home,
   Info,
   Lightbulb,
   Lock,
@@ -118,10 +119,11 @@ export function ChatApp({
   return (
     <TzContext.Provider value={tz}>
       {/*
-        Layar penuh tanpa kartu (desktop/tablet): mengisi sisa layar di bawah header dari tepi ke tepi.
-        Tinggi diatur globals.css (body:has(.chat-shell) → flex column); calc di bawah hanya cadangan browser tanpa :has().
+        Fullscreen ala WA (desktop/tablet): banner + header situs disembunyikan di rute chat (layout),
+        chat mengisi seluruh viewport dari tepi ke tepi. Tinggi diatur globals.css (body:has(.chat-shell)
+        → flex column); h-dvh di bawah hanya cadangan browser tanpa :has().
       */}
-      <div className="chat-shell chat-wide:h-[calc(100dvh-6.0625rem)]">
+      <div className="chat-shell chat-wide:h-dvh">
         <div className="chat-wide:grid chat-wide:h-full chat-wide:grid-cols-[320px_minmax(0,1fr)] chat-wide:overflow-hidden chat-wide:bg-white chat-wide-lg:grid-cols-[360px_minmax(0,1fr)] min-[1600px]:grid-cols-[400px_minmax(0,1fr)]">
           <aside className={cn("flex min-h-0 flex-col bg-white chat-wide:border-r chat-wide:border-slate-200/80", room && "chat-narrow:hidden")}>
             <RoomList rooms={rooms} activeSlug={activeSlug} viewer={viewer} memberCount={memberCount} />
@@ -193,7 +195,12 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
     <>
       <div className="px-4 pb-3 pt-5 chat-wide:pt-4">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink">Komunitas</h1>
+          <div className="flex items-center gap-1">
+            <Link href="/" aria-label="Ke beranda Rilisin" title="Ke beranda Rilisin" className="rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-brand-700">
+              <Home className="h-5 w-5" />
+            </Link>
+            <h1 className="text-2xl font-extrabold tracking-tight text-ink">Komunitas</h1>
+          </div>
           <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
             <Users className="h-3.5 w-3.5" /> {memberCount.toLocaleString("id-ID")} anggota
           </span>
