@@ -1,12 +1,14 @@
 "use client";
 
-import { Check, ImagePlus, Loader2, Lock, LogIn, MicOff, Pencil, Reply, SendHorizontal, X } from "lucide-react";
+import { Check, ImagePlus, Loader2, Lock, LogIn, Mic, MicOff, Pencil, Reply, SendHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CHAT_LIMITS, snippet } from "@/lib/chat/shared";
 import { cn } from "../ui";
 import type { LocalMessage } from "./message-bubble";
 import { nameColor, useMediaQuery } from "./utils";
+import { VoicePlayer } from "./voice-player";
+import { canRecordVoice, VoiceRecorder, type PendingAudio } from "./voice-recorder";
 
 export type PendingImage = { uploadId: string | null; url: string; w: number; h: number; progress: number; error?: string };
 
@@ -19,7 +21,7 @@ type Props = {
   slowModeSec: number;
   onCancelReply: () => void;
   onCancelEdit: () => void;
-  onSend: (body: string, image: PendingImage | null) => Promise<boolean>;
+  onSend: (body: string, image: PendingImage | null, audio: PendingAudio | null) => Promise<boolean>;
   onEdit: (id: string, body: string) => Promise<boolean>;
   onTyping: () => void;
   onError: (msg: string) => void;
@@ -28,6 +30,8 @@ type Props = {
 export function Composer(p: Props) {
   const [text, setText] = useState("");
   const [image, setImage] = useState<PendingImage | null>(null);
+  const [voice, setVoice] = useState<PendingAudio | null>(null);
+  const [recording, setRecording] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -86,7 +90,7 @@ export function Composer(p: Props) {
   const uploading = !!image && !image.uploadId && !image.error;
   const trimmed = text.trim();
   const tooLong = trimmed.length > CHAT_LIMITS.maxChars;
-  const canSend = (!!trimmed || (!!image?.uploadId && !p.editing)) && !uploading && !tooLong && cooldown <= 0;
+  const canSend = (!!trimmed || (!!image?.uploadId && !p.editing) || (!!voice && !p.editing)) && !uploading && !tooLong && cooldown <= 0 && !recording;
 
   async function submit() {
     if (!canSend) return;
@@ -100,10 +104,12 @@ export function Composer(p: Props) {
       return;
     }
     const img = image;
+    const v = voice;
     setText("");
     setImage(null);
+    setVoice(null);
     requestAnimationFrame(resize);
-    const ok = await p.onSend(body, img);
+    const ok = await p.onSend(body, img, v);
     if (ok && p.slowModeSec > 0) setCooldown(p.slowModeSec);
   }
 
@@ -171,7 +177,7 @@ export function Composer(p: Props) {
             <p className="text-[12.5px] font-bold" style={{ color: p.editing ? "#4b34d9" : nameColor(banner.author.id) }}>
               {p.editing ? "Edit pesan" : `Membalas ${banner.author.id === p.viewerId ? "diri sendiri" : banner.author.displayName}`}
             </p>
-            <p className="truncate text-[13px] text-slate-600">{banner.body ? snippet(banner.body, 100) : banner.image ? "📷 Foto" : ""}</p>
+            <p className="truncate text-[13px] text-slate-600">{banner.body ? snippet(banner.body, 100) : banner.image ? "📷 Foto" : banner.audio ? "🎤 Pesan suara" : ""}</p>
           </div>
           <button
             type="button"
@@ -203,6 +209,26 @@ export function Composer(p: Props) {
           </button>
         </div>
       )}
+      {recording && (
+        <VoiceRecorder
+          onDone={(a) => {
+            setVoice(a);
+            setRecording(false);
+          }}
+          onError={p.onError}
+          onCancel={() => setRecording(false)}
+        />
+      )}
+      {voice && !recording && (
+        <div className="anim-slide-up mb-2 flex items-center gap-2 rounded-2xl bg-slate-100 p-2">
+          <div className="min-w-0 flex-1">
+            <VoicePlayer url={voice.url} secs={voice.secs} mine={false} />
+          </div>
+          <button type="button" aria-label="Hapus pesan suara" onClick={() => setVoice(null)} className="tap-hit shrink-0 rounded-full p-1.5 text-slate-500 hover:bg-slate-200">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <div className="flex items-end gap-1.5">
         {!p.editing && (
           <>
@@ -226,6 +252,17 @@ export function Composer(p: Props) {
             >
               <ImagePlus className="h-[22px] w-[22px]" />
             </button>
+            {canRecordVoice() && (
+              <button
+                type="button"
+                aria-label="Rekam pesan suara"
+                disabled={!!image || !!voice || recording}
+                onClick={() => setRecording(true)}
+                className="mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-600 disabled:opacity-40"
+              >
+                <Mic className="h-[22px] w-[22px]" />
+              </button>
+            )}
           </>
         )}
         <div className={cn("flex min-w-0 flex-1 items-end rounded-[22px] border bg-white transition-colors", tooLong ? "border-red-300" : "border-slate-200 focus-within:border-brand-300")}>
@@ -234,7 +271,7 @@ export function Composer(p: Props) {
             value={text}
             rows={1}
             maxLength={CHAT_LIMITS.maxChars + 200}
-            placeholder={image ? "Tambahkan keterangan…" : "Ketik pesan"}
+            placeholder={image || voice ? "Tambahkan keterangan…" : "Ketik pesan"}
             aria-label="Ketik pesan"
             enterKeyHint={finePointer ? "send" : "enter"}
             onChange={(e) => {

@@ -692,6 +692,14 @@ const rina = user; // user@rilisin.test (Rina)
   ok(fakeImg.status === 415, "File bukan gambar ditolak (cek magic bytes)");
   const slow = await rina.say("pamer-karya", "pesan kedua terlalu cepat");
   ok(slow.status === 429 && /Mode lambat/.test(slow.data.error), "Mode lambat ruang Pamer Karya bekerja");
+  const webm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(64)]);
+  const upVoice = await seller.req("/api/chat/uploads", { method: "POST", headers: { "content-type": "audio/webm", "x-audio-secs": "7" }, body: webm });
+  const voice = await upVoice.json();
+  ok(upVoice.status === 201 && voice.secs === 7 && voice.url?.endsWith(".webm"), "Upload pesan suara (webm)");
+  const withVoice = await seller.say("nongkrong", "", { uploadId: voice.id });
+  ok(withVoice.status === 201 && withVoice.data.message.audio?.url === voice.url, "Kirim pesan suara tanpa teks");
+  const fakeVoice = await seller.req("/api/chat/uploads", { method: "POST", headers: { "content-type": "audio/webm", "x-audio-secs": "3" }, body: Buffer.from("bukan audio") });
+  ok(fakeVoice.status === 415, "File bukan audio ditolak (cek magic bytes)");
 
   // Laporan → otomatis tersembunyi setelah 3 pelapor
   const andi = new Session();

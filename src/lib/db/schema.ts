@@ -480,6 +480,8 @@ export const chatMessages = pgTable(
     imageKey: text("image_key"),
     imageW: integer("image_w"),
     imageH: integer("image_h"),
+    audioKey: text("audio_key"),
+    audioSecs: integer("audio_secs"),
     createdAt: createdAt(),
     /** Naik setiap ada perubahan (edit, hapus, reaksi) — dipakai sinkronisasi realtime. */
     updatedAt: tsz("updated_at").notNull().defaultNow(),
@@ -589,6 +591,9 @@ export const chatUploads = pgTable(
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
+    /** image | audio — audio memakai width/height 0 + durationSecs. */
+    kind: text("kind").notNull().default("image"),
+    durationSecs: integer("duration_secs"),
     usedAt: tsz("used_at"),
     createdAt: createdAt(),
   },

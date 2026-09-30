@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Ban, Check, ChevronDown, Clock3, CornerUpLeft, EyeOff, ImageIcon } from "lucide-react";
+import { AlertCircle, Ban, Check, ChevronDown, Clock3, CornerUpLeft, EyeOff, ImageIcon, Mic } from "lucide-react";
 import {
   memo,
   useRef,
@@ -13,6 +13,7 @@ import type { ChatMessageDTO } from "@/lib/chat/shared";
 import { cn } from "../ui";
 import { RichText } from "./format";
 import { haptic, initialsOf, nameColor, timeLabel, useTz } from "./utils";
+import { VoicePlayer } from "./voice-player";
 
 export type LocalMessage = ChatMessageDTO & { pending?: "sending" | "failed"; error?: string };
 
@@ -182,7 +183,7 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
   });
 
   const removed = !!msg.deleted || msg.hiddenByReports;
-  const bigEmoji = !removed && !msg.image && !msg.replyTo && isEmojiOnly(msg.body);
+  const bigEmoji = !removed && !msg.image && !msg.audio && !msg.replyTo && isEmojiOnly(msg.body);
   const color = nameColor(msg.author.id);
   // Di overlay fokus, reaksi disembunyikan (tidak terpotong & fokus ke isi pesan)
   const hasReactions = msg.reactions.length > 0 && !removed && !p.staticClone;
@@ -249,6 +250,10 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
                 <span className="inline-flex items-center gap-1">
                   <ImageIcon className="h-3.5 w-3.5" /> Foto
                 </span>
+              ) : msg.replyTo.hasAudio && !msg.replyTo.body ? (
+                <span className="inline-flex items-center gap-1">
+                  <Mic className="h-3.5 w-3.5" /> Pesan suara
+                </span>
               ) : (
                 msg.replyTo.body
               )}
@@ -275,7 +280,13 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
             {!msg.body && <span className="chat-meta chat-meta-image">{timeLabel(msg.createdAt, tz)}</span>}
           </button>
         )}
-        {(msg.body || !msg.image) && (
+        {msg.audio && (
+          <div className="chat-voice">
+            <VoicePlayer url={msg.audio.url} secs={msg.audio.secs} mine={mine} />
+            {!msg.body && <span className="chat-meta chat-meta-image">{timeLabel(msg.createdAt, tz)}</span>}
+          </div>
+        )}
+        {(msg.body || (!msg.image && !msg.audio)) && (
           <div className={cn("chat-text", bigEmoji && "chat-text-emoji")}>
             <RichText text={msg.body} />
             {!bigEmoji && <span className={cn("chat-spacer", msg.editedAt && "chat-spacer-wide")} />}

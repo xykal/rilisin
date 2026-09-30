@@ -31,6 +31,7 @@ import {
   canDeleteForEveryone,
   canEdit,
   isStaffRole,
+  attachmentPreview,
   snippet,
   type ChatActivity,
   type ChatMessageDTO,
@@ -640,7 +641,7 @@ function RoomView({
             <Pin className="h-4 w-4 shrink-0 rotate-45 text-brand-600" />
             <span className="min-w-0">
               <span className="block text-[11.5px] font-bold text-brand-700">Pesan tersemat</span>
-              <span className="block truncate text-[13px] text-slate-700">{r.pinned.body ? snippet(r.pinned.body, 120) : r.pinned.image ? "📷 Foto" : "Pesan"}</span>
+              <span className="block truncate text-[13px] text-slate-700">{r.pinned.body ? snippet(r.pinned.body, 120) : r.pinned.image ? "📷 Foto" : r.pinned.audio ? "🎤 Pesan suara" : "Pesan"}</span>
             </span>
           </button>
         )}
@@ -782,11 +783,12 @@ function RoomView({
           onCancelEdit={() => setEditing(null)}
           onTyping={r.sendTyping}
           onError={showToast}
-          onSend={async (body, image) => {
+          onSend={async (body, image, audio) => {
             const target = replyTo;
             setReplyTo(null);
-            const ok = await r.send(body, target, image);
-            if (ok && viewer) onOwnMessage(room.id, image ? (body.trim() ? `📷 ${snippet(body, 60)}` : "📷 Foto") : snippet(body, 70), new Date().toISOString(), viewer.displayName);
+            const ok = await r.send(body, target, image, audio);
+            if (ok && viewer)
+              onOwnMessage(room.id, attachmentPreview(body, image ? "image" : audio ? "audio" : null), new Date().toISOString(), viewer.displayName);
             return ok;
           }}
           onEdit={async (id, body) => {

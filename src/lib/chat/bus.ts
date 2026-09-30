@@ -2,7 +2,7 @@ import "server-only";
 import postgres from "postgres";
 import { CHAT_CHANNEL, type ChatSignal } from "./notify";
 import { getMessageDTO } from "./server";
-import { snippet, type ChatActivity, type ChatMessageDTO } from "./shared";
+import { attachmentPreview, type ChatActivity, type ChatMessageDTO } from "./shared";
 
 /**
  * "Pos" realtime per proses server: satu koneksi LISTEN ke PostgreSQL, lalu event dibagikan
@@ -84,7 +84,7 @@ class ChatBus {
     if (!message) return;
     this.emit(roomHandlers, { type: "msg", message, created: s.c === 1 });
     if (wantsActivity) {
-      const preview = message.image ? (message.body ? `📷 ${snippet(message.body, 60)}` : "📷 Foto") : snippet(message.body, 70);
+      const preview = attachmentPreview(message.body, message.image ? "image" : message.audio ? "audio" : null);
       this.emit(this.everywhere, {
         type: "activity",
         activity: {
