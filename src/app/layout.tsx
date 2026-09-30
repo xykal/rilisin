@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { HideOnRoutes } from "@/components/route-visibility";
@@ -45,8 +46,10 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser().catch(() => null);
   const pushAppId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ?? "";
+  const savedScale = (await cookies()).get("ui-scale")?.value;
+  const uiScale = savedScale === "kecil" || savedScale === "besar" ? savedScale : "normal";
   return (
-    <html lang="id" className={jakarta.variable}>
+    <html lang="id" data-uiscale={uiScale} className={jakarta.variable}>
       <body className="min-h-screen font-sans antialiased">
         {/* Chat komunitas tampil fullscreen ala WA: banner + header situs disembunyikan di /komunitas & ruang chat. Form "baru" & aturan tetap pakai header. */}
         <HideOnRoutes pattern="^/komunitas(/(?!aturan|baru)[^/]+)?/?$">

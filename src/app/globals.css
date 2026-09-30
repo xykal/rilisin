@@ -42,6 +42,14 @@
   }
 }
 
+/* Skala tampilan pilihan user (cookie ui-scale): rem di seluruh UI ikut membesar/mengecil. */
+html[data-uiscale="kecil"] {
+  font-size: 15px;
+}
+html[data-uiscale="besar"] {
+  font-size: 18px;
+}
+
 @theme {
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;

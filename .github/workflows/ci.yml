@@ -1,4 +1,4 @@
-# CI Rilisin: lint → typecheck → seed DB → build → smoke test end-to-end (369 cek) → contract test Pakasir v2.
+# CI Rilisin: lint → typecheck → seed DB → build → smoke test end-to-end (370 cek) → contract test Pakasir v2.
 # Job test tanpa secret apa pun (APP_SECRET dibuat acak per run, pembayaran mode simulasi, gateway palsu).
 # Job deploy: push ke main yang LULUS test -> deploy staging ke Vercel (build di Vercel, env tetap di Vercel).
 # Job deploy-prod: MANUAL (workflow_dispatch) -> deploy produksi ke proyek Vercel terpisah (butuh environment 'production', lihat docs/CUTOVER.md).

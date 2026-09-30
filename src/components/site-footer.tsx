@@ -1,11 +1,15 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
+import { setUiScaleAction } from "@/app/actions/ui-scale";
 import { CATEGORIES, SITE } from "@/lib/config";
 import { LEGAL_DOCS } from "@/lib/legal";
 import { BRAND } from "@/config/brand";
 import { InstallButton } from "./install-button";
 import { Logo } from "./logo";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const saved = (await cookies()).get("ui-scale")?.value;
+  const cur = saved === "kecil" || saved === "besar" ? saved : "normal";
   return (
     <footer className="mt-20 border-t border-slate-200 bg-white">
       <div className="mx-auto grid grid-cols-1 max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-4">
@@ -51,7 +55,26 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-slate-100 py-5 text-center text-xs text-slate-400">
+      <div className="border-t border-slate-100 px-4 py-5 text-center text-xs text-slate-400">
+        <form action={setUiScaleAction} data-form="ui-scale" className="mx-auto mb-3 flex w-fit items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1">
+          <span className="px-2 font-semibold text-slate-500">Tampilan:</span>
+          {(["kecil", "normal", "besar"] as const).map((s) => (
+            <button
+              key={s}
+              type="submit"
+              name="scale"
+              value={s}
+              aria-pressed={cur === s}
+              className={
+                cur === s
+                  ? "min-h-[36px] rounded-full bg-white px-3 font-bold text-brand-700 shadow-sm ring-1 ring-slate-200"
+                  : "min-h-[36px] rounded-full px-3 font-semibold text-slate-500 hover:text-slate-800"
+              }
+            >
+              {s === "kecil" ? "Kecil" : s === "normal" ? "Normal" : "Besar"}
+            </button>
+          ))}
+        </form>
         © {new Date().getFullYear()} {SITE.name} — dibuat untuk developer Indonesia.
         <br />
         Ditenagai oleh {BRAND.company}.

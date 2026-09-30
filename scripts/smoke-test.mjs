@@ -1211,6 +1211,9 @@ async function register(s, username, password, extra = {}) {
   const rsw = await fetch(`${BASE}/sw.js`, { headers: authHeaders() });
   ok(rsw.status === 200 && (await rsw.text()).includes("Rilisin service worker"), "Service worker Rilisin (offline) tersaji");
   ok((await guest.html("/offline")).text.includes("Kamu lagi offline"), "Halaman fallback offline tampil");
+  const beranda = await guest.html("/");
+  const scale = await guest.submitForm("/", beranda.text, 'data-form="ui-scale"', { scale: "besar" });
+  ok((scale.headers.get("set-cookie") ?? "").includes("ui-scale=besar"), "Skala tampilan tersimpan di cookie");
   const testPush = await rina.submitForm("/akun/notifikasi", pref3, 'data-form="test-push"', {});
   ok(clean(await testPush.text()).includes("Push belum diaktifkan di server ini"), "Push uji tanpa kunci: pesan jelas (tidak crash)");
   const prof = await rina.html("/akun/profil");
