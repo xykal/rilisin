@@ -8,13 +8,11 @@ type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{
 /** Tombol install PWA custom. Muncul hanya kalau browser mengizinkan install (desktop/laptop). */
 export function InstallButton() {
   const [deferred, setDeferred] = useState<InstallEvent | null>(null);
-  const [done, setDone] = useState(false);
+  // Sudah mode app → tidak usah pasang listener. Lazy init (bukan setState di effect).
+  const [done, setDone] = useState(() => typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches);
 
   useEffect(() => {
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setDone(true);
-      return;
-    }
+    if (done) return;
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setDeferred(e as InstallEvent);
@@ -29,7 +27,7 @@ export function InstallButton() {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, []);
+  }, [done]);
 
   if (!deferred || done) return null;
   return (

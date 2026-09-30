@@ -26,14 +26,17 @@ export function NameCheckInput({ tipe, id, prefix, defaultValue, ...rest }: Prop
 
   useEffect(() => {
     const v = value.trim();
-    if (v.length < (tipe === "username" ? 3 : 2)) {
-      setState(null);
-      setBusy(false);
-      return;
-    }
+    const tooShort = v.length < (tipe === "username" ? 3 : 2);
     const my = ++seq.current;
-    setBusy(true);
+    // Semua setState di dalam timeout (async) — aturan react-hooks/set-state-in-effect melarang yang sinkron.
     const t = setTimeout(async () => {
+      if (seq.current !== my) return;
+      if (tooShort) {
+        setState(null);
+        setBusy(false);
+        return;
+      }
+      setBusy(true);
       try {
         const r = await fetch(`/api/check-nama?tipe=${tipe}&nilai=${encodeURIComponent(v)}`, { headers: { accept: "application/json" } });
         const j = (await r.json()) as { tersedia?: boolean; pesan?: string };
@@ -43,7 +46,7 @@ export function NameCheckInput({ tipe, id, prefix, defaultValue, ...rest }: Prop
       } finally {
         if (seq.current === my) setBusy(false);
       }
-    }, 450);
+    }, tooShort ? 0 : 450);
     return () => clearTimeout(t);
   }, [value, tipe]);
 

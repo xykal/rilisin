@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { formatBytes } from "@/lib/format";
 import { Picker } from "./picker";
-import { buttonStyles, cn, inputStyles } from "./ui";
+import { buttonStyles, cn } from "./ui";
 
 type Purpose = "icon" | "cover" | "screenshot" | "release_file";
 

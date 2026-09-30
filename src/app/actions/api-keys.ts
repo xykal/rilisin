@@ -8,7 +8,7 @@ import { API_SCOPES, createApiKey, revokeApiKey as revokeKey, type ApiScope } fr
 import { db } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
 import { sharedLimit } from "@/lib/rate-limit";
-import { fieldErrorsFrom, type FormState } from "./form-state";
+import { type FormState } from "./form-state";
 
 /** Bikin API key. Secret dikembalikan sekali di respons (success) — salin sekarang atau hilang selamanya. */
 export async function createApiKeyAction(_prev: FormState, formData: FormData): Promise<FormState> {

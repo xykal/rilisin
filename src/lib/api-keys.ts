@@ -3,19 +3,16 @@ import { and, eq, isNull, or, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
 import { getUserById, type CurrentUser } from "@/lib/auth/current-user";
+import { API_SCOPES, type ApiScope } from "./api-key-scopes";
+
+export { API_SCOPES, SCOPE_LABELS } from "./api-key-scopes";
+export type { ApiScope } from "./api-key-scopes";
 
 /**
  * API key buat integrasi & AI agent (dipakai di header `Authorization: Bearer rsk_...`).
  * Hanya hash yang disimpan; scope menempel di key (bukan di user) supaya bisa dibatasi per agen.
+ * SERVER SAJA (import db/session) — komponen browser butuh scope? import dari @/lib/api-key-scopes.
  */
-export const API_SCOPES = ["seller:read", "seller:write", "admin:read"] as const;
-export type ApiScope = (typeof API_SCOPES)[number];
-
-export const SCOPE_LABELS: Record<ApiScope, string> = {
-  "seller:read": "Seller: baca (produk, rilis)",
-  "seller:write": "Seller: tulis (bikin draft, upload file)",
-  "admin:read": "Admin: baca (statistik, antrean)",
-};
 
 export function hashKey(secret: string): string {
   return createHash("sha256").update(secret).digest("hex");

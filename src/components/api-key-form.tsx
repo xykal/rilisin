@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createApiKeyAction } from "@/app/actions/api-keys";
-import { API_SCOPES, SCOPE_LABELS, type ApiScope } from "@/lib/api-keys";
+import { API_SCOPES, SCOPE_LABELS, type ApiScope } from "@/lib/api-key-scopes";
 import { Picker } from "./picker";
 import { SubmitButton } from "./submit-button";
 import { Alert, Field, inputStyles } from "./ui";

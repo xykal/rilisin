@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireSeller, requireUser } from "@/lib/auth/guards";
 import { CATEGORIES, LICENSES, PLATFORMS, RESERVED_USERNAMES } from "@/lib/config";
-import { storeNameTaken } from "@/lib/names";
 import { submitProductFlow, submitReleaseFlow } from "@/lib/seller/submit";
 import { db } from "@/lib/db";
 import { productMedia, products, releaseFiles, releases, sellerProfiles } from "@/lib/db/schema";

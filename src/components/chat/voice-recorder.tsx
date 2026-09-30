@@ -33,7 +33,10 @@ export function VoiceRecorder({ onDone, onError, onCancel }: { onDone: (a: Pendi
   const timerRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const cbRef = useRef({ onDone, onError, onCancel });
-  cbRef.current = { onDone, onError, onCancel };
+  // Sinkron callback terbaru ke ref (di effect, bukan saat render — aturan react-hooks/refs).
+  useEffect(() => {
+    cbRef.current = { onDone, onError, onCancel };
+  });
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -91,7 +94,7 @@ export function VoiceRecorder({ onDone, onError, onCancel }: { onDone: (a: Pendi
       } catch {}
       stopTracks();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mulai rekam sekali saat panel dibuka
+    // mulai rekam sekali saat panel dibuka
   }, []);
 
   const stopRec = () => {
