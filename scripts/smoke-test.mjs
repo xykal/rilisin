@@ -82,7 +82,8 @@ class Session {
   }
   /**
    * Kirim <form> server action seperti browser tanpa JS (progressive enhancement).
-   * opts.override: field yang namanya sama dengan input hidden MENGGANTI nilainya (uji kiriman "paksa").
+   * Field eksplisit selalu MENGGANTI input hidden yang namanya sama (seperti browser: nilai kontrol yang dikirim,
+   * bukan default). opts.override dipertahankan untuk kejelasan uji kiriman "paksa".
    */
   async submitForm(pagePath, html, marker, fields = {}, opts = {}) {
     const chunks = html.split("<form").slice(1).map((c) => c.split("</form>")[0]);
@@ -93,7 +94,7 @@ class Session {
       if (!/type="hidden"/.test(tag)) continue;
       const name = tag.match(/name="([^"]*)"/)?.[1];
       if (!name) continue;
-      if (opts.override && Object.hasOwn(fields, decode(name))) continue;
+      if (Object.hasOwn(fields, decode(name))) continue;
       fd.append(decode(name), decode(tag.match(/value="([^"]*)"/)?.[1] ?? ""));
     }
     for (const [k, v] of Object.entries(fields)) {
