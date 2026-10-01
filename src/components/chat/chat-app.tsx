@@ -237,6 +237,13 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
                 // terlihat → badai prefetch N× render yang justru bikin navigasi LAMBAT.
                 // HP selamat karena daftarnya display:none (tak ter-prefetch). Klik = 1 fetch.
                 prefetch={false}
+                onClick={() => {
+                  // Stempel klik → dibaca use-room saat konten room terpasang, dicatat ke console
+                  // sebagai "[nav] slug: Xms". Bukti timing navigasi (debug keluhan "stuck").
+                  try {
+                    sessionStorage.setItem("nav-t0", `${performance.now()}|${r.slug}`);
+                  } catch {}
+                }}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors",

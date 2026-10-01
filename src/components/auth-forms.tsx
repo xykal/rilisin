@@ -45,6 +45,9 @@ export function GoogleLoginLink({ next, label = "Lanjutkan dengan Google" }: { n
   return (
     <Link
       href={href}
+      // prefetch MATI: route ini 307 ke accounts.google.com — prefetch Next mengikuti redirect
+      // itu (fetch lintas-origin) lalu diblokir CSP connect-src → console merah tiap buka /masuk.
+      prefetch={false}
       data-testid="google-login"
       className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
     >
