@@ -56,10 +56,11 @@ export function proxy(request: NextRequest) {
   const pushCdn = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ? " https://cdn.onesignal.com" : "";
   const pushApi = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID?.trim() ? " https://onesignal.com https://*.onesignal.com" : "";
 
-  // Service worker OneSignal: JANGAN diberi CSP halaman! Nonce/strict-dynamic tidak berlaku di konteks
-  // worker (importScripts tidak bisa bawa nonce) → SDK worker selalu diblokir. Beri allowlist host biasa.
+  // Service worker (milik kita + OneSignal): JANGAN diberi CSP halaman! Nonce/strict-dynamic tidak berlaku
+  // di konteks worker (importScripts tidak bisa bawa nonce) → install SW selalu gagal → "No SW registration"
+  // dan tombol install PWA mati. Beri allowlist host biasa.
   // (script-src mencakup onesignal.com juga: loader .sw.js menarik chunk dari sana, bukan cuma CDN)
-  if (path === "/OneSignalSDKWorker.js") {
+  if (path === "/OneSignalSDKWorker.js" || path === "/sw.js") {
     const res = NextResponse.next();
     res.headers.set(
       "Content-Security-Policy",
