@@ -113,6 +113,11 @@ export async function sendPush(items: PushItem[]): Promise<number | null> {
   }
   const results = await Promise.allSettled(
     [...groups.values()].map(async (g) => {
+      // Ikon eksplisit: tanpa ini OneSignal memakai "/default-icon" bawaannya → 404 di console user.
+      let icon = "https://rilisin.xyverse.my.id/icons/icon-192.png";
+      try {
+        icon = `${new URL(g.url).origin}/icons/icon-192.png`;
+      } catch {}
       const res = await fetch("https://api.onesignal.com/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Basic ${REST_KEY}` },
@@ -123,6 +128,8 @@ export async function sendPush(items: PushItem[]): Promise<number | null> {
           headings: { en: g.title.slice(0, 100) },
           contents: { en: g.body.slice(0, 200) },
           url: g.url,
+          chrome_web_icon: icon,
+          firefox_icon: icon,
         }),
       });
       if (!res.ok) {

@@ -8,14 +8,16 @@ import { NextResponse, type NextRequest } from "next/server";
  *    termasuk /api/* dan request prefetch (supaya kunci tidak bisa dilewati dengan header next-router-prefetch).
  *    Pengecualian: webhook payment gateway (dipanggil server gateway), berhenti-langganan satu klik dari email
  *    (dipanggil server Gmail/Yahoo, diotorisasi token HMAC), cron harian (CRON_SECRET), worker antivirus
- *    (SCAN_WORKER_TOKEN) & /.well-known/*.
+ *    (SCAN_WORKER_TOKEN), /.well-known/*, robots.txt, dan ASET PWA PUBLIK (manifest, ikon, sw.js,
+ *    OneSignalSDKWorker.js, /offline): browser/SDK memintanya TANPA kreden Basic — kalau ikut dikunci,
+ *    precache menelan 401, registrasi SW gagal, dan OneSignal lumpuh sebelum user sempat login.
  * 2. Content-Security-Policy dengan nonce acak per request untuk halaman (bukan API/prefetch).
  *    Hanya script ber-nonce (dari Next.js sendiri) yang boleh jalan → XSS jauh lebih sulit dieksploitasi.
  *
  * FRAME_ANCESTORS: siapa yang boleh menampilkan situs ini di dalam iframe.
  *   production → 'none' (default, anti clickjacking) · preview demo → *
  */
-const LOCK_EXEMPT = /^\/(api\/payments\/[a-z]+\/webhook|api\/notifications\/unsubscribe$|api\/cron\/|api\/internal\/scan\/|\.well-known\/|robots\.txt$)/;
+const LOCK_EXEMPT = /^\/(api\/payments\/[a-z]+\/webhook|api\/notifications\/unsubscribe$|api\/cron\/|api\/internal\/scan\/|\.well-known\/|robots\.txt$|manifest\.webmanifest$|sw\.js$|OneSignalSDKWorker\.js$|apple-touch-icon\.png$|offline$|icons\/)/;
 
 function sameSecret(a: string, b: string) {
   const ab = Buffer.from(a);

@@ -112,6 +112,15 @@ export function useRoom(opts: {
   // ─── Realtime (Server-Sent Events) ───────────────────────────────────────
   useEffect(() => {
     if (!viewer) return;
+    // Timing navigasi (debug "stuck"): pasangkan stempel klik RoomList → console "[nav] slug: Xms".
+    try {
+      const raw = sessionStorage.getItem("nav-t0");
+      if (raw) {
+        sessionStorage.removeItem("nav-t0");
+        const [t0, slug] = raw.split("|");
+        if (slug === room.slug) console.info(`[nav] ${slug}: ${Math.round(performance.now() - Number(t0))}ms klik→konten`);
+      }
+    } catch {}
     let es: EventSource | null = null;
     let stopped = false;
     let retryTimer = 0;
