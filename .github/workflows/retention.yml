@@ -44,8 +44,11 @@ jobs:
         run: |
           set -euo pipefail
           cutoff=$(date -u -d '7 days ago' +%FT%TZ)
-          gh cache list --limit 100 --json id,createdAt -q ".[] | select(.createdAt < \"$cutoff\") | .id" | while read -r cid; do
-            [ -z "$cid" ] && continue
-            gh cache delete "$cid" && echo "hapus cache $cid"
+          gh api "repos/$REPO/actions/caches?per_page=100" --paginate \
+            -q '.actions_caches[] | "\(.created_at) \(.id)"' | while read -r created cid; do
+            [ -z "${cid:-}" ] && continue
+            if [[ "$created" < "$cutoff" ]]; then
+              gh api -X DELETE "repos/$REPO/actions/caches/$cid" --silent && echo "hapus cache $cid ($created)"
+            fi
           done
           echo "prune cache selesai"
