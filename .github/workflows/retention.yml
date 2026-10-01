@@ -1,0 +1,51 @@
+# Retensi log CI: hemat penyimpanan Actions tanpa menghancurkan jejak audit.
+# - Hapus run SELESAI yang lama (tiap workflow disisakan 5 terbaru sebagai bukti).
+# - Hapus cache yang berumur > 7 hari.
+# - TIDAK PERNAH menyentuh run yang sedang berjalan/antre.
+# Jalan harian + bisa dipicu manual. Izin minimal: actions:write.
+name: Retensi log CI
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: retention
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    name: Prune run & cache lama
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      KEEP: 5
+    steps:
+      - name: Hapus run selesai yang lama (sisakan 5 terbaru per workflow)
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPO/actions/workflows?per_page=100" -q '.workflows[].id' | while read -r wid; do
+            [ -z "$wid" ] && continue
+            ids=$(gh api "repos/$REPO/actions/workflows/$wid/runs?per_page=100&status=completed" --paginate \
+              -q '.workflow_runs[] | "\(.created_at) \(.id)"' | sort -r | tail -n +$((KEEP + 1)) | awk '{print $2}' || true)
+            for rid in $ids; do
+              gh api -X DELETE "repos/$REPO/actions/runs/$rid" --silent && echo "hapus run $rid (workflow $wid)"
+            done
+          done
+          echo "prune run selesai"
+      - name: Hapus cache berumur > 7 hari
+        run: |
+          set -euo pipefail
+          cutoff=$(date -u -d '7 days ago' +%FT%TZ)
+          gh cache list --limit 100 --json id,createdAt -q ".[] | select(.createdAt < \"$cutoff\") | .id" | while read -r cid; do
+            [ -z "$cid" ] && continue
+            gh cache delete "$cid" && echo "hapus cache $cid"
+          done
+          echo "prune cache selesai"

@@ -119,14 +119,29 @@ export function useRoom(opts: {
     // Polling fallback: kalau SSE tidak/belum live (mis. proxy mematikan stream), ambil pesan
     // tiap 5 dtk supaya user TIDAK PERNAH perlu refresh manual.
     let live = false;
+    let watchdog = 0;
 
     const connect = () => {
       if (stopped) return;
       live = false;
       es = new EventSource(`/api/chat/stream?room=${encodeURIComponent(room.slug)}`);
+      // Watchdog: "ready" tak kunjung tiba dalam 12 dtk (server antre/LISTEN macet) →
+      // paksa tutup + reconnect terjadwal, JANGAN gantung selamanya.
+      window.clearTimeout(watchdog);
+      watchdog = window.setTimeout(() => {
+        if (stopped || live) return;
+        try {
+          es?.close();
+        } catch {}
+        es = null;
+        attempt++;
+        setStatus("connecting");
+        retryTimer = window.setTimeout(connect, Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5)));
+      }, 12_000);
       es.addEventListener("ready", (e) => {
         attempt = 0;
         live = true;
+        window.clearTimeout(watchdog);
         setStatus("live");
         setOnline(JSON.parse((e as MessageEvent).data).online ?? 0);
         void resync();
@@ -152,6 +167,7 @@ export function useRoom(opts: {
       es.addEventListener("activity", (e) => cbs.current.onActivity(JSON.parse((e as MessageEvent).data)));
       es.addEventListener("busy", () => {
         es?.close();
+        window.clearTimeout(watchdog);
         attempt++;
         // Slot bisa bebas sendiri (tab latar dilepas setelah 45 dtk) → coba lagi dengan backoff,
         // baru menyerah setelah 5x (user benar-benar kebanyakan tab aktif).
@@ -166,6 +182,7 @@ export function useRoom(opts: {
       es.onerror = () => {
         if (stopped) return;
         live = false;
+        window.clearTimeout(watchdog);
         setStatus("connecting");
         if (es?.readyState === EventSource.CLOSED) {
           es.close();
@@ -230,6 +247,7 @@ export function useRoom(opts: {
     return () => {
       stopped = true;
       window.clearInterval(poll);
+      window.clearTimeout(watchdog);
       window.clearTimeout(retryTimer);
       window.clearTimeout(pauseTimer);
       es?.close();

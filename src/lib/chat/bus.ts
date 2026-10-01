@@ -45,14 +45,25 @@ class ChatBus {
         prepare: false,
         onnotice: () => {},
       });
-      this.ready = listener
-        .listen(CHAT_CHANNEL, (payload) => void this.onSignal(payload))
-        .then(() => undefined)
-        .catch((err) => {
-          console.error("[chat] LISTEN gagal", err);
-          this.ready = null;
-          throw err;
-        });
+      // Timeout 8 dtk: akuisisi koneksi LISTEN tidak boleh gantung (pool habis, dsb) —
+      // gagal cepat → route balas 503 → klien backoff + polling, bukan "stuck" 30 dtk.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          listener.end().catch(() => {});
+          reject(new Error("LISTEN timeout 8 dtk"));
+        }, 8000);
+      });
+      this.ready = Promise.race([
+        listener.listen(CHAT_CHANNEL, (payload) => void this.onSignal(payload)).then(() => {
+          if (timer) clearTimeout(timer);
+        }),
+        timeout,
+      ]).catch((err) => {
+        console.error("[chat] LISTEN gagal", err);
+        this.ready = null;
+        throw err;
+      });
     }
     return this.ready;
   }
