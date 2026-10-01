@@ -100,6 +100,9 @@ export async function chatApi<T>(url: string, body?: unknown): Promise<ApiResult
       body: body === undefined ? undefined : JSON.stringify(body),
       credentials: "same-origin",
       cache: "no-store",
+      // Backstop 15 dtk: API tidak boleh gantung selamanya (pool DB antre, dsb).
+      // Timeout mendarat di catch → CONNECTION_LOST → UI retry/polling yang tangani.
+      signal: AbortSignal.timeout(15_000),
     });
     if (res.status === 204) return { ok: true, data: undefined as T };
     let data: ApiBody | null = null;
