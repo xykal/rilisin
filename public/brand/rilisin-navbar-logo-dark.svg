@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 116" width="100%" height="100%">
+  <defs>
+    <linearGradient id="rilisinGrad" x1="12%" y1="8%" x2="88%" y2="92%">
+      <stop offset="0%" stop-color="#20C2F7"/>
+      <stop offset="50%" stop-color="#3D7AF0"/>
+      <stop offset="100%" stop-color="#4B28B6"/>
+    </linearGradient>
+
+    <linearGradient id="textFillDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="65%" stop-color="#F1F5F9"/>
+      <stop offset="100%" stop-color="#CBD5E1"/>
+    </linearGradient>
+
+    <linearGradient id="textFillLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="65%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+
+    <linearGradient id="iconStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E0F2FE"/>
+      <stop offset="45%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+
+    <linearGradient id="wordStrokeDark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#7DD3FC"/>
+      <stop offset="100%" stop-color="#C7D2FE"/>
+    </linearGradient>
+
+    <linearGradient id="wordStrokeLight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="50%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+
+    <linearGradient id="cometStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#20C2F7" stop-opacity="0.85"/>
+      <stop offset="50%" stop-color="#6366F1" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="luxurySheen" gradientUnits="userSpaceOnUse" x1="-260" y1="0" x2="-40" y2="130">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="35%" stop-color="#BAE6FD" stop-opacity="0.08"/>
+      <stop offset="47%" stop-color="#E0F2FE" stop-opacity="0.65"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="53%" stop-color="#E0F2FE" stop-opacity="0.65"/>
+      <stop offset="65%" stop-color="#818CF8" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <animateTransform attributeName="gradientTransform" type="translate"
+        values="-260 0; -260 0; 980 0; 980 0"
+        keyTimes="0; 0.36; 0.78; 1"
+        dur="4.6s" repeatCount="indefinite"/>
+    </linearGradient>
+
+    <g id="starGlint">
+      <circle cx="0" cy="0" r="9" fill="#38BDF8" opacity="0.35"/>
+      <path d="M 0 -20 C 0.8 -4.5 4.5 -0.8 20 0 C 4.5 0.8 0.8 4.5 0 20 C -0.8 4.5 -4.5 0.8 -20 0 C -4.5 -0.8 -0.8 -4.5 0 -20 Z" fill="#FFFFFF"/>
+      <path d="M -9 -9 L 9 9 M 9 -9 L -9 9" stroke="#BAE6FD" stroke-width="1.3" stroke-linecap="round"/>
+      <circle cx="0" cy="0" r="3" fill="#FFFFFF"/>
+    </g>
+
+    <style>
+      .ui-draw {
+        stroke-dasharray: 1;
+        animation:
+          uiStrokeIn 1.15s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both,
+          uiFillIn 0.75s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--d, 0s) + 0.65s) both,
+          uiStrokeFade 0.75s ease calc(var(--d, 0s) + 0.95s) both;
+      }
+      .ui-comet {
+        stroke-dasharray: 0.15 0.85;
+        stroke-dashoffset: 1;
+        opacity: 0;
+        animation: uiCometLoop 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        animation-delay: var(--d, 0s);
+      }
+      .ui-sub {
+        animation: uiSubIn 0.8s ease 1.1s both;
+      }
+      .glint-a {
+        transform-origin: 87px 22px;
+        animation: glintLoopA 4.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+      .glint-b {
+        transform-origin: 368px 30px;
+        animation: glintLoopB 4.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+
+      @keyframes uiStrokeIn {
+        0%   { stroke-dashoffset: 1; }
+        100% { stroke-dashoffset: 0; }
+      }
+      @keyframes uiFillIn {
+        0%   { fill-opacity: 0; }
+        100% { fill-opacity: 1; }
+      }
+      @keyframes uiStrokeFade {
+        0%   { stroke-opacity: 1; }
+        100% { stroke-opacity: 0.15; }
+      }
+      @keyframes uiSubIn {
+        0%   { opacity: 0; transform: translateY(4px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes uiCometLoop {
+        0%, 15%  { stroke-dashoffset: 1.15; opacity: 0; }
+        22%      { opacity: 0.95; }
+        52%      { stroke-dashoffset: -0.15; opacity: 0; }
+        100%     { stroke-dashoffset: -0.15; opacity: 0; }
+      }
+      @keyframes glintLoopA {
+        0%, 42%  { opacity: 0; transform: scale(0) rotate(-35deg); }
+        50%      { opacity: 1; transform: scale(0.95) rotate(0deg); }
+        60%, 100%{ opacity: 0; transform: scale(0) rotate(45deg); }
+      }
+      @keyframes glintLoopB {
+        0%, 56%  { opacity: 0; transform: scale(0) rotate(-35deg); }
+        64%      { opacity: 1; transform: scale(0.85) rotate(0deg); }
+        74%, 100%{ opacity: 0; transform: scale(0) rotate(45deg); }
+      }
+    </style>
+  </defs>
+
+  <g transform="translate(8, 6) scale(0.215)">
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.00s" d="M 56.50 198.20 L 56.50 96.20 A 67.80 67.80 0 0 1 124.30 28.40 L 276.50 28.40 A 167.00 167.00 0 0 1 443.50 195.40 A 167.00 167.00 0 0 1 276.50 362.40 L 251.50 362.40 C 242.50 362.40 237.50 356.00 237.50 347.00 L 237.50 293.60 C 237.50 284.60 242.50 279.60 251.50 279.60 L 276.50 279.60 A 84.20 84.20 0 0 0 360.70 195.40 A 84.20 84.20 0 0 0 276.50 111.20 L 153.30 111.20 A 14.00 14.00 0 0 0 139.30 125.20 L 139.30 198.20 A 41.40 41.40 0 0 1 56.50 198.20 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.08s" d="M 139.30 291.70 L 180.50 291.70 A 20.50 20.50 0 0 1 201.00 312.20 L 201.00 326.00 C 201.00 335.50 194.50 342.50 187.00 348.50 L 78.00 434.50 C 66.50 443.50 56.50 436.50 56.50 422.00 L 56.50 291.70 A 41.40 41.40 0 0 1 139.30 291.70 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.15s" d="M 199.70 164.00 L 165.40 195.80 L 199.70 227.60 L 185.60 241.00 L 137.00 195.80 L 185.60 150.60 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.20s" d="M 244.80 143.50 L 263.40 143.50 L 233.60 248.10 L 215.00 248.10 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.25s" d="M 292.10 150.60 L 340.70 195.80 L 292.10 241.00 L 278.00 227.60 L 312.30 195.80 L 278.00 164.00 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.14s" d="M 183.00 301.80 C 199.50 301.80 209.00 314.00 225.00 314.00 L 273.80 314.00 C 289.80 314.00 299.30 301.80 315.80 301.80 C 347.50 301.80 368.80 326.50 375.80 369.50 C 382.60 411.50 366.80 443.20 340.20 443.20 C 320.20 443.20 307.80 426.00 292.80 403.50 C 287.80 396.20 281.80 393.20 272.80 393.20 L 226.00 393.20 C 217.00 393.20 211.00 396.20 206.00 403.50 C 191.00 426.00 178.60 443.20 158.60 443.20 C 132.00 443.20 116.20 411.50 123.00 369.50 C 130.00 326.50 151.30 301.80 183.00 301.80 Z M 184.50 318.00 C 161.50 318.00 144.80 337.50 139.00 372.50 C 133.80 404.00 144.20 427.00 159.80 427.00 C 172.50 427.00 182.80 412.50 195.80 393.20 C 203.20 382.20 212.50 377.00 226.00 377.00 L 272.80 377.00 C 286.30 377.00 295.60 382.20 303.00 393.20 C 316.00 412.50 326.30 427.00 339.00 427.00 C 354.60 427.00 365.00 404.00 359.80 372.50 C 354.00 337.50 337.30 318.00 314.30 318.00 C 303.00 318.00 293.80 330.20 273.80 330.20 L 225.00 330.20 C 205.00 330.20 195.80 318.00 184.50 318.00 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.26s" d="M 176.20 339.70 L 190.60 339.70 L 190.60 354.30 L 205.20 354.30 L 205.20 368.70 L 190.60 368.70 L 190.60 383.30 L 176.20 383.30 L 176.20 368.70 L 161.60 368.70 L 161.60 354.30 L 176.20 354.30 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.30s" d="M 306.60 344.20 A 8.80 8.80 0 1 0 324.20 344.20 A 8.80 8.80 0 1 0 306.60 344.20 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.30s" d="M 289.30 361.50 A 8.80 8.80 0 1 0 306.90 361.50 A 8.80 8.80 0 1 0 289.30 361.50 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.30s" d="M 323.90 361.50 A 8.80 8.80 0 1 0 341.50 361.50 A 8.80 8.80 0 1 0 323.90 361.50 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.30s" d="M 306.60 378.80 A 8.80 8.80 0 1 0 324.20 378.80 A 8.80 8.80 0 1 0 306.60 378.80 Z" pathLength="1" fill="url(#rilisinGrad)" stroke="url(#iconStroke)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.12s" d="M 145.09 67.26 L 145.09 90.79 L 128.00 90.79 L 128.00 28.62 L 154.09 28.62 Q 167.19 28.62 173.28 32.75 Q 179.39 36.87 179.39 45.78 Q 179.39 51.94 176.21 55.90 Q 173.04 59.85 166.65 61.73 Q 170.16 62.48 172.93 65.13 Q 175.71 67.77 178.55 73.14 L 187.83 90.79 L 169.63 90.79 L 161.55 75.35 Q 159.11 70.68 156.59 68.98 Q 154.09 67.26 149.92 67.26 L 145.09 67.26 Z M 152.27 56.19 Q 157.64 56.19 159.97 54.32 Q 162.30 52.45 162.30 48.16 Q 162.30 43.91 159.97 42.08 Q 157.64 40.24 152.27 40.24 L 145.09 40.24 L 145.09 56.19 L 152.27 56.19 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.18s" d="M 197.29 44.16 L 213.17 44.16 L 213.17 90.79 L 197.29 90.79 L 197.29 44.16 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.22s" d="M 197.29 26.00 L 213.17 26.00 L 213.17 38.16 L 197.29 38.16 L 197.29 26.00 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.24s" d="M 228.45 26.00 L 244.33 26.00 L 244.33 90.79 L 228.45 90.79 L 228.45 26.00 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.28s" d="M 259.61 44.16 L 275.49 44.16 L 275.49 90.79 L 259.61 90.79 L 259.61 44.16 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.32s" d="M 259.61 26.00 L 275.49 26.00 L 275.49 38.16 L 259.61 38.16 L 259.61 26.00 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.34s" d="M 329.60 45.61 L 329.60 56.94 Q 324.50 54.94 319.74 53.94 Q 315.00 52.94 310.78 52.94 Q 306.25 52.94 304.05 54.00 Q 301.86 55.07 301.86 57.27 Q 301.86 59.07 303.52 60.03 Q 305.18 60.97 309.49 61.44 L 312.28 61.81 Q 324.50 63.26 328.70 66.59 Q 332.92 69.92 332.92 77.05 Q 332.92 84.50 327.06 88.26 Q 321.20 92.00 309.58 92.00 Q 304.66 92.00 299.39 91.27 Q 294.13 90.53 288.58 89.08 L 288.58 77.76 Q 293.34 79.92 298.32 81.01 Q 303.32 82.09 308.46 82.09 Q 313.14 82.09 315.48 80.89 Q 317.84 79.68 317.84 77.29 Q 317.84 75.29 316.22 74.32 Q 314.60 73.35 309.76 72.80 L 306.96 72.47 Q 296.35 71.22 292.09 67.85 Q 287.82 64.48 287.82 57.60 Q 287.82 50.19 293.24 46.62 Q 298.66 43.04 309.84 43.04 Q 314.24 43.04 319.07 43.67 Q 323.92 44.28 329.60 45.61 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.38s" d="M 344.87 44.16 L 360.75 44.16 L 360.75 90.79 L 344.87 90.79 L 344.87 44.16 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.44s" d="M 344.87 26.00 L 360.75 26.00 L 360.75 38.16 L 344.87 38.16 L 344.87 26.00 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path fill-rule="evenodd" class="ui-draw" style="--d:0.42s" d="M 426.00 62.40 L 426.00 90.79 L 410.02 90.79 L 410.02 86.16 L 410.02 69.06 Q 410.02 63.02 409.74 60.73 Q 409.45 58.44 408.74 57.36 Q 407.81 55.90 406.20 55.08 Q 404.61 54.27 402.56 54.27 Q 397.59 54.27 394.75 57.88 Q 391.91 61.48 391.91 67.85 L 391.91 90.79 L 376.03 90.79 L 376.03 44.16 L 391.91 44.16 L 391.91 50.98 Q 395.50 46.90 399.54 44.97 Q 403.59 43.04 408.47 43.04 Q 417.08 43.04 421.54 48.00 Q 426.00 52.94 426.00 62.40 Z" pathLength="1" fill="url(#textFillDark)" stroke="url(#wordStrokeDark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g transform="translate(8, 6) scale(0.215)">
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.00s" d="M 56.50 198.20 L 56.50 96.20 A 67.80 67.80 0 0 1 124.30 28.40 L 276.50 28.40 A 167.00 167.00 0 0 1 443.50 195.40 A 167.00 167.00 0 0 1 276.50 362.40 L 251.50 362.40 C 242.50 362.40 237.50 356.00 237.50 347.00 L 237.50 293.60 C 237.50 284.60 242.50 279.60 251.50 279.60 L 276.50 279.60 A 84.20 84.20 0 0 0 360.70 195.40 A 84.20 84.20 0 0 0 276.50 111.20 L 153.30 111.20 A 14.00 14.00 0 0 0 139.30 125.20 L 139.30 198.20 A 41.40 41.40 0 0 1 56.50 198.20 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.08s" d="M 139.30 291.70 L 180.50 291.70 A 20.50 20.50 0 0 1 201.00 312.20 L 201.00 326.00 C 201.00 335.50 194.50 342.50 187.00 348.50 L 78.00 434.50 C 66.50 443.50 56.50 436.50 56.50 422.00 L 56.50 291.70 A 41.40 41.40 0 0 1 139.30 291.70 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.15s" d="M 199.70 164.00 L 165.40 195.80 L 199.70 227.60 L 185.60 241.00 L 137.00 195.80 L 185.60 150.60 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.20s" d="M 244.80 143.50 L 263.40 143.50 L 233.60 248.10 L 215.00 248.10 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.25s" d="M 292.10 150.60 L 340.70 195.80 L 292.10 241.00 L 278.00 227.60 L 312.30 195.80 L 278.00 164.00 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.14s" d="M 183.00 301.80 C 199.50 301.80 209.00 314.00 225.00 314.00 L 273.80 314.00 C 289.80 314.00 299.30 301.80 315.80 301.80 C 347.50 301.80 368.80 326.50 375.80 369.50 C 382.60 411.50 366.80 443.20 340.20 443.20 C 320.20 443.20 307.80 426.00 292.80 403.50 C 287.80 396.20 281.80 393.20 272.80 393.20 L 226.00 393.20 C 217.00 393.20 211.00 396.20 206.00 403.50 C 191.00 426.00 178.60 443.20 158.60 443.20 C 132.00 443.20 116.20 411.50 123.00 369.50 C 130.00 326.50 151.30 301.80 183.00 301.80 Z M 184.50 318.00 C 161.50 318.00 144.80 337.50 139.00 372.50 C 133.80 404.00 144.20 427.00 159.80 427.00 C 172.50 427.00 182.80 412.50 195.80 393.20 C 203.20 382.20 212.50 377.00 226.00 377.00 L 272.80 377.00 C 286.30 377.00 295.60 382.20 303.00 393.20 C 316.00 412.50 326.30 427.00 339.00 427.00 C 354.60 427.00 365.00 404.00 359.80 372.50 C 354.00 337.50 337.30 318.00 314.30 318.00 C 303.00 318.00 293.80 330.20 273.80 330.20 L 225.00 330.20 C 205.00 330.20 195.80 318.00 184.50 318.00 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.26s" d="M 176.20 339.70 L 190.60 339.70 L 190.60 354.30 L 205.20 354.30 L 205.20 368.70 L 190.60 368.70 L 190.60 383.30 L 176.20 383.30 L 176.20 368.70 L 161.60 368.70 L 161.60 354.30 L 176.20 354.30 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.30s" d="M 306.60 344.20 A 8.80 8.80 0 1 0 324.20 344.20 A 8.80 8.80 0 1 0 306.60 344.20 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.30s" d="M 289.30 361.50 A 8.80 8.80 0 1 0 306.90 361.50 A 8.80 8.80 0 1 0 289.30 361.50 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.30s" d="M 323.90 361.50 A 8.80 8.80 0 1 0 341.50 361.50 A 8.80 8.80 0 1 0 323.90 361.50 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.30s" d="M 306.60 378.80 A 8.80 8.80 0 1 0 324.20 378.80 A 8.80 8.80 0 1 0 306.60 378.80 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="7.5" stroke-linecap="round"/>
+  </g>
+  <g>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.12s" d="M 145.09 67.26 L 145.09 90.79 L 128.00 90.79 L 128.00 28.62 L 154.09 28.62 Q 167.19 28.62 173.28 32.75 Q 179.39 36.87 179.39 45.78 Q 179.39 51.94 176.21 55.90 Q 173.04 59.85 166.65 61.73 Q 170.16 62.48 172.93 65.13 Q 175.71 67.77 178.55 73.14 L 187.83 90.79 L 169.63 90.79 L 161.55 75.35 Q 159.11 70.68 156.59 68.98 Q 154.09 67.26 149.92 67.26 L 145.09 67.26 Z M 152.27 56.19 Q 157.64 56.19 159.97 54.32 Q 162.30 52.45 162.30 48.16 Q 162.30 43.91 159.97 42.08 Q 157.64 40.24 152.27 40.24 L 145.09 40.24 L 145.09 56.19 L 152.27 56.19 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.18s" d="M 197.29 44.16 L 213.17 44.16 L 213.17 90.79 L 197.29 90.79 L 197.29 44.16 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.22s" d="M 197.29 26.00 L 213.17 26.00 L 213.17 38.16 L 197.29 38.16 L 197.29 26.00 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.24s" d="M 228.45 26.00 L 244.33 26.00 L 244.33 90.79 L 228.45 90.79 L 228.45 26.00 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.28s" d="M 259.61 44.16 L 275.49 44.16 L 275.49 90.79 L 259.61 90.79 L 259.61 44.16 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.32s" d="M 259.61 26.00 L 275.49 26.00 L 275.49 38.16 L 259.61 38.16 L 259.61 26.00 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.34s" d="M 329.60 45.61 L 329.60 56.94 Q 324.50 54.94 319.74 53.94 Q 315.00 52.94 310.78 52.94 Q 306.25 52.94 304.05 54.00 Q 301.86 55.07 301.86 57.27 Q 301.86 59.07 303.52 60.03 Q 305.18 60.97 309.49 61.44 L 312.28 61.81 Q 324.50 63.26 328.70 66.59 Q 332.92 69.92 332.92 77.05 Q 332.92 84.50 327.06 88.26 Q 321.20 92.00 309.58 92.00 Q 304.66 92.00 299.39 91.27 Q 294.13 90.53 288.58 89.08 L 288.58 77.76 Q 293.34 79.92 298.32 81.01 Q 303.32 82.09 308.46 82.09 Q 313.14 82.09 315.48 80.89 Q 317.84 79.68 317.84 77.29 Q 317.84 75.29 316.22 74.32 Q 314.60 73.35 309.76 72.80 L 306.96 72.47 Q 296.35 71.22 292.09 67.85 Q 287.82 64.48 287.82 57.60 Q 287.82 50.19 293.24 46.62 Q 298.66 43.04 309.84 43.04 Q 314.24 43.04 319.07 43.67 Q 323.92 44.28 329.60 45.61 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.38s" d="M 344.87 44.16 L 360.75 44.16 L 360.75 90.79 L 344.87 90.79 L 344.87 44.16 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.44s" d="M 344.87 26.00 L 360.75 26.00 L 360.75 38.16 L 344.87 38.16 L 344.87 26.00 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+    <path fill-rule="evenodd" class="ui-comet" style="--d:0.42s" d="M 426.00 62.40 L 426.00 90.79 L 410.02 90.79 L 410.02 86.16 L 410.02 69.06 Q 410.02 63.02 409.74 60.73 Q 409.45 58.44 408.74 57.36 Q 407.81 55.90 406.20 55.08 Q 404.61 54.27 402.56 54.27 Q 397.59 54.27 394.75 57.88 Q 391.91 61.48 391.91 67.85 L 391.91 90.79 L 376.03 90.79 L 376.03 44.16 L 391.91 44.16 L 391.91 50.98 Q 395.50 46.90 399.54 44.97 Q 403.59 43.04 408.47 43.04 Q 417.08 43.04 421.54 48.00 Q 426.00 52.94 426.00 62.40 Z" pathLength="1" fill="none" stroke="url(#cometStroke)" stroke-width="2.3" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(8, 6) scale(0.215)" style="mix-blend-mode:screen;">
+    <path fill-rule="evenodd" d="M 56.50 198.20 L 56.50 96.20 A 67.80 67.80 0 0 1 124.30 28.40 L 276.50 28.40 A 167.00 167.00 0 0 1 443.50 195.40 A 167.00 167.00 0 0 1 276.50 362.40 L 251.50 362.40 C 242.50 362.40 237.50 356.00 237.50 347.00 L 237.50 293.60 C 237.50 284.60 242.50 279.60 251.50 279.60 L 276.50 279.60 A 84.20 84.20 0 0 0 360.70 195.40 A 84.20 84.20 0 0 0 276.50 111.20 L 153.30 111.20 A 14.00 14.00 0 0 0 139.30 125.20 L 139.30 198.20 A 41.40 41.40 0 0 1 56.50 198.20 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 139.30 291.70 L 180.50 291.70 A 20.50 20.50 0 0 1 201.00 312.20 L 201.00 326.00 C 201.00 335.50 194.50 342.50 187.00 348.50 L 78.00 434.50 C 66.50 443.50 56.50 436.50 56.50 422.00 L 56.50 291.70 A 41.40 41.40 0 0 1 139.30 291.70 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 199.70 164.00 L 165.40 195.80 L 199.70 227.60 L 185.60 241.00 L 137.00 195.80 L 185.60 150.60 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 244.80 143.50 L 263.40 143.50 L 233.60 248.10 L 215.00 248.10 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 292.10 150.60 L 340.70 195.80 L 292.10 241.00 L 278.00 227.60 L 312.30 195.80 L 278.00 164.00 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 183.00 301.80 C 199.50 301.80 209.00 314.00 225.00 314.00 L 273.80 314.00 C 289.80 314.00 299.30 301.80 315.80 301.80 C 347.50 301.80 368.80 326.50 375.80 369.50 C 382.60 411.50 366.80 443.20 340.20 443.20 C 320.20 443.20 307.80 426.00 292.80 403.50 C 287.80 396.20 281.80 393.20 272.80 393.20 L 226.00 393.20 C 217.00 393.20 211.00 396.20 206.00 403.50 C 191.00 426.00 178.60 443.20 158.60 443.20 C 132.00 443.20 116.20 411.50 123.00 369.50 C 130.00 326.50 151.30 301.80 183.00 301.80 Z M 184.50 318.00 C 161.50 318.00 144.80 337.50 139.00 372.50 C 133.80 404.00 144.20 427.00 159.80 427.00 C 172.50 427.00 182.80 412.50 195.80 393.20 C 203.20 382.20 212.50 377.00 226.00 377.00 L 272.80 377.00 C 286.30 377.00 295.60 382.20 303.00 393.20 C 316.00 412.50 326.30 427.00 339.00 427.00 C 354.60 427.00 365.00 404.00 359.80 372.50 C 354.00 337.50 337.30 318.00 314.30 318.00 C 303.00 318.00 293.80 330.20 273.80 330.20 L 225.00 330.20 C 205.00 330.20 195.80 318.00 184.50 318.00 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 176.20 339.70 L 190.60 339.70 L 190.60 354.30 L 205.20 354.30 L 205.20 368.70 L 190.60 368.70 L 190.60 383.30 L 176.20 383.30 L 176.20 368.70 L 161.60 368.70 L 161.60 354.30 L 176.20 354.30 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 306.60 344.20 A 8.80 8.80 0 1 0 324.20 344.20 A 8.80 8.80 0 1 0 306.60 344.20 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 289.30 361.50 A 8.80 8.80 0 1 0 306.90 361.50 A 8.80 8.80 0 1 0 289.30 361.50 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 323.90 361.50 A 8.80 8.80 0 1 0 341.50 361.50 A 8.80 8.80 0 1 0 323.90 361.50 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 306.60 378.80 A 8.80 8.80 0 1 0 324.20 378.80 A 8.80 8.80 0 1 0 306.60 378.80 Z" fill="url(#luxurySheen)"/>
+  </g>
+  <g style="mix-blend-mode:screen;">
+    <path fill-rule="evenodd" d="M 145.09 67.26 L 145.09 90.79 L 128.00 90.79 L 128.00 28.62 L 154.09 28.62 Q 167.19 28.62 173.28 32.75 Q 179.39 36.87 179.39 45.78 Q 179.39 51.94 176.21 55.90 Q 173.04 59.85 166.65 61.73 Q 170.16 62.48 172.93 65.13 Q 175.71 67.77 178.55 73.14 L 187.83 90.79 L 169.63 90.79 L 161.55 75.35 Q 159.11 70.68 156.59 68.98 Q 154.09 67.26 149.92 67.26 L 145.09 67.26 Z M 152.27 56.19 Q 157.64 56.19 159.97 54.32 Q 162.30 52.45 162.30 48.16 Q 162.30 43.91 159.97 42.08 Q 157.64 40.24 152.27 40.24 L 145.09 40.24 L 145.09 56.19 L 152.27 56.19 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 197.29 44.16 L 213.17 44.16 L 213.17 90.79 L 197.29 90.79 L 197.29 44.16 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 197.29 26.00 L 213.17 26.00 L 213.17 38.16 L 197.29 38.16 L 197.29 26.00 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 228.45 26.00 L 244.33 26.00 L 244.33 90.79 L 228.45 90.79 L 228.45 26.00 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 259.61 44.16 L 275.49 44.16 L 275.49 90.79 L 259.61 90.79 L 259.61 44.16 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 259.61 26.00 L 275.49 26.00 L 275.49 38.16 L 259.61 38.16 L 259.61 26.00 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 329.60 45.61 L 329.60 56.94 Q 324.50 54.94 319.74 53.94 Q 315.00 52.94 310.78 52.94 Q 306.25 52.94 304.05 54.00 Q 301.86 55.07 301.86 57.27 Q 301.86 59.07 303.52 60.03 Q 305.18 60.97 309.49 61.44 L 312.28 61.81 Q 324.50 63.26 328.70 66.59 Q 332.92 69.92 332.92 77.05 Q 332.92 84.50 327.06 88.26 Q 321.20 92.00 309.58 92.00 Q 304.66 92.00 299.39 91.27 Q 294.13 90.53 288.58 89.08 L 288.58 77.76 Q 293.34 79.92 298.32 81.01 Q 303.32 82.09 308.46 82.09 Q 313.14 82.09 315.48 80.89 Q 317.84 79.68 317.84 77.29 Q 317.84 75.29 316.22 74.32 Q 314.60 73.35 309.76 72.80 L 306.96 72.47 Q 296.35 71.22 292.09 67.85 Q 287.82 64.48 287.82 57.60 Q 287.82 50.19 293.24 46.62 Q 298.66 43.04 309.84 43.04 Q 314.24 43.04 319.07 43.67 Q 323.92 44.28 329.60 45.61 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 344.87 44.16 L 360.75 44.16 L 360.75 90.79 L 344.87 90.79 L 344.87 44.16 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 344.87 26.00 L 360.75 26.00 L 360.75 38.16 L 344.87 38.16 L 344.87 26.00 Z" fill="url(#luxurySheen)"/>
+    <path fill-rule="evenodd" d="M 426.00 62.40 L 426.00 90.79 L 410.02 90.79 L 410.02 86.16 L 410.02 69.06 Q 410.02 63.02 409.74 60.73 Q 409.45 58.44 408.74 57.36 Q 407.81 55.90 406.20 55.08 Q 404.61 54.27 402.56 54.27 Q 397.59 54.27 394.75 57.88 Q 391.91 61.48 391.91 67.85 L 391.91 90.79 L 376.03 90.79 L 376.03 44.16 L 391.91 44.16 L 391.91 50.98 Q 395.50 46.90 399.54 44.97 Q 403.59 43.04 408.47 43.04 Q 417.08 43.04 421.54 48.00 Q 426.00 52.94 426.00 62.40 Z" fill="url(#luxurySheen)"/>
+  </g>
+
+  <use href="#starGlint" x="87" y="22" class="glint-a"/>
+  <use href="#starGlint" x="368" y="30" class="glint-b"/>
+</svg>
