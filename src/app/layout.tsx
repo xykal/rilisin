@@ -11,7 +11,6 @@ import { BRAND } from "@/config/brand";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { PushInit } from "@/components/push-init";
 import { SwRegister } from "@/components/sw-register";
-import { SplashScreen } from "@/components/splash-screen";
 import "./globals.css";
 
 // Semua halaman membaca session (cookie) & data terbaru dari database.
@@ -61,7 +60,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="id" data-uiscale={uiScale} className={jakarta.variable}>
       <body className="min-h-screen font-sans antialiased">
-        <SplashScreen />
         {/* Chat komunitas tampil fullscreen ala WA: banner + header situs disembunyikan di /komunitas & ruang chat. Form "baru" & aturan tetap pakai header. */}
         <HideOnRoutes pattern="^/komunitas(/(?!aturan|baru)[^/]+)?/?$">
           <div className="bg-ink px-4 py-2 text-center text-xs font-medium text-white/85">
