@@ -233,6 +233,10 @@ function RoomList({ rooms, activeSlug, viewer, memberCount }: { rooms: ChatRoomD
             <li key={r.id}>
               <Link
                 href={`/komunitas/${r.slug}`}
+                // prefetch MATI: tiap link = render server penuh (50 pesan). Di desktop semua
+                // terlihat → badai prefetch N× render yang justru bikin navigasi LAMBAT.
+                // HP selamat karena daftarnya display:none (tak ter-prefetch). Klik = 1 fetch.
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors",

@@ -138,7 +138,7 @@ function RoleBadge({ author }: { author: ChatMessageDTO["author"] }) {
 export function MiniAvatar({ user, size = 32 }: { user: { id: string; displayName: string; avatarUrl: string | null }; size?: number }) {
   if (user.avatarUrl) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={user.avatarUrl} alt="" width={size} height={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />;
+    return <img src={user.avatarUrl} alt="" width={size} height={size} loading="lazy" decoding="async" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />;
   }
   return (
     <span
@@ -280,6 +280,8 @@ export const MessageBubble = memo(function MessageBubble(p: BubbleProps) {
               width={msg.image.w}
               height={msg.image.h}
               draggable={false}
+              loading="lazy"
+              decoding="async"
               style={{ aspectRatio: `${msg.image.w} / ${msg.image.h}` }}
             />
             {!msg.body && <span className="chat-meta chat-meta-image">{timeLabel(msg.createdAt, tz)}</span>}
