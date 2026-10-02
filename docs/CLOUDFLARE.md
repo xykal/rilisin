@@ -141,3 +141,17 @@ Vonis: batas CPU 10 ms Workers Free tidak realistis untuk aplikasi ini apa adany
 sudah 4-6x batas. Yang bisa menurunkan: Hyperdrive (buang TLS+SCRAM per request, butuh izin token), cache halaman
 statis (legal), tapi render React dinamis tetap puluhan ms. Pilihan nyata: Workers Paid ($5/bln, CPU 30 detik,
 bundel 10 MiB) atau VPS/Oracle gratis.
+
+### Pecahan biaya CPU (run 37048148289, rute ukur `/api/cf-probe`, hanya ada di build Workers)
+
+| Rute | CPU p50 hangat | Catatan |
+|---|---|---|
+| `?m=none` (JSON saja, tanpa DB) | 13 ms (min 5) | middleware + runtime Next saja |
+| `?m=db` (1 query) | 28 ms | koneksi TLS + SCRAM ke Neon ≈ +15 ms |
+| `?m=db3` (3 query, 1 klien) | 19 ms | query tambahan murah |
+| `/masuk` | 58 ms | |
+| `/ketentuan` | 79 ms | |
+
+Rute tanpa DB pun sudah di atas 10 ms (p50 13). Hyperdrive paling banyak membuang ±15 ms koneksi, jadi batas Free
+tidak tercapai lewat optimasi; render dinamis tetap puluhan ms. 19 dari 83 request gagal `exceededCpu` (503) di
+run itu. Kesimpulan: Workers Free tidak layak untuk app ini. Opsi: Workers Paid atau VPS/Oracle gratis.
