@@ -55,3 +55,7 @@ server.log
 fake-google.log
 # laporan ZAP baseline (dibuat tiap run CI, dibaca lalu dibuang)
 zap-out/
+
+# Cloudflare Workers (OpenNext)
+.open-next/
+.wrangler/

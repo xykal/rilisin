@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rilisin",
+  "main": ".open-next/worker.js",
+  // nodejs_compat: node:crypto/zlib/stream dipakai app. Tanggal kompatibilitas wajib >= 2025-05-05 (FinalizationRegistry).
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "rilisin" }],
+  "observability": { "enabled": true }
+}

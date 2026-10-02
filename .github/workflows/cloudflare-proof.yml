@@ -1,0 +1,72 @@
+# Bukti build Cloudflare Workers (OpenNext) TANPA deploy dan TANPA menyentuh package.json.
+# Pertanyaan yang dijawab: apakah app ini terbuild untuk workerd, dan berapa ukuran
+# Worker (batas Workers Free = 3 MiB gzip). Deploy dibuat terpisah setelah ini hijau.
+name: Cloudflare build proof
+
+on:
+  pull_request:
+    paths:
+      - "wrangler.jsonc"
+      - "open-next.config.ts"
+      - ".github/workflows/cloudflare-proof.yml"
+      - "src/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cf-proof-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    name: OpenNext build + ukuran Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: rilisin
+          POSTGRES_PASSWORD: rilisin
+          POSTGRES_DB: rilisin
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rilisin -d rilisin"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgres://rilisin:rilisin@localhost:5432/rilisin
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: .local/storage
+      PAYMENT_PROVIDER: mock
+      APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Adapter + wrangler (sementara, --no-save)
+        run: npm install --no-save --no-audit --no-fund @opennextjs/cloudflare@1.20.7 wrangler@4.147.0
+      - name: Rahasia acak (khusus run ini)
+        run: |
+          s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+          echo "::add-mask::$s"
+          echo "APP_SECRET=$s" >> "$GITHUB_ENV"
+      - name: Migrasi skema
+        run: npm run db:migrate
+      - name: OpenNext build
+        run: npx opennextjs-cloudflare build 2>&1 | tail -n 60
+      - name: Ukuran Worker (dry-run, tanpa login)
+        run: |
+          npx wrangler deploy --dry-run --outdir .wrangler/out 2>&1 | tee dryrun.log | tail -n 25
+          {
+            echo "### Ukuran Worker"
+            echo '```'
+            grep -E "Total Upload|gzip" dryrun.log || echo "baris ukuran tidak ditemukan"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
