@@ -85,7 +85,7 @@ jobs:
             [ "$c" = "200" ] || { fail=1; head -c 300 /tmp/body; echo; }
           done
           echo "--- sampel hangat: 15x per halaman"
-          for p in /ketentuan /masuk /jelajahi /forum; do
+          for p in "/api/cf-probe?m=none" "/api/cf-probe?m=db" "/api/cf-probe?m=db3" /masuk /ketentuan; do
             codes=""
             for i in $(seq 1 15); do
               codes="$codes $(curl -s -o /dev/null -w '%{http_code}' -u "$SITE_LOCK_USER:$SITE_LOCK_PASSWORD" "$base$p")"

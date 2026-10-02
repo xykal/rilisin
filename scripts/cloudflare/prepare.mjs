@@ -33,3 +33,23 @@ writeFileSync(
   ),
 );
 console.log("dialihkan: postgres -> salinan postgres/cf (build Workers saja)");
+
+// Rute ukur CPU (hanya di build Workers): none = tanpa DB, db = 1 query, db3 = 3 query pada klien yang sama.
+import { mkdirSync } from "node:fs";
+mkdirSync("src/app/api/cf-probe", { recursive: true });
+writeFileSync(
+  "src/app/api/cf-probe/route.ts",
+  `import { sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(req: Request) {
+  const m = new URL(req.url).searchParams.get("m") ?? "none";
+  const n = m === "db3" ? 3 : m === "db" ? 1 : 0;
+  for (let i = 0; i < n; i++) await db.execute(sql\`select 1\`);
+  return Response.json({ ok: true, m });
+}
+`,
+);
+console.log("ditambah: src/app/api/cf-probe (khusus build Workers)");
