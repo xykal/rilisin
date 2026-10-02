@@ -70,3 +70,12 @@ jobs:
             grep -E "Total Upload|gzip" dryrun.log || echo "baris ukuran tidak ditemukan"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Isi bundle per paket
+        run: |
+          node scripts/qa/bundle-report.mjs .open-next 25 | tee bundle-report.txt
+          {
+            echo "### Isi bundle per paket (KiB sebelum gzip)"
+            echo '```'
+            cat bundle-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
