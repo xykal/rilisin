@@ -72,6 +72,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Isi bundle per paket
         run: |
+          set -o pipefail
           node scripts/qa/bundle-report.mjs | tee bundle-report.txt
           {
             echo "### Isi bundle per paket (KiB sebelum gzip)"

@@ -2,7 +2,7 @@
 // Pemakaian: node scripts/qa/bundle-report.mjs [direktori ...]  (default: .open-next .wrangler/out)
 // Estimasi per paket: Turbopack menaruh tiap modul sebagai entri `"[project]/<path>": ...` di chunk,
 // jadi ukuran satu modul = jarak ke penanda modul berikutnya. Angka pendekatan, bukan akuntansi persis.
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const dirs = process.argv.slice(2).length ? process.argv.slice(2) : [".open-next", ".wrangler/out"];
@@ -10,7 +10,8 @@ const dirs = process.argv.slice(2).length ? process.argv.slice(2) : [".open-next
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
-    const st = statSync(p);
+    const st = lstatSync(p);
+    if (st.isSymbolicLink()) continue;
     if (st.isDirectory()) yield* walk(p);
     else yield [p, st.size];
   }
