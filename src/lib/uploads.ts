@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, count, eq, max, sql } from "drizzle-orm";
-import sharp from "sharp";
+import { toWebp } from "@/lib/image";
 import type { CurrentUser } from "@/lib/auth/current-user";
 import { LIMITS } from "@/lib/config";
 import { db } from "@/lib/db";
@@ -113,14 +113,13 @@ export function readUploadToken(token: string | null | undefined) {
 }
 
 async function processImage(buf: Buffer, purpose: "icon" | "cover" | "screenshot") {
-  const base = sharp(buf, { failOn: "error", limitInputPixels: 50_000_000 }).rotate();
-  const pipeline =
+  const box =
     purpose === "icon"
-      ? base.resize(512, 512, { fit: "cover" })
+      ? { width: 512, height: 512, fit: "cover" as const }
       : purpose === "cover"
-        ? base.resize(1280, 720, { fit: "cover" })
-        : base.resize(1600, 1600, { fit: "inside", withoutEnlargement: true });
-  return pipeline.webp({ quality: 84 }).toBuffer({ resolveWithObject: true });
+        ? { width: 1280, height: 720, fit: "cover" as const }
+        : { width: 1600, height: 1600, fit: "inside" as const };
+  return toWebp(buf, { ...box, quality: 84, maxPixels: 50_000_000 });
 }
 
 export async function completeUpload(user: CurrentUser, token: string) {

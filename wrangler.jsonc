@@ -8,6 +8,8 @@
   // Output OpenNext sudah di-minify, tapi wrangler membundel ulang tanpa minify (ukuran mentah membengkak ~30%).
   "minify": true,
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  // Normalisasi gambar upload (sharp tidak jalan di workerd). Lihat src/lib/image.ts.
+  "images": { "binding": "IMAGES" },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "rilisin" }],
   "observability": { "enabled": true }
 }

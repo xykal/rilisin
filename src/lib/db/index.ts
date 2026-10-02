@@ -2,13 +2,13 @@ import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
+import { IN_WORKERS } from "@/lib/runtime";
 import * as schema from "./schema";
 
 type Handle = { client: Sql; db: PostgresJsDatabase<typeof schema> };
 
 // Cloudflare Workers melarang soket/stream yang dibuat di satu request dipakai request lain
 // ("Cannot perform I/O on behalf of a different request"), jadi di sana klien dibuat per request.
-const IN_WORKERS = typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 
 function create(url: string, max: number): Handle {
   // prepare:false agar kompatibel dengan connection pooler (PgBouncer / Hyperdrive)
