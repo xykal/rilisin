@@ -21,8 +21,14 @@ concurrency:
 
 jobs:
   proof:
-    name: OpenNext build + ukuran Worker
+    name: OpenNext build + ukuran Worker (${{ matrix.variant }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # base = kode apa adanya. lean = tanpa /api/og (resvg.wasm) dan proxy.ts diganti edge middleware
+        # (EKSPERIMEN UKUR, tidak mengubah produk).
+        variant: [base, lean]
     timeout-minutes: 25
     services:
       postgres:
@@ -57,6 +63,11 @@ jobs:
           s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
           echo "::add-mask::$s"
           echo "APP_SECRET=$s" >> "$GITHUB_ENV"
+      - name: Varian lean (eksperimen ukur)
+        if: matrix.variant == 'lean'
+        run: |
+          rm -rf src/app/api/og
+          node scripts/cloudflare/lean-variant.mjs
       - name: Migrasi skema
         run: npm run db:migrate
       - name: OpenNext build
@@ -65,7 +76,7 @@ jobs:
         run: |
           npx wrangler deploy --dry-run --outdir .wrangler/out 2>&1 | tee dryrun.log | tail -n 25
           {
-            echo "### Ukuran Worker"
+            echo "### Ukuran Worker (${{ matrix.variant }}, sebelum diet)"
             echo '```'
             grep -E "Total Upload|gzip" dryrun.log || echo "baris ukuran tidak ditemukan"
             echo '```'
@@ -97,7 +108,7 @@ jobs:
           node scripts/cloudflare/diet.mjs
           npx wrangler deploy --dry-run --outdir .wrangler/out-diet 2>&1 | grep -E "Total Upload" | tee dryrun-diet.log
           {
-            echo "### Ukuran Worker SETELAH diet (batas Free 3072 KiB gzip)"
+            echo "### Ukuran Worker (${{ matrix.variant }}) SETELAH diet (batas Free 3072 KiB gzip)"
             echo '```'
             cat dryrun-diet.log
             echo '```'
