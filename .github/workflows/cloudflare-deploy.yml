@@ -40,7 +40,7 @@ jobs:
             const b = JSON.parse(process.env.STAGING_ENV);
             let out = "";
             for (const [k, v] of Object.entries(b)) {
-              console.log("::add-mask::" + v);
+              if (v.length >= 8) console.log("::add-mask::" + v);
               out += `${k}<<__EOF__\n${v}\n__EOF__\n`;
             }
             fs.appendFileSync(process.env.GITHUB_ENV, out);
@@ -63,6 +63,8 @@ jobs:
         run: |
           sleep 8
           base=https://rilisin.dikanjut.workers.dev
+          npx wrangler tail --config wrangler.staging.json --format json > tail.log 2>&1 &
+          sleep 10
           code=$(curl -s -o /dev/null -w "%{http_code}" "$base/")
           echo "tanpa auth: / -> $code (harus 401 karena situs dikunci)"
           fail=0
@@ -71,4 +73,18 @@ jobs:
             echo "GET $p -> $c"
             [ "$c" = "200" ] || { fail=1; head -c 300 /tmp/body; echo; }
           done
+          sleep 5
+          echo "--- wrangler tail (ringkas)"
+          python3 - <<'PY'
+          import json
+          for l in open("tail.log"):
+              l=l.strip()
+              if not l.startswith("{"):
+                  print(l[:200]); continue
+              try: e=json.loads(l)
+              except Exception: continue
+              print(e.get("outcome"), (e.get("event") or {}).get("request",{}).get("url","")[-40:])
+              for m in e.get("logs",[])[:4]: print("  LOG", str(m.get("message"))[:400])
+              for x in e.get("exceptions",[])[:4]: print("  EXC", x.get("name"), str(x.get("message"))[:400])
+          PY
           exit $fail
