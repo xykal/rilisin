@@ -413,3 +413,9 @@ Lanjutan (Cloudflare Workers, langkah 2a dan 3):
 - Ukuran Worker 2700 KiB gzip.
 - UNVERIFIED: CPU 10 ms nyata, Hyperdrive, Images di edge, polling chat. Belum ada deploy.
 - Butuh kall: secret `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` di GitHub Secrets untuk deploy staging.
+
+Lanjutan (Cloudflare Workers, deploy staging):
+- Staging Worker live di rilisin.dikanjut.workers.dev (workflow manual, secret di environment staging).
+- Perbaikan: postgres.js build cf untuk workerd (prepare.mjs), TLS ke Neon, FixedLengthStream, run_worker_first.
+- Ukur CPU nyata: p50 45-120 ms per request hangat, 13% exceededCpu di /ketentuan. Free (10 ms) tidak realistis.
+- Butuh keputusan kall: Workers Paid $5/bln vs VPS/Oracle gratis vs optimasi (Hyperdrive + cache).

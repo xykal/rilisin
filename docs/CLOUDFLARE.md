@@ -111,3 +111,33 @@ Sebelumnya ada kegagalan ke-4 (CSP service worker: aset statis tidak lewat middl
 Belum terbukti (hanya bisa di Cloudflare sungguhan): batas CPU 10 ms/request pada Free, perilaku Hyperdrive,
 binding Images di edge (lokal disimulasikan), kuota 100k request/hari dengan polling chat.
 Chat SSE (`/api/chat/stream`, LISTEN per proses) belum dipindah: di Workers harus polling.
+
+## Deploy staging nyata dan ukuran CPU (2026-10-02)
+
+Staging hidup di https://rilisin.dikanjut.workers.dev (workflow `Cloudflare deploy staging`, manual, rahasia di
+environment `staging` yang dibatasi ke main). Memakai DB Neon staging yang sama dengan Vercel (data demo, bayar mock),
+situs dikunci SITE_LOCK, storage `vercel-blob` (R2 belum aktif di akun, butuh aktivasi dashboard), tanpa Hyperdrive
+(token tidak punya izin Hyperdrive; klien postgres langsung ke Neon lewat TCP + STARTTLS).
+
+Temuan saat deploy:
+- postgres.js di bundel OpenNext memakai build Node (node:net/node:tls) yang gagal di workerd (TLS upgrade). Solusi
+  khusus build Workers (`scripts/cloudflare/prepare.mjs`): salin `postgres/cf` ke `src/lib/db/pg-cf`, samarkan
+  `import('cloudflare:sockets')` + `turbopackIgnore`, arahkan impor ke salinan itu. Build Node tidak berubah.
+- Semua halaman publik 200 di edge, query ke Neon jalan. Bundel 2807 KiB gzip (batas Free 3072, gerbang CI 2900).
+
+Ukuran CPU (workflow run 37046718869, `wrangler tail`, 15 request hangat per halaman, akun tanpa limit CPU kustom):
+
+| Halaman | n | CPU p50 | CPU p90 | CPU max |
+|---|---|---|---|---|
+| /masuk | 16 | 45 ms | 63 ms | 100 ms |
+| /jelajahi | 16 | 59 ms | 107 ms | 328 ms |
+| /forum | 16 | 63 ms | 125 ms | 898 ms |
+| /ketentuan | 16 | 120 ms | 1023 ms | 1781 ms |
+
+9 dari 68 request (13%) berakhir `exceededCpu` (HTTP 503), seluruhnya di /ketentuan. Cold start 390-1544 ms CPU,
+wall time p50 2.3-3.4 detik (tiap request membuka koneksi TLS + SCRAM baru ke Neon di Asia Tenggara).
+
+Vonis: batas CPU 10 ms Workers Free tidak realistis untuk aplikasi ini apa adanya. Halaman paling ringan (/masuk)
+sudah 4-6x batas. Yang bisa menurunkan: Hyperdrive (buang TLS+SCRAM per request, butuh izin token), cache halaman
+statis (legal), tapi render React dinamis tetap puluhan ms. Pilihan nyata: Workers Paid ($5/bln, CPU 30 detik,
+bundel 10 MiB) atau VPS/Oracle gratis.
