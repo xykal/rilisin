@@ -380,3 +380,10 @@ Lanjutan hari yang sama (antivirus jalan sungguhan):
 - [CRIT] CSP img-src memblokir res.cloudinary.com — diperbaiki (kondisional
   env) sebelum env dipasang. CI set CLOUDINARY_CLOUD_NAME uji + 1 cek CSP
   (smoke 297). Tanpa key/secret, decorator tetap nonaktif di CI.
+
+Lanjutan hari yang sama (Cloudflare Workers, langkah 1):
+- kall pilih Cloudflare Workers. PR #20: wrangler.jsonc (minify), open-next.config.ts,
+  workflow `cloudflare-proof` (build OpenNext + ukuran Worker, tanpa deploy, tanpa ubah package.json).
+- Hasil: base 3707 KiB gzip (tidak muat 3072), lean 2647 KiB (muat). Detail di docs/CLOUDFLARE.md.
+- Hipotesis capsize-font-metrics ter-inline terbukti salah dan dibuang.
+- UNVERIFIED: runtime di workerd (CPU 10 ms, Hyperdrive, sharp, chat, ClamAV).

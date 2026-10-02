@@ -1,6 +1,7 @@
-# Migrasi Cloudflare Workers ($0) — DITUNDA
+# Migrasi Cloudflare Workers ($0) — BERJALAN (langkah 1 selesai)
 
-Status: RISET SELESAI, eksekusi DITUNDA atas keputusan kelvin (2026-09-29).
+Status 2026-10-02: kall memutuskan lanjut Workers (izin komersial). Langkah 1 (bukti build + ukuran)
+selesai, lihat bagian "Hasil bukti CI" di bawah. Catatan lama di bawah (DITUNDA 2026-09-29) dipertahankan sebagai riset.
 Produksi untuk sementara tetap di Vercel Hobby (risiko: suspend sewaktu-waktu
 karena pemakaian komersial — lihat `docs/CUTOVER.md`). Dokumen ini
 adalah catatan audit agar migrasi bisa digas kapan saja tanpa riset ulang.
@@ -55,3 +56,21 @@ batas Hyperdrive Free
 <https://mecanik.dev/en/posts/cloudflare-hyperdrive-postgres-from-the-edge/>,
 Vercel vs Cloudflare Next.js
 <https://vercel.com/kb/guide/next-js-on-vercel-vs-cloudflare>.
+
+## Hasil bukti CI (2026-10-02, PR #20, job `Cloudflare build proof`)
+
+Versi: @opennextjs/cloudflare 1.20.7, wrangler 4.147.0, Next 16.3.6. `proxy.ts` (Node middleware) TERBUILD
+(OpenNext menandainya experimental). Ukuran diukur `wrangler deploy --dry-run` (batas Free: 3072 KiB gzip):
+
+| Varian | gzip | Keterangan |
+|---|---|---|
+| base, tanpa minify | 4229 KiB | wrangler membundel ulang kode OpenNext tanpa minify |
+| base + `"minify": true` | 3707 KiB | TIDAK muat |
+| lean + minify | 2647 KiB | MUAT, sisa 425 KiB (14%) |
+
+lean = (1) buang `/api/og` (next/og: resvg.wasm 518 KiB gzip) dan (2) `proxy.ts` -> edge `middleware.ts`
+(bundle middleware 601 -> 91 KiB gzip). Keduanya wajib; salah satu saja belum cukup (3162 / 3197 KiB).
+Hipotesis yang SALAH: `capsize-font-metrics.json` (4 MiB) ter-inline ke worker. Terbukti tidak (grep worker.js).
+
+Belum terbukti (langkah berikut): CPU 10 ms/request di Free untuk SSR, Hyperdrive + `postgres.js`
+per-request, `sharp` (upload/avatar/cover), chat tanpa LISTEN, penyimpanan R2, nasib ClamAV.
