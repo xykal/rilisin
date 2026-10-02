@@ -155,3 +155,18 @@ bundel 10 MiB) atau VPS/Oracle gratis.
 Rute tanpa DB pun sudah di atas 10 ms (p50 13). Hyperdrive paling banyak membuang ±15 ms koneksi, jadi batas Free
 tidak tercapai lewat optimasi; render dinamis tetap puluhan ms. 19 dari 83 request gagal `exceededCpu` (503) di
 run itu. Kesimpulan: Workers Free tidak layak untuk app ini. Opsi: Workers Paid atau VPS/Oracle gratis.
+
+### Placement dekat DB (run 37053797427)
+
+Neon ada di ap-southeast-1. Tanpa placement, Worker jalan di colo terdekat klien dan tiap request membuka koneksi
+TLS+SCRAM baru ke Singapura (beberapa round trip): wall p50 2.1-2.4 detik. Dengan
+`placement: { region: "aws:ap-southeast-1" }` (ditulis `scripts/cloudflare/staging-config.mjs`):
+
+| Rute | wall p50 sebelum | wall p50 sesudah |
+|---|---|---|
+| `/api/cf-probe?m=db` | 2099 ms | 52 ms |
+| `/masuk` | 2293 ms | 82 ms |
+| `/ketentuan` | 2329 ms | 27 ms |
+
+CPU tidak berubah, jadi 503 `exceededCpu` (batas Free 10 ms) tetap ada: 14 dari 68 request di run ini.
+Latensi sudah beres; batas CPU Free tidak.
