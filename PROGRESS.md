@@ -419,3 +419,6 @@ Lanjutan (Cloudflare Workers, deploy staging):
 - Perbaikan: postgres.js build cf untuk workerd (prepare.mjs), TLS ke Neon, FixedLengthStream, run_worker_first.
 - Ukur CPU nyata: p50 45-120 ms per request hangat, 13% exceededCpu di /ketentuan. Free (10 ms) tidak realistis.
 - Butuh keputusan kall: Workers Paid $5/bln vs VPS/Oracle gratis vs optimasi (Hyperdrive + cache).
+
+Keputusan hosting: kall tanpa laptop/VPS/kartu -> tetap Vercel Hobby sampai punya kartu; Cloudflare Free tidak
+layak (CPU), Workers Paid/Cloud Run menunggu kartu. Detail di docs/CLOUDFLARE.md.
