@@ -52,6 +52,11 @@ jobs:
           node scripts/cloudflare/staging-config.mjs
       - name: OpenNext build
         run: npx opennextjs-cloudflare build 2>&1 | tail -n 40
+      - name: Diagnosis bundel (postgres entry)
+        run: |
+          h=.open-next/server-functions/default/handler.mjs
+          echo "cloudflare:sockets: $(grep -o 'cloudflare:sockets' $h | wc -l)"
+          echo "rejectUnauthorized: $(grep -o 'rejectUnauthorized' $h | wc -l)"
       - name: Deploy Worker
         run: npx wrangler deploy --config wrangler.staging.json 2>&1 | tee deploy.log | tail -n 30
       - name: Set secret runtime
