@@ -12,7 +12,19 @@ type Handle = { client: Sql; db: PostgresJsDatabase<typeof schema> };
 
 function create(url: string, max: number): Handle {
   // prepare:false agar kompatibel dengan connection pooler (PgBouncer / Hyperdrive)
-  const client = postgres(url, { max, prepare: false, onnotice: () => {} });
+  const base = { max, prepare: false, onnotice: () => {} };
+  if (!IN_WORKERS) {
+    const client = postgres(url, base);
+    return { client, db: drizzle(client, { schema }) };
+  }
+  // workerd: node:tls menolak opsi rejectUnauthorized (yang dipasang postgres.js untuk sslmode=require), jadi TLS
+  // diminta lewat objek kosong (sertifikat diverifikasi default). Host lokal / sslmode=disable / Hyperdrive: tanpa TLS.
+  const u = new URL(url);
+  const mode = u.searchParams.get("sslmode");
+  u.searchParams.delete("sslmode");
+  const local = u.hostname === "localhost" || u.hostname === "127.0.0.1";
+  const tls = !local && mode !== "disable" && !u.hostname.endsWith(".hyperdrive.local");
+  const client = postgres(u.toString(), { ...base, ssl: tls ? {} : false });
   return { client, db: drizzle(client, { schema }) };
 }
 
