@@ -76,19 +76,9 @@ jobs:
         run: |
           npx wrangler deploy --dry-run --outdir .wrangler/out 2>&1 | tee dryrun.log | tail -n 25
           {
-            echo "### Ukuran Worker (${{ matrix.variant }}, sebelum diet)"
+            echo "### Ukuran Worker (${{ matrix.variant }}, batas Free 3072 KiB gzip)"
             echo '```'
             grep -E "Total Upload|gzip" dryrun.log || echo "baris ukuran tidak ditemukan"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Isi bundle per paket
-        run: |
-          set -o pipefail
-          node scripts/qa/bundle-report.mjs | tee bundle-report.txt
-          {
-            echo "### Isi bundle per paket (KiB sebelum gzip)"
-            echo '```'
-            cat bundle-report.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Ukuran gzip per komponen (level 6)
@@ -103,34 +93,3 @@ jobs:
             done
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Diet (kosongkan file tak terpakai) + ukur ulang
-        run: |
-          node scripts/cloudflare/diet.mjs
-          npx wrangler deploy --dry-run --outdir .wrangler/out-diet 2>&1 | grep -E "Total Upload" | tee dryrun-diet.log
-          {
-            echo "### Ukuran Worker (${{ matrix.variant }}) SETELAH diet (batas Free 3072 KiB gzip)"
-            echo '```'
-            cat dryrun-diet.log
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Metafile esbuild (diagnostik akurat, perkiraan wrangler)
-        continue-on-error: true
-        run: |
-          npx esbuild .open-next/worker.js --bundle --metafile=esbuild-meta.json --outfile=/dev/null \
-            --platform=node --format=esm --conditions=workerd,worker,browser --main-fields=module,main \
-            --external:node:* --external:cloudflare:* --loader:.wasm=empty --loader:.bin=empty --log-level=error
-          {
-            echo "### Metafile (${{ matrix.variant }}, SETELAH diet)"
-            echo '```'
-            node scripts/qa/meta-report.mjs esbuild-meta.json
-            echo '```'
-          } | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Diagnostik capsize (di mana salinan besar sebenarnya?)
-        continue-on-error: true
-        run: |
-          echo "salinan capsize > 1 MiB:"; find . -name 'capsize-font-metrics.json' -size +1M -not -path './.git/*' 2>/dev/null | head
-          ls -l .wrangler/out/worker.js .wrangler/out-diet/worker.js | awk '{print $5, $9}'
-          for f in .wrangler/out/worker.js .wrangler/out-diet/worker.js .open-next/server-functions/default/handler.mjs; do
-            echo "$f: kemunculan 'ascent'=$(grep -o 'ascent' "$f" | wc -l) 'capsize'=$(grep -o 'capsize' "$f" | wc -l)"
-          done
-          grep -rl 'capsize-font-metrics' .open-next --include='*.mjs' --include='*.js' 2>/dev/null | head -5
