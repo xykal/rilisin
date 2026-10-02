@@ -380,3 +380,21 @@ Lanjutan hari yang sama (antivirus jalan sungguhan):
 - [CRIT] CSP img-src memblokir res.cloudinary.com — diperbaiki (kondisional
   env) sebelum env dipasang. CI set CLOUDINARY_CLOUD_NAME uji + 1 cek CSP
   (smoke 297). Tanpa key/secret, decorator tetap nonaktif di CI.
+
+## 2026-10-02 — hari kerja ke-3
+
+Catatan log: tidak ada log untuk 2026-09-30 dan 2026-10-01 (commit #14-#18
+tanggal 2026-10-01 ada di git, tapi tidak tercatat di sini).
+
+Done:
+- Serah terima ke XyDeveloper. Audit: `docs/AUDIT-2026-10-02.md`.
+- Jalur uang: aritmatika dipindah ke `src/lib/payments/money.ts` (validasi input,
+  RangeError), unit test pertama di `tests/unit/` + script `test:unit` + step CI.
+- Docs: angka tes dan versi React disinkronkan; runbook kredensial bocor; CODEOWNERS.
+
+Blocked:
+- Rotasi kredensial yang tertempel ke chat (butuh kall, lihat runbook).
+- Keputusan nasib chat SSE (AUDIT #5).
+
+Next:
+- Verifikasi CI hijau untuk commit hari ini.

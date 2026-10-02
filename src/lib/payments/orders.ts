@@ -12,6 +12,7 @@ import { formatDateTime, formatRupiah } from "@/lib/format";
 import { sharedLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security/events";
 import { SITE } from "@/lib/config";
+import { effectiveCommissionBps, splitAmount } from "./money";
 import { methodAllowed, paymentMethod, PRICE_LIMITS, type PaymentMethodId } from "./methods";
 import { PAYMENT_CONFIG, pakasirConfig, paymentProvider, paymentProviderId, PaymentProviderError } from "./provider";
 
@@ -36,15 +37,7 @@ export function newOrderCode(now = new Date()) {
   return `RLS-${ymd}-${rand}`;
 }
 
-export function effectiveCommissionBps(commissionBps: number, zeroCommissionUntil: Date | null, now = new Date()) {
-  return zeroCommissionUntil && zeroCommissionUntil > now ? 0 : commissionBps;
-}
-
-/** Komisi dibulatkan ke bawah (selisih pembulatan jadi milik seller). */
-export function splitAmount(amount: number, bps: number) {
-  const commission = Math.floor((amount * bps) / 10_000);
-  return { commission, earning: amount - commission };
-}
+export { effectiveCommissionBps, splitAmount };
 
 async function logPaymentEvent(e: { provider: string; source: string; orderCode?: string | null; orderId?: string | null; result: string; payload?: Record<string, unknown> }) {
   try {
