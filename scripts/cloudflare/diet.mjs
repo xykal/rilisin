@@ -18,8 +18,11 @@ function* walk(dir) {
   }
 }
 
+// wrangler me-resolve `next/dist/server/capsize-font-metrics.json` dari node_modules proyek (bukan dari salinan
+// .open-next), jadi salinan itu juga dikosongkan. Aman hanya di checkout CI sekali pakai.
+const roots = [".open-next", "node_modules/next/dist/server"];
 let saved = 0;
-for (const [p, size] of walk(".open-next")) {
+for (const [p, size] of roots.flatMap((r) => [...walk(r)])) {
   const base = p.split("/").pop();
   if (!(base in STUBS)) continue;
   writeFileSync(p, STUBS[base]);
