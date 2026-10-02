@@ -34,7 +34,11 @@ export async function writeR2Stream(key: string, body: ReadableStream<Uint8Array
   let size: number;
   if (length !== undefined && Number.isFinite(length)) {
     if (length > maxBytes) throw new StorageError("TOO_LARGE");
-    await bucket().put(key, body);
+    // Next membungkus req.body sehingga panjangnya tak lagi "dikenal" R2; FixedLengthStream memulihkannya
+    // sekaligus menolak body yang panjang sebenarnya beda dari Content-Length.
+    const FixedLengthStream = (globalThis as unknown as { FixedLengthStream: new (n: number) => { readable: ReadableStream; writable: WritableStream } }).FixedLengthStream;
+    const fixed = new FixedLengthStream(length);
+    await Promise.all([bucket().put(key, fixed.readable), body.pipeTo(fixed.writable)]);
     size = (await bucket().head(key))?.size ?? length;
   } else {
     // Tanpa Content-Length: kumpulkan di memori dengan batas ketat.
