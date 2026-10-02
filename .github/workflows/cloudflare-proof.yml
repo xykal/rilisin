@@ -131,4 +131,6 @@ jobs:
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
           echo "--- smoke-worker.log (akhir)"; grep -v "^✓" smoke-worker.log | tail -n 30 | cut -c1-240
-          echo "--- wrangler-dev.log (akhir)"; tail -n 60 wrangler-dev.log
+          echo "--- wrangler-dev.log (tanpa baris info)"; grep -v "wrangler:info" wrangler-dev.log | tail -n 80 | cut -c1-300
+          echo "--- 3 request terakhir"; grep "wrangler:info" wrangler-dev.log | tail -n 3
+          echo "--- konteks wasm di handler.mjs"; awk 'NR==486' .open-next/server-functions/default/handler.mjs | cut -c263300-264000
