@@ -1,0 +1,74 @@
+# Deploy STAGING ke Cloudflare Workers (https://rilisin.dikanjut.workers.dev), manual.
+# Rahasia ada di environment "staging" (dibatasi ke branch main): CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID,
+# dan RILISIN_STAGING_ENV (JSON env runtime Worker). DB = DB staging yang sama dengan Vercel (data demo, bayar mock).
+name: Cloudflare deploy staging
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cf-deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build + deploy Worker staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_ENV: ${{ secrets.RILISIN_STAGING_ENV }}
+      NEXT_PUBLIC_ONESIGNAL_APP_ID: 2679dd2e-12a3-4274-a1c2-eecc75b99a0b
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Env build dari bundel staging (di-mask)
+        run: |
+          node -e '
+            const fs = require("fs");
+            const b = JSON.parse(process.env.STAGING_ENV);
+            let out = "";
+            for (const [k, v] of Object.entries(b)) {
+              console.log("::add-mask::" + v);
+              out += `${k}<<__EOF__\n${v}\n__EOF__\n`;
+            }
+            fs.appendFileSync(process.env.GITHUB_ENV, out);
+            console.log("kunci env:", Object.keys(b).sort().join(", "));
+          '
+      - name: Persiapan Workers (buang /api/og) + config staging
+        run: |
+          node scripts/cloudflare/prepare.mjs
+          node scripts/cloudflare/staging-config.mjs
+      - name: OpenNext build
+        run: npx opennextjs-cloudflare build 2>&1 | tail -n 40
+      - name: Deploy Worker
+        run: npx wrangler deploy --config wrangler.staging.json 2>&1 | tee deploy.log | tail -n 30
+      - name: Set secret runtime
+        run: |
+          printf '%s' "$STAGING_ENV" > "$RUNNER_TEMP/secrets.json"
+          npx wrangler secret bulk "$RUNNER_TEMP/secrets.json" --config wrangler.staging.json 2>&1 | tail -n 8
+          rm -f "$RUNNER_TEMP/secrets.json"
+      - name: Cek HTTP (Basic auth SITE_LOCK)
+        run: |
+          sleep 8
+          base=https://rilisin.dikanjut.workers.dev
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$base/")
+          echo "tanpa auth: / -> $code (harus 401 karena situs dikunci)"
+          fail=0
+          for p in / /jelajahi /masuk /forum /komunitas /ketentuan /p/kasirku-offline; do
+            c=$(curl -s -o /tmp/body -w "%{http_code}" -u "$SITE_LOCK_USER:$SITE_LOCK_PASSWORD" "$base$p")
+            echo "GET $p -> $c"
+            [ "$c" = "200" ] || { fail=1; head -c 300 /tmp/body; echo; }
+          done
+          exit $fail

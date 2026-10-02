@@ -59,3 +59,4 @@ zap-out/
 # Cloudflare Workers (OpenNext)
 .open-next/
 .wrangler/
+wrangler.staging.json
