@@ -125,3 +125,12 @@ jobs:
             node scripts/qa/meta-report.mjs esbuild-meta.json
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Diagnostik capsize (di mana salinan besar sebenarnya?)
+        continue-on-error: true
+        run: |
+          echo "salinan capsize > 1 MiB:"; find . -name 'capsize-font-metrics.json' -size +1M -not -path './.git/*' 2>/dev/null | head
+          ls -l .wrangler/out/worker.js .wrangler/out-diet/worker.js | awk '{print $5, $9}'
+          for f in .wrangler/out/worker.js .wrangler/out-diet/worker.js .open-next/server-functions/default/handler.mjs; do
+            echo "$f: kemunculan 'ascent'=$(grep -o 'ascent' "$f" | wc -l) 'capsize'=$(grep -o 'capsize' "$f" | wc -l)"
+          done
+          grep -rl 'capsize-font-metrics' .open-next --include='*.mjs' --include='*.js' 2>/dev/null | head -5
