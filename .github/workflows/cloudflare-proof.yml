@@ -130,5 +130,5 @@ jobs:
             grep -E "^RINGKASAN|^  GAGAL" smoke-worker.log | head -n 80
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
-          grep -E "^(TypeError|Error|ReferenceError)|at " smoke-worker.log | head -n 8
+          echo "--- smoke-worker.log (akhir)"; grep -v "^✓" smoke-worker.log | tail -n 30 | cut -c1-240
           echo "--- wrangler-dev.log (akhir)"; tail -n 60 wrangler-dev.log
