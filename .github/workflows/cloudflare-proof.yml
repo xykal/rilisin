@@ -80,3 +80,25 @@ jobs:
             cat bundle-report.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Ukuran gzip per komponen (level 6)
+        run: |
+          {
+            echo "### gzip per komponen (KiB)"
+            echo '```'
+            for f in .open-next/server-functions/default/handler.mjs .open-next/middleware/handler.mjs \
+                     .open-next/server-functions/default/node_modules/next/dist/server/capsize-font-metrics.json \
+                     .wrangler/out/*.wasm .wrangler/out/worker.js; do
+              [ -f "$f" ] && echo "$(( $(gzip -6c "$f" | wc -c) / 1024 )) KiB gzip / $(( $(wc -c < "$f") / 1024 )) KiB mentah  $f"
+            done
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Diet (kosongkan file tak terpakai) + ukur ulang
+        run: |
+          node scripts/cloudflare/diet.mjs
+          npx wrangler deploy --dry-run --outdir .wrangler/out-diet 2>&1 | grep -E "Total Upload" | tee dryrun-diet.log
+          {
+            echo "### Ukuran Worker SETELAH diet (batas Free 3072 KiB gzip)"
+            echo '```'
+            cat dryrun-diet.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
