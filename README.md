@@ -38,7 +38,7 @@ plus a community (group chat + forum) and reviews from verified owners only.
   Google sign-in (OAuth 2.0 + PKCE) and email verification for self-registered accounts,
   Cloudflare Turnstile on bot-prone forms, per-object authorization, hashed IPs
   (Indonesian PDP law), encrypted database backups.
-- **Tests in CI:** lint → typecheck → seed → backup/restore → build → 143-check
+- **Tests in CI:** lint → typecheck → seed → backup/restore → build → 297-check
   end-to-end smoke test → security proving tests (429 after threshold, injection,
   traversal, XSS, IDOR, CSRF) → ZAP baseline (DAST, temuan High = gagal) →
   `npm audit` (high/critical) → deploy staging.
@@ -129,7 +129,8 @@ npm run build && npm run start  # buka http://localhost:3000
 | `npm run db:generate` | Buat file migrasi baru setelah mengubah `src/lib/db/schema.ts` |
 | `npm run typecheck` / `npm run lint` | Cek TypeScript / ESLint |
 | `npm run legal:sync` / `npm run legal:check` | Perbarui `src/content/legal/*.ts` dari `docs/legal/*.md` / pastikan keduanya sinkron (dijalankan CI) |
-| `npm run test:smoke` | Tes end-to-end **252 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, checkout, pembayaran, saldo, pencairan, refund, forum, ulasan, ikuti, Turnstile, rate limit bersama, cron+backup, protokol worker antivirus). Server harus jalan; isi `CRON_SECRET`/`SCAN_WORKER_TOKEN` di env shell supaya uji cron & worker ikut jalan. Menambah data uji → jalankan `db:seed` lagi |
+| `npm run test:smoke` | Tes end-to-end **297 pengecekan** (keamanan, katalog, upload, chat realtime, 2FA, checkout, pembayaran, saldo, pencairan, refund, forum, ulasan, ikuti, Turnstile, rate limit bersama, cron+backup, protokol worker antivirus). Server harus jalan; isi `CRON_SECRET`/`SCAN_WORKER_TOKEN` di env shell supaya uji cron & worker ikut jalan. Menambah data uji → jalankan `db:seed` lagi |
+| `npm run test:unit` | Unit test murni tanpa database/server (`node:test` + tsx): invarian komisi + hak seller = harga, pembulatan, batas metode bayar, estimasi biaya. Jalan di CI sebelum build |
 | `npm run test:pakasir` | Contract test adapter **Pakasir API v2** + webhook (16 pengecekan) memakai server Pakasir palsu — tidak menyentuh akun asli |
 | `npm run test:backup` | Uji bolak-balik backup: ekspor → enkripsi → dekripsi → restore ke database baru → cocokkan jumlah baris, saldo, rating, skor forum & sequence (butuh `DATABASE_URL`) |
 | `npm run test:scanner` | Uji worker antivirus dengan **ClamAV sungguhan** + file uji EICAR: deteksi → hash diblokir → file dihapus → rilis ditolak (butuh app jalan + clamd, lihat `.github/workflows/scanner.yml`) |
@@ -218,7 +219,7 @@ Preview berjalan di dalam iframe. Beberapa browser (terutama Safari) memblokir c
 
 ```
 src/
-  proxy.ts                   Content-Security-Policy + nonce per request, HSTS
+  middleware.ts              Content-Security-Policy + nonce per request, HSTS
   app/
     page.tsx                 Beranda
     jelajahi/, p/[slug]/, u/[username]/, library/, seller/, panduan/android/

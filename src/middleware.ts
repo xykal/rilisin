@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -20,9 +19,11 @@ import { NextResponse, type NextRequest } from "next/server";
 const LOCK_EXEMPT = /^\/(api\/payments\/[a-z]+\/webhook|api\/notifications\/unsubscribe$|api\/cron\/|api\/internal\/scan\/|\.well-known\/|robots\.txt$|manifest\.webmanifest$|sw\.js$|OneSignalSDKWorker\.js$|apple-touch-icon\.png$|offline$|icons\/)/;
 
 function sameSecret(a: string, b: string) {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return ab.length === bb.length && timingSafeEqual(ab, bb);
+  const ab = new TextEncoder().encode(a);
+  const bb = new TextEncoder().encode(b);
+  let diff = ab.length ^ bb.length;
+  for (let i = 0; i < Math.max(ab.length, bb.length); i++) diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
+  return diff === 0;
 }
 
 function siteLockOk(request: NextRequest) {
@@ -30,14 +31,14 @@ function siteLockOk(request: NextRequest) {
   if (!password || LOCK_EXEMPT.test(request.nextUrl.pathname)) return true;
   const header = request.headers.get("authorization") ?? "";
   if (!header.startsWith("Basic ")) return false;
-  const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
+  const decoded = new TextDecoder().decode(Uint8Array.from(atob(header.slice(6)), (c) => c.charCodeAt(0)));
   const sep = decoded.indexOf(":");
   const user = decoded.slice(0, sep);
   const pass = decoded.slice(sep + 1);
   return sep > 0 && sameSecret(user, process.env.SITE_LOCK_USER || "rilisin") && sameSecret(pass, password);
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   if (!siteLockOk(request)) {
     // Rewrite ke route handler yang mengirim 401 + WWW-Authenticate (header ini dibuang Vercel kalau dikirim dari proxy)
     return NextResponse.rewrite(new URL("/api/site-lock", request.url));
@@ -70,7 +71,7 @@ export function proxy(request: NextRequest) {
     return res;
   }
 
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const nonce = btoa(crypto.randomUUID());
   const dev = process.env.NODE_ENV === "development";
   const frameAncestors = process.env.FRAME_ANCESTORS?.trim() || "'none'";
   const blob = process.env.STORAGE_DRIVER === "vercel-blob";

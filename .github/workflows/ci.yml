@@ -79,6 +79,8 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npx next typegen && npx tsc --noEmit
+      - name: Unit test (aritmatika uang, batas metode bayar)
+        run: npm run test:unit
       - name: Dokumen hukum sinkron (docs/legal ↔ src/content/legal)
         run: npm run legal:check
       - name: Migrasi + data demo

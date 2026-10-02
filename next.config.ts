@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// Lihat src/proxy.ts untuk Content-Security-Policy (butuh nonce per request).
+// Lihat src/middleware.ts untuk Content-Security-Policy (butuh nonce per request).
 const frameAncestors = process.env.FRAME_ANCESTORS?.trim() || "'none'";
 const frameOptions = frameAncestors === "'none'" ? "DENY" : frameAncestors === "'self'" ? "SAMEORIGIN" : null;
 

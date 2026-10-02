@@ -21,14 +21,8 @@ concurrency:
 
 jobs:
   proof:
-    name: OpenNext build + ukuran Worker (${{ matrix.variant }})
+    name: OpenNext build + ukuran Worker
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # base = kode apa adanya. lean = tanpa /api/og (resvg.wasm) dan proxy.ts diganti edge middleware
-        # (EKSPERIMEN UKUR, tidak mengubah produk).
-        variant: [base, lean]
     timeout-minutes: 25
     services:
       postgres:
@@ -48,6 +42,7 @@ jobs:
       PAYMENT_PROVIDER: mock
       APP_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: "1"
+      OG_STATIC: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -63,11 +58,8 @@ jobs:
           s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
           echo "::add-mask::$s"
           echo "APP_SECRET=$s" >> "$GITHUB_ENV"
-      - name: Varian lean (eksperimen ukur)
-        if: matrix.variant == 'lean'
-        run: |
-          rm -rf src/app/api/og
-          node scripts/cloudflare/lean-variant.mjs
+      - name: Persiapan Workers (buang /api/og)
+        run: node scripts/cloudflare/prepare.mjs
       - name: Migrasi skema
         run: npm run db:migrate
       - name: OpenNext build
@@ -76,11 +68,15 @@ jobs:
         run: |
           npx wrangler deploy --dry-run --outdir .wrangler/out 2>&1 | tee dryrun.log | tail -n 25
           {
-            echo "### Ukuran Worker (${{ matrix.variant }}, batas Free 3072 KiB gzip)"
+            echo "### Ukuran Worker (batas Free 3072 KiB gzip)"
             echo '```'
             grep -E "Total Upload|gzip" dryrun.log || echo "baris ukuran tidak ditemukan"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # Gerbang ukuran: margin 5% di bawah batas Free 3072 KiB supaya dependency baru ketahuan sebelum deploy gagal.
+          kib=$(grep -oE "gzip: [0-9]+" dryrun.log | grep -oE "[0-9]+")
+          echo "gzip = ${kib} KiB (gerbang 2900)"
+          [ "${kib:-99999}" -le 2900 ]
       - name: Ukuran gzip per komponen (level 6)
         run: |
           {
