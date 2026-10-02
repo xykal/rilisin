@@ -19,7 +19,7 @@ const poly = "src/lib/db/pg-cf/polyfills.js";
 const polySrc = readFileSync(poly, "utf8");
 const needle = "await import('cloudflare:sockets')";
 if (!polySrc.includes(needle)) throw new Error("prepare: pola cloudflare:sockets tidak ditemukan di polyfills.js");
-writeFileSync(poly, polySrc.replace(needle, "await import(['cloudflare', 'sockets'].join(':'))"));
+writeFileSync(poly, polySrc.replace(needle, "await import(/* turbopackIgnore: true */ /* webpackIgnore: true */ ['cloudflare', 'sockets'].join(':'))"));
 
 const dbFile = "src/lib/db/index.ts";
 const src = readFileSync(dbFile, "utf8");
