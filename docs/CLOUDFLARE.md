@@ -170,3 +170,16 @@ TLS+SCRAM baru ke Singapura (beberapa round trip): wall p50 2.1-2.4 detik. Denga
 
 CPU tidak berubah, jadi 503 `exceededCpu` (batas Free 10 ms) tetap ada: 14 dari 68 request di run ini.
 Latensi sudah beres; batas CPU Free tidak.
+
+## Keputusan hosting (2026-10-02): tetap Vercel Hobby, jalur Cloudflare diparkir
+
+Konteks kall: tidak punya laptop, tidak punya VPS, tidak punya kartu. Semua host yang layak untuk produksi
+(Workers Paid $5/bln, Cloud Run free tier, Oracle) butuh kartu atau server yang diurus sendiri. Render free
+ada tanpa kartu tapi tidur 15 menit dan dokumennya melarang produksi.
+
+- Staging/pengembangan: Vercel Hobby (sin1, dekat Neon) tetap dipakai. Aman selama belum ada uang asli, karena
+  syarat non-komersial Hobby baru mengikat saat berjualan.
+- Gerbang sebelum launch uang asli: punya kartu, lalu pilih Workers Paid atau Cloud Run (kode Cloudflare di main
+  sudah jalan; Cloud Run memakai image Docker yang sudah dibuild CI).
+- Worker staging `rilisin.dikanjut.workers.dev` masih hidup sebagai eksperimen (±20% 503 karena batas CPU Free).
+  Hapus bila tidak dipakai: `wrangler delete` atau dashboard Cloudflare, lalu cabut secret environment `staging`.
