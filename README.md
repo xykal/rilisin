@@ -219,7 +219,7 @@ Preview berjalan di dalam iframe. Beberapa browser (terutama Safari) memblokir c
 
 ```
 src/
-  proxy.ts                   Content-Security-Policy + nonce per request, HSTS
+  middleware.ts              Content-Security-Policy + nonce per request, HSTS
   app/
     page.tsx                 Beranda
     jelajahi/, p/[slug]/, u/[username]/, library/, seller/, panduan/android/

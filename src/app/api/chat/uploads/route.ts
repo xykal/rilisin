@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, count, eq, gt } from "drizzle-orm";
-import sharp, { type OutputInfo } from "sharp";
+import { toWebp, type WebpResult } from "@/lib/image";
 import { apiError, guardMutation, json } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { CHAT_LIMITS } from "@/lib/chat/shared";
@@ -88,13 +88,9 @@ export async function POST(req: Request) {
   if (!buf || buf.length === 0) return apiError(400, "File kosong.");
   if (!detectImageType(buf.subarray(0, 16))) return apiError(415, "File bukan gambar PNG/JPG/WebP yang valid.");
 
-  let out: { data: Buffer; info: OutputInfo };
+  let out: WebpResult;
   try {
-    out = await sharp(buf, { failOn: "error", limitInputPixels: 40_000_000 })
-      .rotate()
-      .resize(1600, 1600, { fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toBuffer({ resolveWithObject: true });
+    out = await toWebp(buf, { width: 1600, height: 1600, fit: "inside", quality: 80, maxPixels: 40_000_000 });
   } catch {
     return apiError(415, "Gambar rusak atau tidak bisa dibaca.");
   }

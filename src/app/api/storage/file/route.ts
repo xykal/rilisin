@@ -1,7 +1,6 @@
-import { storageDriverName } from "@/lib/storage";
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
-import { openLocalStream } from "@/lib/storage/local";
+import { isProxiedDriver, openStream } from "@/lib/storage/proxied";
 import { verifyToken } from "@/lib/tokens";
 
 function contentDisposition(filename: string) {
@@ -23,8 +22,7 @@ function errorPage(message: string, status: number) {
  * Token berlaku 10 menit & terikat ke user yang meminta (link tidak bisa dibagikan).
  */
 export async function GET(req: NextRequest) {
-  if (storageDriverName() !== "local") return new Response("Tidak ditemukan", { status: 404 }); // khusus driver local
-  if ((process.env.STORAGE_DRIVER ?? "local") !== "local") return new Response("Not found", { status: 404 });
+  if (!isProxiedDriver()) return new Response("Tidak ditemukan", { status: 404 }); // khusus driver local / r2
   const payload = verifyToken<{ k: string; f: string; u: string }>("dl", req.nextUrl.searchParams.get("token"));
   if (!payload) return errorPage("Link download sudah kedaluwarsa. Silakan klik tombol Download lagi.", 403);
 
@@ -32,7 +30,7 @@ export async function GET(req: NextRequest) {
   if (!user || user.id !== payload.u) return errorPage("Link download ini milik akun lain / kamu belum masuk.", 403);
 
   try {
-    const { stream, size } = await openLocalStream(payload.k);
+    const { stream, size } = await openStream(payload.k);
     return new Response(stream, {
       headers: {
         "Content-Type": "application/octet-stream",

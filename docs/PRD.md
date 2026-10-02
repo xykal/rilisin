@@ -104,7 +104,7 @@ Next.js 16.3.6, React 19.3.0, TypeScript strict, Tailwind CSS 4, Drizzle ORM
 ## 11. Architecture sketch
 
 Next.js App Router (force-dynamic pages) → route handlers + server actions →
-Drizzle → Postgres. `src/proxy.ts` handles site lock + CSP nonce for every request.
+Drizzle → Postgres. `src/middleware.ts` handles site lock + CSP nonce for every request.
 Uploads: init (signed token) → storage → complete (verify + scan) → release gate.
 Payments: create order → Pakasir → webhook (re-confirmed via API) → ledger.
 Community: chat polling + SSE stream, forum threads, notifications fan-out.

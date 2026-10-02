@@ -7,7 +7,8 @@ import { appUrl } from "@/lib/email";
 import { getKv, setKv } from "@/lib/maintenance";
 import { notifyAndEmail } from "@/lib/notifications/server";
 import { logSecurityEvent } from "@/lib/security/events";
-import { storage, storageDriverName } from "@/lib/storage";
+import { storage } from "@/lib/storage";
+import { isProxiedDriver } from "@/lib/storage/proxied";
 
 /**
  * Antrean scan antivirus. Worker (ClamAV, lihat folder scanner/) jalan di server mana pun yang bisa HTTPS keluar —
@@ -62,7 +63,7 @@ export async function claimFiles(opts: { limit: number; worker: string; engine: 
   for (const r of rows) {
     // Blob: link unduh langsung (bertanda tangan, 15 menit). Local: lewat endpoint internal (butuh token worker).
     const url =
-      storageDriverName() === "local"
+      isProxiedDriver()
         ? `${appUrl()}/api/internal/scan/file/${r.id}`
         : await storage().downloadUrl(r.storage_key, { filename: r.filename, userId: "scan-worker", ttlSec: LEASE_MINUTES * 60 });
     out.push({ fileId: r.id, sha256: r.sha256, size: Number(r.size_bytes), filename: r.filename, url, rescan: r.scan_status === "clean" });

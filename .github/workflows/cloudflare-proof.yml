@@ -1,0 +1,139 @@
+# Bukti build Cloudflare Workers (OpenNext) TANPA deploy.
+# Pertanyaan yang dijawab: apakah app ini terbuild untuk workerd, dan berapa ukuran
+# Worker (batas Workers Free = 3 MiB gzip). Deploy dibuat terpisah setelah ini hijau.
+name: Cloudflare build proof
+
+on:
+  pull_request:
+    paths:
+      - "wrangler.jsonc"
+      - "open-next.config.ts"
+      - ".github/workflows/cloudflare-proof.yml"
+      - "src/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cf-proof-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    name: OpenNext build + ukuran Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: rilisin
+          POSTGRES_PASSWORD: rilisin
+          POSTGRES_DB: rilisin
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rilisin -d rilisin"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgres://rilisin:rilisin@localhost:5432/rilisin
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: .local/storage
+      PAYMENT_PROVIDER: mock
+      APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+      OG_STATIC: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Rahasia acak (khusus run ini)
+        run: |
+          s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+          echo "::add-mask::$s"
+          echo "APP_SECRET=$s" >> "$GITHUB_ENV"
+      - name: Persiapan Workers (buang /api/og)
+        run: node scripts/cloudflare/prepare.mjs
+      - name: Migrasi skema + data demo
+        run: npx tsx scripts/seed.ts
+      - name: OpenNext build
+        run: npx opennextjs-cloudflare build 2>&1 | tail -n 60
+      - name: Ukuran Worker (dry-run, tanpa login)
+        run: |
+          npx wrangler deploy --dry-run --outdir .wrangler/out 2>&1 | tee dryrun.log | tail -n 25
+          {
+            echo "### Ukuran Worker (batas Free 3072 KiB gzip)"
+            echo '```'
+            grep -E "Total Upload|gzip" dryrun.log || echo "baris ukuran tidak ditemukan"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Gerbang ukuran: margin 5% di bawah batas Free 3072 KiB supaya dependency baru ketahuan sebelum deploy gagal.
+          kib=$(grep -oE "gzip: [0-9]+" dryrun.log | grep -oE "[0-9]+")
+          echo "gzip = ${kib} KiB (gerbang 2900)"
+          [ "${kib:-99999}" -le 2900 ]
+      - name: Ukuran gzip per komponen (level 6)
+        run: |
+          {
+            echo "### gzip per komponen (KiB)"
+            echo '```'
+            for f in .open-next/server-functions/default/handler.mjs .open-next/middleware/handler.mjs \
+                     .open-next/server-functions/default/node_modules/next/dist/server/capsize-font-metrics.json \
+                     .wrangler/out/*.wasm .wrangler/out/worker.js; do
+              [ -f "$f" ] && echo "$(( $(gzip -6c "$f" | wc -c) / 1024 )) KiB gzip / $(( $(wc -c < "$f") / 1024 )) KiB mentah  $f"
+            done
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      # Runtime nyata: Worker dijalankan di workerd lokal (wrangler dev) terhadap Postgres service.
+      # Tidak menegakkan batas CPU 10 ms Free (itu hanya ada di produksi), tapi membuktikan kompatibilitas
+      # API (soket Postgres, node:crypto, CSP nonce, render halaman) yang tidak terlihat dari build saja.
+      - name: Worker di workerd (wrangler dev) + cek HTTP
+        run: |
+          cat > .dev.vars <<VARS
+          DATABASE_URL=${DATABASE_URL}
+          APP_SECRET=${APP_SECRET}
+          STORAGE_DRIVER=r2
+          PAYMENT_PROVIDER=mock
+          REQUIRE_STAFF_2FA=0
+          APP_URL=http://localhost:8787
+          OG_STATIC=1
+          CLOUDINARY_CLOUD_NAME=test-cloud
+          TURNSTILE_SITE_KEY=1x00000000000000000000AA
+          TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+          VARS
+          npx wrangler dev --port 8787 --ip 127.0.0.1 > wrangler-dev.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8787/ && break; sleep 1; done
+          fail=0
+          for path in / /jelajahi /masuk /forum /komunitas /ketentuan; do
+            code=$(curl -s -o /tmp/body -w "%{http_code}" "http://127.0.0.1:8787${path}")
+            echo "GET ${path} -> ${code}"
+            [ "$code" = "200" ] || { fail=1; head -c 400 /tmp/body; echo; }
+          done
+          csp=$(curl -s -D - -o /dev/null http://127.0.0.1:8787/ | grep -i '^content-security-policy' || true)
+          echo "$csp" | grep -q "nonce-" && echo "CSP nonce: ada" || { echo "CSP nonce: TIDAK ADA"; fail=1; }
+          [ "$fail" = "0" ] || { echo "--- wrangler-dev.log"; tail -n 80 wrangler-dev.log; exit 1; }
+      # Diagnosis: smoke test penuh melawan Worker. Mode keep-going, TIDAK menggagalkan job (banyak fitur
+      # sengaja belum dipindah: SSE, sharp, cron). Hasilnya jadi daftar kerja, bukan gerbang.
+      - name: Smoke penuh melawan Worker (diagnosis)
+        continue-on-error: true
+        env:
+          SMOKE_KEEP_GOING: "1"
+        run: |
+          set +e
+          timeout 600 node scripts/smoke-test.mjs http://127.0.0.1:8787 > smoke-worker.log 2>&1
+          {
+            echo "### Smoke penuh melawan Worker"
+            echo '```'
+            grep -E "^RINGKASAN|^  GAGAL" smoke-worker.log | head -n 80
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "--- smoke-worker.log (akhir)"; grep -v "^✓" smoke-worker.log | tail -n 30 | cut -c1-240
+          echo "--- wrangler-dev.log (tanpa baris info)"; grep -v "wrangler:info" wrangler-dev.log | tail -n 80 | cut -c1-300
+          echo "--- probe pasca-smoke"
+          curl -s -o /dev/null -w "GET / -> %{http_code}\n" http://127.0.0.1:8787/
+          curl -s -i -X POST -H "content-type: application/json" -H "origin: http://127.0.0.1:8787" -d '{}' http://127.0.0.1:8787/api/uploads/init | head -n 12 | cut -c1-200
+          echo "--- 3 request terakhir"; grep "wrangler:info" wrangler-dev.log | tail -n 3
+          echo "--- konteks wasm di handler.mjs"; awk 'NR==486' .open-next/server-functions/default/handler.mjs | cut -c263300-264000

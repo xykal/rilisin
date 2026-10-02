@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import sharp from "sharp";
+import { toWebp } from "@/lib/image";
 import { apiError, guardMutation, json } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { db } from "@/lib/db";
@@ -49,11 +49,7 @@ export async function POST(req: Request) {
 
   let out: Buffer;
   try {
-    out = await sharp(buf, { failOn: "error", limitInputPixels: 40_000_000 })
-      .rotate()
-      .resize(256, 256, { fit: "cover" })
-      .webp({ quality: 85 })
-      .toBuffer();
+    out = (await toWebp(buf, { width: 256, height: 256, fit: "cover", quality: 85, maxPixels: 40_000_000 })).data;
   } catch {
     return apiError(415, "Gambar rusak atau tidak bisa dibaca.");
   }
