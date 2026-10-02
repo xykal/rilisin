@@ -1,4 +1,4 @@
-# Bukti build Cloudflare Workers (OpenNext) TANPA deploy dan TANPA menyentuh package.json.
+# Bukti build Cloudflare Workers (OpenNext) TANPA deploy.
 # Pertanyaan yang dijawab: apakah app ini terbuild untuk workerd, dan berapa ukuran
 # Worker (batas Workers Free = 3 MiB gzip). Deploy dibuat terpisah setelah ini hijau.
 name: Cloudflare build proof
@@ -51,8 +51,6 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci --no-audit --no-fund
-      - name: Adapter + wrangler (sementara, --no-save)
-        run: npm install --no-save --no-audit --no-fund @opennextjs/cloudflare@1.20.7 wrangler@4.147.0
       - name: Rahasia acak (khusus run ini)
         run: |
           s=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
