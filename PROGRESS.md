@@ -405,3 +405,11 @@ Lanjutan hari yang sama (Cloudflare Workers, langkah 1):
 - Hasil: base 3707 KiB gzip (tidak muat 3072), lean 2647 KiB (muat). Detail di docs/CLOUDFLARE.md.
 - Hipotesis capsize-font-metrics ter-inline terbukti salah dan dibuang.
 - UNVERIFIED: runtime di workerd (CPU 10 ms, Hyperdrive, sharp, chat, ClamAV).
+
+Lanjutan (Cloudflare Workers, langkah 2a dan 3):
+- Keputusan OG/middleware/ClamAV diambil XyDeveloper (kall delegasi). Rinci di docs/CLOUDFLARE.md.
+- DB per request (Hyperdrive/DATABASE_URL), `toWebp` (sharp/Images), driver R2: semua aditif, jalur Node tidak berubah.
+- Smoke penuh melawan Worker di workerd lokal: 367 lulus, 3 gagal (OG sengaja, 2 artefak seed).
+- Ukuran Worker 2700 KiB gzip.
+- UNVERIFIED: CPU 10 ms nyata, Hyperdrive, Images di edge, polling chat. Belum ada deploy.
+- Butuh kall: secret `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` di GitHub Secrets untuk deploy staging.

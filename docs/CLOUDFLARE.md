@@ -74,3 +74,40 @@ Hipotesis yang SALAH: `capsize-font-metrics.json` (4 MiB) ter-inline ke worker. 
 
 Belum terbukti (langkah berikut): CPU 10 ms/request di Free untuk SSR, Hyperdrive + `postgres.js`
 per-request, `sharp` (upload/avatar/cover), chat tanpa LISTEN, penyimpanan R2, nasib ClamAV.
+
+## Langkah 2a + 3 (2026-10-02, PR #20): keputusan dan bukti runtime lokal
+
+Keputusan (kall delegasikan, XyDeveloper yang putuskan):
+- OG: kartu statis `public/og.png` lewat `OG_STATIC=1`; `src/app/api/og` dibuang hanya di build Workers
+  (`scripts/cloudflare/prepare.mjs`). Worker OG terpisah ditunda.
+- `src/proxy.ts` jadi `src/middleware.ts` (edge-safe, Web Crypto). Next 16 mencetak peringatan deprecated.
+  CI utama (smoke + security + ZAP) hijau dengan middleware ini (run 37033147303).
+- ClamAV tetap lewat worker scan GitHub Actions dengan `REQUIRE_CLEAN_SCAN=1`.
+
+Perubahan runtime (semuanya otomatis memilih jalur Workers hanya bila `navigator.userAgent === "Cloudflare-Workers"`
+atau env tertentu; jalur Node/Vercel/Docker tidak berubah):
+- `src/lib/db/index.ts`: `db` dan `pg` jadi proxy lazy. Di Workers klien postgres dibuat per request
+  (WeakMap atas `ctx`), sumber: binding `HYPERDRIVE` bila ada, jika tidak `DATABASE_URL` (TCP langsung).
+- `src/lib/image.ts`: `toWebp()` memakai sharp di Node dan binding Cloudflare Images (`IMAGES`) di Workers.
+- `src/lib/storage/r2.ts` + `proxied.ts`: driver `STORAGE_DRIVER=r2` (binding `BUCKET`). Upload/unduh/media tetap
+  lewat route aplikasi (token bertanda tangan yang sama dengan driver local). Body upload dibungkus
+  `FixedLengthStream` karena R2 butuh panjang yang diketahui.
+- `wrangler.jsonc`: `images`, `r2_buckets`, dan `run_worker_first` untuk `/sw.js` + `/OneSignalSDKWorker.js`
+  (aset statis lain dilayani langsung dan tidak memakan kuota request; header CSP khusus SW butuh middleware).
+
+Bukti (job `Cloudflare build proof`, wrangler dev = workerd lokal + Postgres service + R2/Images simulasi):
+- Smoke test penuh melawan Worker: 367 lulus, 3 gagal (run 37037006196, commit c7e7f7c). CI utama di commit yang sama hijau (37037006250).
+- Termasuk lulus: login, server action, upload ikon/cover/screenshot/APK (R2 + Images), review, API key,
+  chat tulis/baca, forum, 2FA, pembayaran mock, rilis terjadwal.
+- Ukuran: 2700 KiB gzip (batas 3072, gerbang CI 2900).
+
+3 kegagalan yang tersisa:
+1. `/api/og` (sengaja dibuang di build Workers).
+2-3. Unduhan file seed (seed menulis ke disk lokal job, bukan R2, jadi 404 di mode R2). Artefak setup uji,
+   bukan bug. Unduhan file hasil upload lewat R2 lulus di tes lain.
+Sebelumnya ada kegagalan ke-4 (CSP service worker: aset statis tidak lewat middleware); diperbaiki dengan
+`run_worker_first`, terbukti di run di atas.
+
+Belum terbukti (hanya bisa di Cloudflare sungguhan): batas CPU 10 ms/request pada Free, perilaku Hyperdrive,
+binding Images di edge (lokal disimulasikan), kuota 100k request/hari dengan polling chat.
+Chat SSE (`/api/chat/stream`, LISTEN per proses) belum dipindah: di Workers harus polling.
