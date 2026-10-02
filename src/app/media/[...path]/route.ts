@@ -1,14 +1,13 @@
-import { storageDriverName } from "@/lib/storage";
-import { openLocalStream } from "@/lib/storage/local";
+import { isProxiedDriver, openStream } from "@/lib/storage/proxied";
 
 /** Menyajikan gambar publik (ikon, cover, screenshot) dari storage lokal. Di production diganti CDN R2. */
 export async function GET(_req: Request, ctx: RouteContext<"/media/[...path]">) {
-  if (storageDriverName() !== "local") return new Response("Tidak ditemukan", { status: 404 }); // khusus driver local
+  if (!isProxiedDriver()) return new Response("Tidak ditemukan", { status: 404 }); // khusus driver local
   const { path } = await ctx.params;
   const key = `public/${path.join("/")}`;
   if (!key.endsWith(".webp")) return new Response("Not found", { status: 404 });
   try {
-    const { stream, size } = await openLocalStream(key);
+    const { stream, size } = await openStream(key);
     return new Response(stream, {
       headers: {
         "Content-Type": "image/webp",

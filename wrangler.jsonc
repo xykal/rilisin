@@ -9,6 +9,8 @@
   "minify": true,
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   // Normalisasi gambar upload (sharp tidak jalan di workerd). Lihat src/lib/image.ts.
+  // Penyimpanan file (STORAGE_DRIVER=r2). Bucket dibuat sekali: wrangler r2 bucket create rilisin-files.
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "rilisin-files" }],
   "images": { "binding": "IMAGES" },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "rilisin" }],
   "observability": { "enabled": true }

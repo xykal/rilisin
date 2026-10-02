@@ -95,7 +95,7 @@ jobs:
           cat > .dev.vars <<VARS
           DATABASE_URL=${DATABASE_URL}
           APP_SECRET=${APP_SECRET}
-          STORAGE_DRIVER=local
+          STORAGE_DRIVER=r2
           PAYMENT_PROVIDER=mock
           REQUIRE_STAFF_2FA=0
           APP_URL=http://localhost:8787

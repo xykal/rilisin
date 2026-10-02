@@ -1,8 +1,7 @@
-import { storageDriverName } from "@/lib/storage";
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { isSameOrigin } from "@/lib/http";
-import { writeLocalStream } from "@/lib/storage/local";
+import { isProxiedDriver, writeStream } from "@/lib/storage/proxied";
 import { StorageError } from "@/lib/storage/types";
 import { readUploadToken } from "@/lib/uploads";
 
@@ -11,8 +10,7 @@ import { readUploadToken } from "@/lib/uploads";
  * Body di-stream langsung ke disk dengan batas ukuran sesuai token.
  */
 export async function PUT(req: NextRequest) {
-  if (storageDriverName() !== "local") return new Response("Tidak ditemukan", { status: 404 }); // khusus driver local
-  if ((process.env.STORAGE_DRIVER ?? "local") !== "local") return new Response("Not found", { status: 404 });
+  if (!isProxiedDriver()) return new Response("Tidak ditemukan", { status: 404 }); // khusus driver local / r2
   if (!isSameOrigin(req)) return Response.json({ error: "Origin tidak diizinkan" }, { status: 403 });
 
   const token = readUploadToken(req.nextUrl.searchParams.get("token"));
@@ -25,7 +23,8 @@ export async function PUT(req: NextRequest) {
   if (declared > token.s) return Response.json({ error: "File lebih besar dari yang dideklarasikan" }, { status: 413 });
 
   try {
-    const size = await writeLocalStream(token.k, req.body, token.s);
+    const lenHeader = req.headers.get("content-length");
+    const size = await writeStream(token.k, req.body, token.s, lenHeader ? Number(lenHeader) : undefined);
     return Response.json({ ok: true, size });
   } catch (err) {
     if (err instanceof StorageError && err.code === "TOO_LARGE") {
