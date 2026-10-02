@@ -5,6 +5,11 @@ name: Cloudflare deploy staging
 
 on:
   workflow_dispatch:
+    inputs:
+      cpu_ms:
+        description: "Batas CPU per request untuk uji (10 = simulasi Workers Free). Kosong = default akun."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -24,6 +29,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       STAGING_ENV: ${{ secrets.RILISIN_STAGING_ENV }}
+      CPU_LIMIT_MS: ${{ inputs.cpu_ms }}
       NEXT_PUBLIC_ONESIGNAL_APP_ID: 2679dd2e-12a3-4274-a1c2-eecc75b99a0b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -78,18 +84,43 @@ jobs:
             echo "GET $p -> $c"
             [ "$c" = "200" ] || { fail=1; head -c 300 /tmp/body; echo; }
           done
-          sleep 5
-          echo "--- wrangler tail (ringkas)"
+          echo "--- sampel hangat: 15x per halaman"
+          for p in /ketentuan /masuk /jelajahi /forum; do
+            codes=""
+            for i in $(seq 1 15); do
+              codes="$codes $(curl -s -o /dev/null -w '%{http_code}' -u "$SITE_LOCK_USER:$SITE_LOCK_PASSWORD" "$base$p")"
+            done
+            echo "$p:$codes"
+          done
+          sleep 6
+          echo "--- statistik CPU dari wrangler tail"
           python3 - <<'PY'
-          import json
-          for l in open("tail.log"):
-              l=l.strip()
-              if not l.startswith("{"):
-                  print(l[:200]); continue
-              try: e=json.loads(l)
-              except Exception: continue
-              print(e.get("outcome"), (e.get("event") or {}).get("request",{}).get("url","")[-40:])
-              for m in e.get("logs",[])[:4]: print("  LOG", str(m.get("message"))[:400])
-              for x in e.get("exceptions",[])[:4]: print("  EXC", x.get("name"), str(x.get("message"))[:400])
+          import json, statistics
+          txt = open("tail.log").read()
+          dec = json.JSONDecoder(); i = 0; ev = []
+          while True:
+              i = txt.find("{", i)
+              if i < 0: break
+              try:
+                  obj, end = dec.raw_decode(txt, i)
+              except Exception:
+                  i += 1; continue
+              i = end
+              if isinstance(obj, dict) and "cpuTime" in obj:
+                  ev.append(obj)
+          def path(e):
+              return (e.get("event") or {}).get("request", {}).get("url", "").split(".dev", 1)[-1]
+          by = {}
+          for e in ev:
+              by.setdefault(path(e) or "?", []).append(e)
+          print("total event:", len(ev), "| outcome:", {o: sum(1 for e in ev if e.get("outcome") == o) for o in {e.get("outcome") for e in ev}})
+          for p, es in sorted(by.items()):
+              cpu = sorted(e["cpuTime"] for e in es)
+              st = sorted(e["wallTime"] for e in es)
+              q = lambda a, f: a[min(len(a) - 1, int(f * len(a)))]
+              print(f"{p[:28]:28} n={len(es):3} cpu_ms min={cpu[0]} p50={q(cpu,.5)} p90={q(cpu,.9)} max={cpu[-1]} | wall p50={q(st,.5)}")
+          bad = [e for e in ev if e.get("outcome") not in ("ok",)]
+          for e in bad[:5]:
+              print("non-ok:", e.get("outcome"), path(e), [x.get("message", "")[:120] for x in e.get("exceptions", [])][:1])
           PY
           exit $fail

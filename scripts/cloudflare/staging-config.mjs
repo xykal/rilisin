@@ -10,5 +10,7 @@ const json = raw
   .join("\n");
 const cfg = JSON.parse(json);
 delete cfg.r2_buckets;
+// Simulasi batas CPU Workers Free pada akun berbayar: CPU_LIMIT_MS=10 -> limits.cpu_ms=10
+if (process.env.CPU_LIMIT_MS) cfg.limits = { cpu_ms: Number(process.env.CPU_LIMIT_MS) };
 writeFileSync("wrangler.staging.json", JSON.stringify(cfg, null, 2));
 console.log("wrangler.staging.json:", Object.keys(cfg).join(", "));
