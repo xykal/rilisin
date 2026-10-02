@@ -29,7 +29,7 @@ writeFileSync(
   dbFile,
   src.replace(
     from,
-    '// @ts-ignore -- build cf tidak punya tipe; bentuk API sama dengan paket utama\nimport postgres from "./pg-cf/src/index.js";\nimport type { Sql } from "postgres";',
+    '// @ts-ignore -- build cf tidak punya tipe; API sama dengan paket utama\nimport postgresCf from "./pg-cf/src/index.js";\nimport type PostgresFn from "postgres";\nimport type { Sql } from "postgres";\nconst postgres = postgresCf as unknown as typeof PostgresFn;',
   ),
 );
 console.log("dialihkan: postgres -> salinan postgres/cf (build Workers saja)");
