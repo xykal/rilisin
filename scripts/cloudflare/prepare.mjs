@@ -14,7 +14,7 @@ console.log("dibuang: src/app/api/og (OG_STATIC=1 wajib di build dan runtime)");
 // bundler (workerd me-resolve-nya saat runtime), lalu arahkan impor di src/lib/db/index.ts ke salinan itu.
 import { cpSync, readFileSync, writeFileSync } from "node:fs";
 
-cpSync("node_modules/postgres/cf/src", "src/lib/db/pg-cf", { recursive: true });
+cpSync("node_modules/postgres/cf", "src/lib/db/pg-cf", { recursive: true });
 const poly = "src/lib/db/pg-cf/polyfills.js";
 const polySrc = readFileSync(poly, "utf8");
 const needle = "await import('cloudflare:sockets')";
@@ -29,7 +29,7 @@ writeFileSync(
   dbFile,
   src.replace(
     from,
-    '// @ts-ignore -- build cf tidak punya tipe; bentuk API sama dengan paket utama\nimport postgres from "./pg-cf/index.js";\nimport type { Sql } from "postgres";',
+    '// @ts-ignore -- build cf tidak punya tipe; bentuk API sama dengan paket utama\nimport postgres from "./pg-cf/src/index.js";\nimport type { Sql } from "postgres";',
   ),
 );
 console.log("dialihkan: postgres -> salinan postgres/cf (build Workers saja)");
