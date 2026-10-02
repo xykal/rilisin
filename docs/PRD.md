@@ -80,12 +80,12 @@ abuse/cost-DoS, supply-chain compromise of CI. Controls in place: nonce CSP +
 strict-dynamic, server-side per-object authorization checks, HMAC/constant-time
 webhook secret with gateway re-confirmation, shared Postgres rate limits, TOTP 2FA,
 ClamAV scanning with blocked hashes, signed expiring download URLs, SHA-pinned
-actions. Proving tests: smoke suite (143 checks), Pakasir contract test, backup
+actions. Proving tests: smoke suite (297 checks), Pakasir contract test, backup
 restore test, ClamAV EICAR test — all in CI.
 
 ## 9. Stack (current stable, 2026-09)
 
-Next.js 16.3.6, React 19.2.8, TypeScript strict, Tailwind CSS 4, Drizzle ORM
+Next.js 16.3.6, React 19.3.0, TypeScript strict, Tailwind CSS 4, Drizzle ORM
 0.45 + Postgres (Neon), Vercel Blob storage, Zod 4, sharp, qrcode, react-markdown
 (remark-gfm). Node >= 20.9. Package manager: npm (lockfile committed).
 
@@ -111,7 +111,7 @@ Community: chat polling + SSE stream, forum threads, notifications fan-out.
 
 ## 12. CI/CD
 
-lint → typecheck → seed → backup/restore test → build → smoke test (143 checks)
+lint → typecheck → seed → backup/restore test → build → smoke test (297 checks)
 → Pakasir contract test → dependency audit (npm audit high/critical) → deploy
 staging (Vercel, main only, environment secrets). Antivirus (ClamAV) and UI audit
 run as separate path-filtered workflows. All actions pinned by commit SHA.
@@ -172,5 +172,5 @@ until counsel review. LICENSE exists (proprietary, DRAFT).
 6. Target metrik: aktivasi seller (publish pertama) → retensi D7/D30 pembeli → MRR komisi.
 7. Risiko utama: merek belum dicek, ketergantungan free tier, abuse/biaya, dan legal belum siap launch.
 8. Arsitektur: Next.js 16 + Postgres (Neon) + Vercel Blob; pembayaran Pakasir dengan re-confirm webhook.
-9. CI: lint → typecheck → tes (143 cek) → audit dependency → deploy staging; semua action di-pin SHA.
+9. CI: lint → typecheck → tes (297 cek) → audit dependency → deploy staging; semua action di-pin SHA.
 10. Milestone: legal + DESIGN.md target 5 Okt 2026, cutover produksi 19 Okt 2026, gerbang launch publik 2 Nov 2026.
