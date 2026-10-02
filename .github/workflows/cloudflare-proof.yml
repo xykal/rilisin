@@ -100,6 +100,9 @@ jobs:
           REQUIRE_STAFF_2FA=0
           APP_URL=http://localhost:8787
           OG_STATIC=1
+          CLOUDINARY_CLOUD_NAME=test-cloud
+          TURNSTILE_SITE_KEY=1x00000000000000000000AA
+          TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
           VARS
           npx wrangler dev --port 8787 --ip 127.0.0.1 > wrangler-dev.log 2>&1 &
           for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8787/ && break; sleep 1; done
@@ -112,3 +115,20 @@ jobs:
           csp=$(curl -s -D - -o /dev/null http://127.0.0.1:8787/ | grep -i '^content-security-policy' || true)
           echo "$csp" | grep -q "nonce-" && echo "CSP nonce: ada" || { echo "CSP nonce: TIDAK ADA"; fail=1; }
           [ "$fail" = "0" ] || { echo "--- wrangler-dev.log"; tail -n 80 wrangler-dev.log; exit 1; }
+      # Diagnosis: smoke test penuh melawan Worker. Mode keep-going, TIDAK menggagalkan job (banyak fitur
+      # sengaja belum dipindah: SSE, sharp, cron). Hasilnya jadi daftar kerja, bukan gerbang.
+      - name: Smoke penuh melawan Worker (diagnosis)
+        continue-on-error: true
+        env:
+          SMOKE_KEEP_GOING: "1"
+        run: |
+          set +e
+          timeout 600 node scripts/smoke-test.mjs http://127.0.0.1:8787 > smoke-worker.log 2>&1
+          {
+            echo "### Smoke penuh melawan Worker"
+            echo '```'
+            grep -E "^RINGKASAN|^  GAGAL" smoke-worker.log | head -n 80
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -E "^(TypeError|Error|ReferenceError)|at " smoke-worker.log | head -n 8
+          echo "--- wrangler-dev.log (akhir)"; tail -n 60 wrangler-dev.log

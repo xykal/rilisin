@@ -26,10 +26,23 @@ const TURNSTILE_TEST_SITEKEY = "1x00000000000000000000AA";
 const isSignedDownload = (loc) => loc.startsWith("/api/storage/file?token=") || /^https:\/\/[a-z0-9]+\.private\.blob\.vercel-storage\.com\/.+vercel-blob-signature=/.test(loc);
 let passed = 0;
 
+// SMOKE_KEEP_GOING=1: catat kegagalan dan lanjut (untuk diagnosis target baru, mis. Cloudflare Workers).
+// Default tetap berhenti di kegagalan pertama.
+const KEEP_GOING = process.env.SMOKE_KEEP_GOING === "1";
+const failures = [];
+if (KEEP_GOING) {
+  process.on("exit", () => {
+    console.log(`\nRINGKASAN: ${passed} lulus, ${failures.length} gagal`);
+    for (const f of failures) console.log(`  GAGAL: ${f}`);
+  });
+}
+
 function ok(cond, label) {
   if (!cond) {
     console.error(`✗ ${label}`);
-    process.exit(1);
+    if (!KEEP_GOING) process.exit(1);
+    failures.push(label);
+    return;
   }
   passed++;
   console.log(`✓ ${label}`);
@@ -1494,4 +1507,5 @@ async function register(s, username, password, extra = {}) {
   }
 }
 
+if (failures.length) process.exit(1);
 console.log(`\nSemua ${passed} pengecekan lulus.`);
