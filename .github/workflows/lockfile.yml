@@ -1,0 +1,44 @@
+# Bootstrap lockfile tanpa install lokal: menambah dependency dev persis (exact) dan memperbarui
+# package-lock.json di CI, lalu commit atas nama xykal. Commit dari GITHUB_TOKEN tidak memicu workflow
+# lain (mencegah loop); picu CI sesudahnya dengan push biasa.
+name: Lockfile bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Daftar paket@versi dipisah spasi (devDependencies, versi exact)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lockfile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Tambah dependency + perbarui lockfile
+        env:
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          # Validasi ketat: hanya nama@versi exact, tanpa karakter shell.
+          for p in $PACKAGES; do
+            echo "$p" | grep -Eq '^(@[a-z0-9._-]+/)?[a-z0-9._-]+@[0-9]+\.[0-9]+\.[0-9]+$' || { echo "paket tidak valid: $p"; exit 1; }
+          done
+          npm install --package-lock-only --ignore-scripts --save-dev --save-exact $PACKAGES --no-audit --no-fund
+      - name: Commit
+        run: |
+          git config --local user.name "xykal"
+          git config --local user.email "xykal@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: tambah dependency dev via lockfile bootstrap" || echo "nothing to commit"
+          git push
