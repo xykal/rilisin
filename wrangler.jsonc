@@ -7,7 +7,9 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   // Output OpenNext sudah di-minify, tapi wrangler membundel ulang tanpa minify (ukuran mentah membengkak ~30%).
   "minify": true,
-  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  // run_worker_first: dua service worker harus lewat middleware supaya dapat header CSP khusus (aset statis lain
+  // dilayani langsung tanpa memakan kuota request Worker).
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS", "run_worker_first": ["/sw.js", "/OneSignalSDKWorker.js"] },
   // Normalisasi gambar upload (sharp tidak jalan di workerd). Lihat src/lib/image.ts.
   // Penyimpanan file (STORAGE_DRIVER=r2). Bucket dibuat sekali: wrangler r2 bucket create rilisin-files.
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "rilisin-files" }],
