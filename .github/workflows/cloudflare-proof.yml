@@ -113,3 +113,15 @@ jobs:
             cat dryrun-diet.log
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Metafile esbuild (diagnostik akurat, perkiraan wrangler)
+        continue-on-error: true
+        run: |
+          npx esbuild .open-next/worker.js --bundle --metafile=esbuild-meta.json --outfile=/dev/null \
+            --platform=neutral --format=esm --conditions=workerd,worker,browser --main-fields=module,main \
+            --external:node:* --external:cloudflare:* --loader:.wasm=empty --loader:.bin=empty --log-level=error
+          {
+            echo "### Metafile (${{ matrix.variant }}, SETELAH diet)"
+            echo '```'
+            node scripts/qa/meta-report.mjs esbuild-meta.json
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
