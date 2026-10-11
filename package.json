@@ -28,10 +28,10 @@
     "backup:restore": "tsx scripts/backup-restore.ts"
   },
   "dependencies": {
-    "@vercel/blob": "^2.8.0",
+    "@vercel/blob": "^2.8.1",
     "drizzle-orm": "^0.45.3",
-    "lucide-react": "^1.48.0",
-    "next": "16.3.6",
+    "lucide-react": "^1.52.0",
+    "next": "16.4.0",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "react": "19.3.0",
@@ -39,26 +39,26 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "1.20.7",
+    "@opennextjs/cloudflare": "1.20.9",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dotenv": "^18.0.4",
+    "dotenv": "^18.0.6",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "16.4.0",
     "fflate": "^0.8.3",
-    "playwright": "^1.63.0",
+    "playwright": "^1.64.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
-    "wrangler": "4.147.0"
+    "wrangler": "4.148.0"
   },
   "engines": {
     "node": ">=20.9"
